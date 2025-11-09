@@ -533,6 +533,7 @@ function editProduct(id) {
         $('#productCostPrice').val(product.cost_price);
         $('#productSellingPrice').val(product.selling_price);
         $('#productMRP').val(product.mrp);
+        $('#productCurrentStock').val(product.current_stock);
         $('#productMinStock').val(product.min_stock_level);
         $('#productLocation').val(product.storage_location);
         $('#productIMEI').val(product.imei);
@@ -581,6 +582,7 @@ function saveProduct() {
         selling_price: parseFloat($('#productSellingPrice').val()) || 0,
         mrp: parseFloat($('#productMRP').val()) || 0,
         opening_stock: parseInt($('#productOpeningStock').val()) || 0,
+        current_stock: parseInt($('#productCurrentStock').val()) || 0,
         min_stock_level: parseInt($('#productMinStock').val()) || 10,
         storage_location: $('#productLocation').val(),
         imei: $('#productIMEI').val(),

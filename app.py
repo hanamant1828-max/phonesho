@@ -453,23 +453,36 @@ def product_detail(id):
     elif request.method == 'PUT':
         data = request.json
         try:
+            # Get old stock value to track changes
+            cursor.execute('SELECT current_stock FROM products WHERE id = ?', (id,))
+            old_stock = cursor.fetchone()['current_stock']
+            new_stock = data.get('current_stock', old_stock)
+            
             cursor.execute('''
                 UPDATE products SET
                     sku = ?, name = ?, category_id = ?, brand_id = ?, model_id = ?,
                     description = ?, cost_price = ?, selling_price = ?, mrp = ?,
-                    min_stock_level = ?, storage_location = ?, imei = ?, color = ?,
+                    current_stock = ?, min_stock_level = ?, storage_location = ?, imei = ?, color = ?,
                     storage_capacity = ?, ram = ?, warranty_period = ?, supplier_name = ?,
                     supplier_contact = ?, image_url = ?, status = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (
                 data.get('sku'), data['name'], data.get('category_id'), data.get('brand_id'),
                 data.get('model_id'), data.get('description'), data.get('cost_price', 0),
-                data.get('selling_price', 0), data.get('mrp', 0), data.get('min_stock_level', 10),
-                data.get('storage_location'), data.get('imei'), data.get('color'),
-                data.get('storage_capacity'), data.get('ram'), data.get('warranty_period'),
-                data.get('supplier_name'), data.get('supplier_contact'), data.get('image_url'),
-                data.get('status', 'active'), id
+                data.get('selling_price', 0), data.get('mrp', 0), new_stock,
+                data.get('min_stock_level', 10), data.get('storage_location'), data.get('imei'), 
+                data.get('color'), data.get('storage_capacity'), data.get('ram'), 
+                data.get('warranty_period'), data.get('supplier_name'), data.get('supplier_contact'), 
+                data.get('image_url'), data.get('status', 'active'), id
             ))
+            
+            # Record stock adjustment if stock changed
+            if new_stock != old_stock:
+                stock_diff = new_stock - old_stock
+                cursor.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (id, 'adjustment', stock_diff, 'manual', 'Stock adjustment via edit'))
             conn.commit()
             return jsonify({'success': True})
         except sqlite3.IntegrityError as e:
