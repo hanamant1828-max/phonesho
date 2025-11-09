@@ -36,65 +36,6 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
-    # Migration: Add payment_status and storage_location to purchase_orders if they don't exist
-    cursor.execute("PRAGMA table_info(purchase_orders)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if 'payment_status' not in columns:
-        cursor.execute('ALTER TABLE purchase_orders ADD COLUMN payment_status TEXT DEFAULT "unpaid"')
-    if 'storage_location' not in columns:
-        cursor.execute('ALTER TABLE purchase_orders ADD COLUMN storage_location TEXT')
-
-    # Create damaged_items table if it doesn't exist
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS damaged_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            po_id INTEGER NOT NULL,
-            po_item_id INTEGER NOT NULL,
-            product_name TEXT NOT NULL,
-            quantity INTEGER NOT NULL,
-            damage_reason TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (po_id) REFERENCES purchase_orders (id),
-            FOREIGN KEY (po_item_id) REFERENCES purchase_order_items (id)
-        )
-    ''')
-
-    # Create GRN table if it doesn't exist
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS grns (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            grn_number TEXT UNIQUE NOT NULL,
-            po_id INTEGER NOT NULL,
-            po_number TEXT NOT NULL,
-            supplier_name TEXT NOT NULL,
-            received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            total_items INTEGER DEFAULT 0,
-            total_quantity INTEGER DEFAULT 0,
-            payment_status TEXT DEFAULT 'unpaid',
-            storage_location TEXT,
-            notes TEXT,
-            created_by TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (po_id) REFERENCES purchase_orders (id)
-        )
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS grn_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            grn_id INTEGER NOT NULL,
-            product_id INTEGER,
-            product_name TEXT NOT NULL,
-            quantity_received INTEGER NOT NULL,
-            quantity_damaged INTEGER DEFAULT 0,
-            damage_reason TEXT,
-            cost_price REAL NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (grn_id) REFERENCES grns (id),
-            FOREIGN KEY (product_id) REFERENCES products (id)
-        )
-    ''')
-
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -207,6 +148,55 @@ def init_db():
             reference_id INTEGER,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS damaged_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            po_id INTEGER NOT NULL,
+            po_item_id INTEGER NOT NULL,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            damage_reason TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders (id),
+            FOREIGN KEY (po_item_id) REFERENCES purchase_order_items (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS grns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grn_number TEXT UNIQUE NOT NULL,
+            po_id INTEGER NOT NULL,
+            po_number TEXT NOT NULL,
+            supplier_name TEXT NOT NULL,
+            received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            total_items INTEGER DEFAULT 0,
+            total_quantity INTEGER DEFAULT 0,
+            payment_status TEXT DEFAULT 'unpaid',
+            storage_location TEXT,
+            notes TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS grn_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grn_id INTEGER NOT NULL,
+            product_id INTEGER,
+            product_name TEXT NOT NULL,
+            quantity_received INTEGER NOT NULL,
+            quantity_damaged INTEGER DEFAULT 0,
+            damage_reason TEXT,
+            cost_price REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (grn_id) REFERENCES grns (id),
             FOREIGN KEY (product_id) REFERENCES products (id)
         )
     ''')
