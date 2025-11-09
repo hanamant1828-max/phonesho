@@ -35,7 +35,7 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Migration: Add payment_status and storage_location to purchase_orders if they don't exist
     cursor.execute("PRAGMA table_info(purchase_orders)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -43,7 +43,7 @@ def init_db():
         cursor.execute('ALTER TABLE purchase_orders ADD COLUMN payment_status TEXT DEFAULT "unpaid"')
     if 'storage_location' not in columns:
         cursor.execute('ALTER TABLE purchase_orders ADD COLUMN storage_location TEXT')
-    
+
     # Create damaged_items table if it doesn't exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS damaged_items (
@@ -58,7 +58,7 @@ def init_db():
             FOREIGN KEY (po_item_id) REFERENCES purchase_order_items (id)
         )
     ''')
-    
+
     # Create GRN table if it doesn't exist
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grns (
@@ -78,7 +78,7 @@ def init_db():
             FOREIGN KEY (po_id) REFERENCES purchase_orders (id)
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS grn_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -94,7 +94,7 @@ def init_db():
             FOREIGN KEY (product_id) REFERENCES products (id)
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +103,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS brands (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,7 +112,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS models (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,7 +124,7 @@ def init_db():
             UNIQUE(name, brand_id)
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,7 +157,7 @@ def init_db():
             FOREIGN KEY (model_id) REFERENCES models (id)
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS purchase_orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,7 +175,7 @@ def init_db():
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS purchase_order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -196,7 +196,7 @@ def init_db():
             FOREIGN KEY (model_id) REFERENCES models (id)
         )
     ''')
-    
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS stock_movements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -210,7 +210,7 @@ def init_db():
             FOREIGN KEY (product_id) REFERENCES products (id)
         )
     ''')
-    
+
     conn.commit()
     conn.close()
 
@@ -223,16 +223,16 @@ def login():
     data = request.json
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({'success': False, 'error': 'Username and password required'}), 400
-    
+
     username = data['username']
     password = data['password']
     password_hash = hashlib.sha256(password.encode()).hexdigest()
-    
+
     if username == ADMIN_USERNAME and password_hash == ADMIN_PASSWORD_HASH:
         session['logged_in'] = True
         session['username'] = username
         return jsonify({'success': True, 'username': username})
-    
+
     return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -249,7 +249,7 @@ def check_auth():
 def categories():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         data = request.json
         try:
@@ -272,7 +272,7 @@ def categories():
 def category_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'PUT':
         data = request.json
         try:
@@ -299,7 +299,7 @@ def category_detail(id):
 def brands():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         data = request.json
         try:
@@ -322,7 +322,7 @@ def brands():
 def brand_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'PUT':
         data = request.json
         try:
@@ -349,7 +349,7 @@ def brand_detail(id):
 def models():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         data = request.json
         try:
@@ -377,7 +377,7 @@ def models():
 def model_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'PUT':
         data = request.json
         try:
@@ -404,7 +404,7 @@ def model_detail(id):
 def products():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         data = request.json
         try:
@@ -426,14 +426,14 @@ def products():
                 data.get('status', 'active')
             ))
             conn.commit()
-            
+
             if data.get('opening_stock', 0) > 0:
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (cursor.lastrowid, 'opening_stock', data.get('opening_stock', 0), 'manual', 'Opening stock'))
                 conn.commit()
-            
+
             return jsonify({'success': True, 'id': cursor.lastrowid})
         except sqlite3.IntegrityError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -446,7 +446,7 @@ def products():
         model_id = request.args.get('model_id', '')
         status = request.args.get('status', '')
         stock_status = request.args.get('stock_status', '')
-        
+
         query = '''
             SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
             FROM products p
@@ -456,35 +456,35 @@ def products():
             WHERE 1=1
         '''
         params = []
-        
+
         if search:
             query += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.description LIKE ?)'
             search_param = f'%{search}%'
             params.extend([search_param, search_param, search_param])
-        
+
         if category_id:
             query += ' AND p.category_id = ?'
             params.append(category_id)
-        
+
         if brand_id:
             query += ' AND p.brand_id = ?'
             params.append(brand_id)
-        
+
         if model_id:
             query += ' AND p.model_id = ?'
             params.append(model_id)
-        
+
         if status:
             query += ' AND p.status = ?'
             params.append(status)
-        
+
         if stock_status == 'low':
             query += ' AND p.current_stock <= p.min_stock_level'
         elif stock_status == 'out':
             query += ' AND p.current_stock = 0'
-        
+
         query += ' ORDER BY p.created_at DESC'
-        
+
         cursor.execute(query, params)
         products = [dict(row) for row in cursor.fetchall()]
         conn.close()
@@ -495,7 +495,7 @@ def products():
 def product_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'GET':
         cursor.execute('''
             SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
@@ -510,7 +510,7 @@ def product_detail(id):
         if product:
             return jsonify(dict(product))
         return jsonify({'error': 'Product not found'}), 404
-    
+
     elif request.method == 'PUT':
         data = request.json
         try:
@@ -518,7 +518,7 @@ def product_detail(id):
             cursor.execute('SELECT current_stock FROM products WHERE id = ?', (id,))
             old_stock = cursor.fetchone()['current_stock']
             new_stock = data.get('current_stock', old_stock)
-            
+
             cursor.execute('''
                 UPDATE products SET
                     sku = ?, name = ?, category_id = ?, brand_id = ?, model_id = ?,
@@ -536,7 +536,7 @@ def product_detail(id):
                 data.get('warranty_period'), data.get('supplier_name'), data.get('supplier_contact'), 
                 data.get('image_url'), data.get('status', 'active'), id
             ))
-            
+
             # Record stock adjustment if stock changed
             if new_stock != old_stock:
                 stock_diff = new_stock - old_stock
@@ -550,7 +550,7 @@ def product_detail(id):
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
-    
+
     elif request.method == 'DELETE':
         cursor.execute('DELETE FROM products WHERE id = ?', (id,))
         conn.commit()
@@ -562,15 +562,15 @@ def product_detail(id):
 def bulk_delete_products():
     data = request.json
     ids = data.get('ids', [])
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
+
     placeholders = ','.join('?' * len(ids))
     cursor.execute(f'DELETE FROM products WHERE id IN ({placeholders})', ids)
     conn.commit()
     conn.close()
-    
+
     return jsonify({'success': True, 'deleted': len(ids)})
 
 @app.route('/api/products/bulk-update', methods=['POST'])
@@ -579,29 +579,29 @@ def bulk_update_products():
     data = request.json
     ids = data.get('ids', [])
     updates = data.get('updates', {})
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
+
     set_clauses = []
     params = []
-    
+
     if 'category_id' in updates:
         set_clauses.append('category_id = ?')
         params.append(updates['category_id'])
-    
+
     if 'status' in updates:
         set_clauses.append('status = ?')
         params.append(updates['status'])
-    
+
     if 'selling_price' in updates:
         set_clauses.append('selling_price = ?')
         params.append(updates['selling_price'])
-    
+
     if 'cost_price' in updates:
         set_clauses.append('cost_price = ?')
         params.append(updates['cost_price'])
-    
+
     if set_clauses:
         set_clauses.append('updated_at = CURRENT_TIMESTAMP')
         params.extend(ids)
@@ -609,7 +609,7 @@ def bulk_update_products():
         query = f"UPDATE products SET {', '.join(set_clauses)} WHERE id IN ({placeholders})"
         cursor.execute(query, params)
         conn.commit()
-    
+
     conn.close()
     return jsonify({'success': True, 'updated': len(ids)})
 
@@ -618,7 +618,7 @@ def bulk_update_products():
 def purchase_orders():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'POST':
         data = request.json
         try:
@@ -633,7 +633,7 @@ def purchase_orders():
                 data.get('total_amount', 0), data.get('notes')
             ))
             po_id = cursor.lastrowid
-            
+
             for item in data.get('items', []):
                 cursor.execute('''
                     INSERT INTO purchase_order_items (
@@ -645,7 +645,7 @@ def purchase_orders():
                     item.get('category_id'), item.get('brand_id'), item.get('model_id'),
                     item['quantity'], item['cost_price']
                 ))
-            
+
             conn.commit()
             return jsonify({'success': True, 'id': po_id})
         except sqlite3.IntegrityError as e:
@@ -665,14 +665,14 @@ def purchase_orders():
 def purchase_order_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT * FROM purchase_orders WHERE id = ?', (id,))
     po = cursor.fetchone()
-    
+
     if not po:
         conn.close()
         return jsonify({'error': 'Purchase order not found'}), 404
-    
+
     cursor.execute('''
         SELECT poi.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM purchase_order_items poi
@@ -682,10 +682,10 @@ def purchase_order_detail(id):
         WHERE poi.po_id = ?
     ''', (id,))
     items = [dict(row) for row in cursor.fetchall()]
-    
+
     result = dict(po)
     result['items'] = items
-    
+
     conn.close()
     return jsonify(result)
 
@@ -695,49 +695,49 @@ def receive_purchase_order(id):
     data = request.json
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         payment_status = data.get('payment_status', 'unpaid')
         storage_location = data.get('storage_location', '')
         damaged_count = 0
-        
+
         # Get PO details
         cursor.execute('SELECT po_number, supplier_name FROM purchase_orders WHERE id = ?', (id,))
         po_row = cursor.fetchone()
         if not po_row:
             return jsonify({'success': False, 'error': 'Purchase order not found'}), 404
-        
+
         po_data = dict(po_row)
-        
+
         # Generate GRN number
         grn_number = f"GRN-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-        
+
         # Create GRN record
         cursor.execute('''
             INSERT INTO grns (grn_number, po_id, po_number, supplier_name, payment_status, storage_location, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ''', (grn_number, id, po_data['po_number'], po_data['supplier_name'], payment_status, storage_location, session.get('username', 'admin')))
-        
+
         grn_id = cursor.lastrowid
         total_items = 0
         total_quantity = 0
-        
+
         for item in data.get('items', []):
             item_id = item['id']
             received_qty = item.get('received_quantity', 0)
             damaged_qty = item.get('damaged_quantity', 0)
             damage_reason = item.get('damage_reason', '')
-            
+
             if received_qty <= 0 and damaged_qty <= 0:
                 continue
-            
+
             cursor.execute('SELECT * FROM purchase_order_items WHERE id = ?', (item_id,))
             po_item_row = cursor.fetchone()
             if not po_item_row:
                 continue
-                
+
             po_item = dict(po_item_row)
-            
+
             # Update received quantity (good + damaged)
             total_received = received_qty + damaged_qty
             cursor.execute('''
@@ -745,16 +745,16 @@ def receive_purchase_order(id):
                 SET received_quantity = received_quantity + ?
                 WHERE id = ?
             ''', (total_received, item_id))
-            
+
             # Add to GRN items
             cursor.execute('''
                 INSERT INTO grn_items (grn_id, product_id, product_name, quantity_received, quantity_damaged, damage_reason, cost_price)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (grn_id, po_item['product_id'], po_item['product_name'], received_qty, damaged_qty, damage_reason, po_item['cost_price']))
-            
+
             total_items += 1
             total_quantity += received_qty
-            
+
             # Record damaged items if any
             if damaged_qty > 0:
                 cursor.execute('''
@@ -762,27 +762,27 @@ def receive_purchase_order(id):
                     VALUES (?, ?, ?, ?, ?)
                 ''', (id, item_id, po_item['product_name'], damaged_qty, damage_reason))
                 damaged_count += 1
-            
+
             # Check if product exists or needs to be created
             if po_item['product_id']:
                 # Product exists, update stock
                 cursor.execute('SELECT * FROM products WHERE id = ?', (po_item['product_id'],))
                 existing_product = cursor.fetchone()
-                
+
                 if existing_product:
                     # Update stock and storage location
                     update_query = 'UPDATE products SET current_stock = current_stock + ?, updated_at = CURRENT_TIMESTAMP'
                     params = [received_qty]
-                    
+
                     if storage_location:
                         update_query += ', storage_location = ?'
                         params.append(storage_location)
-                    
+
                     update_query += ' WHERE id = ?'
                     params.append(po_item['product_id'])
-                    
+
                     cursor.execute(update_query, params)
-                    
+
                     # Record stock movement
                     cursor.execute('''
                         INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
@@ -805,14 +805,14 @@ def receive_purchase_order(id):
                         received_qty, received_qty, storage_location, 'active'
                     ))
                     new_product_id = cursor.lastrowid
-                    
+
                     # Update PO item with new product ID
                     cursor.execute('''
                         UPDATE purchase_order_items 
                         SET product_id = ?
                         WHERE id = ?
                     ''', (new_product_id, item_id))
-                    
+
                     # Record stock movement
                     cursor.execute('''
                         INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
@@ -835,21 +835,21 @@ def receive_purchase_order(id):
                     received_qty, received_qty, storage_location, 'active'
                 ))
                 new_product_id = cursor.lastrowid
-                
+
                 # Update PO item with new product ID
                 cursor.execute('''
                     UPDATE purchase_order_items 
                     SET product_id = ?
                     WHERE id = ?
                 ''', (new_product_id, item_id))
-                
+
                 # Record stock movement
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
                       f"Initial stock from PO #{id}"))
-        
+
         # Check if all items are fully received
         cursor.execute('''
             SELECT SUM(quantity) as total_qty, SUM(received_quantity) as received_qty
@@ -857,7 +857,7 @@ def receive_purchase_order(id):
         ''', (id,))
         totals_row = cursor.fetchone()
         totals = dict(totals_row) if totals_row else {'total_qty': 0, 'received_qty': 0}
-        
+
         # Update PO status
         if totals['total_qty'] <= totals['received_qty']:
             new_status = 'completed'
@@ -865,25 +865,26 @@ def receive_purchase_order(id):
             new_status = 'partial'
         else:
             new_status = 'pending'
-        
+
         cursor.execute('''
             UPDATE purchase_orders 
             SET status = ?, payment_status = ?, storage_location = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (new_status, payment_status, storage_location, id))
-        
+
         # Update GRN totals
         cursor.execute('''
             UPDATE grns 
             SET total_items = ?, total_quantity = ?
             WHERE id = ?
         ''', (total_items, total_quantity, grn_id))
-        
+
         conn.commit()
         return jsonify({
             'success': True, 
             'message': 'Items received successfully',
             'grn_number': grn_number,
+            'grn_id': grn_id,
             'status': new_status,
             'total_qty': totals['total_qty'],
             'received_qty': totals['received_qty'],
@@ -900,14 +901,14 @@ def receive_purchase_order(id):
 def get_grns():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT * FROM grns 
         ORDER BY created_at DESC
     ''')
     grns = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     return jsonify(grns)
 
 @app.route('/api/grns/<int:id>', methods=['GET'])
@@ -915,16 +916,16 @@ def get_grns():
 def get_grn_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT * FROM grns WHERE id = ?', (id,))
     grn_row = cursor.fetchone()
-    
+
     if not grn_row:
         conn.close()
         return jsonify({'error': 'GRN not found'}), 404
-    
+
     grn = dict(grn_row)
-    
+
     cursor.execute('''
         SELECT gi.*, p.sku, p.brand_id, p.category_id
         FROM grn_items gi
@@ -932,10 +933,10 @@ def get_grn_detail(id):
         WHERE gi.grn_id = ?
     ''', (id,))
     items = [dict(row) for row in cursor.fetchall()]
-    
+
     grn['items'] = items
     conn.close()
-    
+
     return jsonify(grn)
 
 @app.route('/api/dashboard/stats', methods=['GET'])
@@ -943,19 +944,19 @@ def get_grn_detail(id):
 def dashboard_stats():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT COUNT(*) as count FROM products WHERE status = "active"')
     total_products = cursor.fetchone()['count']
-    
+
     cursor.execute('SELECT COUNT(*) as count FROM products WHERE current_stock <= min_stock_level AND status = "active"')
     low_stock = cursor.fetchone()['count']
-    
+
     cursor.execute('SELECT COUNT(*) as count FROM products WHERE current_stock = 0 AND status = "active"')
     out_of_stock = cursor.fetchone()['count']
-    
+
     cursor.execute('SELECT SUM(current_stock * cost_price) as value FROM products WHERE status = "active"')
     stock_value = cursor.fetchone()['value'] or 0
-    
+
     cursor.execute('''
         SELECT p.*, c.name as category_name, b.name as brand_name
         FROM products p
@@ -966,7 +967,7 @@ def dashboard_stats():
         LIMIT 10
     ''')
     low_stock_items = [dict(row) for row in cursor.fetchall()]
-    
+
     cursor.execute('''
         SELECT sm.*, p.name as product_name
         FROM stock_movements sm
@@ -975,9 +976,9 @@ def dashboard_stats():
         LIMIT 20
     ''')
     recent_movements = [dict(row) for row in cursor.fetchall()]
-    
+
     conn.close()
-    
+
     return jsonify({
         'total_products': total_products,
         'low_stock': low_stock,
@@ -992,7 +993,7 @@ def dashboard_stats():
 def export_products():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM products p
@@ -1003,14 +1004,14 @@ def export_products():
     ''')
     products = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(products)
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Products')
     output.seek(0)
-    
+
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1023,21 +1024,21 @@ def export_products():
 def import_products():
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file provided'}), 400
-    
+
     file = request.files['file']
-    
+
     try:
         if file.filename.endswith('.csv'):
             df = pd.read_csv(file)
         else:
             df = pd.read_excel(file)
-        
+
         conn = get_db()
         cursor = conn.cursor()
-        
+
         imported = 0
         errors = []
-        
+
         for index, row in df.iterrows():
             try:
                 cursor.execute('''
@@ -1055,10 +1056,10 @@ def import_products():
                 imported += 1
             except Exception as e:
                 errors.append(f"Row {index + 1}: {str(e)}")
-        
+
         conn.commit()
         conn.close()
-        
+
         return jsonify({
             'success': True,
             'imported': imported,

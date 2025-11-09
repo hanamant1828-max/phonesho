@@ -1374,18 +1374,28 @@ function confirmReceivePO() {
         }),
         success: function(response) {
             if (response.success) {
-                let message = '✓ Items received successfully!\n\n' + 
-                      'Stock has been updated in inventory.\n' +
-                      'Payment status: ' + paymentStatus + '\n' +
-                      (storageLocation ? 'Storage location: ' + storageLocation : '');
-
-                if (response.damaged_count > 0) {
-                    message += '\n\n⚠ ' + response.damaged_count + ' damaged item(s) recorded';
+                let message = '✓ Items received successfully!\n\n';
+                message += 'GRN Number: ' + response.grn_number + '\n';
+                message += 'Stock has been updated in inventory.\n';
+                message += 'Payment status: ' + paymentStatus + '\n';
+                if (storageLocation) {
+                    message += 'Storage location: ' + storageLocation + '\n';
                 }
 
-                alert(message);
-                bootstrap.Modal.getInstance($('#receivePOModal')).hide();
-                loadPurchaseOrders();
+                if (response.damaged_count > 0) {
+                    message += '\n⚠ ' + response.damaged_count + ' damaged item(s) recorded';
+                }
+
+                message += '\n\nWould you like to view the GRN now?';
+
+                if (confirm(message)) {
+                    bootstrap.Modal.getInstance($('#receivePOModal')).hide();
+                    loadPage('grns');
+                } else {
+                    bootstrap.Modal.getInstance($('#receivePOModal')).hide();
+                    loadPurchaseOrders();
+                }
+                
                 // Reload inventory if on that page
                 if (currentPage === 'inventory') {
                     loadInventoryData();
@@ -1464,6 +1474,7 @@ function viewGRN(id) {
                 <p><strong>PO Number:</strong> ${grn.po_number || '-'}</p>
                 <p><strong>Supplier:</strong> ${grn.supplier_name || '-'}</p>
                 <p><strong>Received Date:</strong> ${receivedDate}</p>
+                <p><strong>Payment Status:</strong> <span class="badge bg-${grn.payment_status === 'paid' ? 'success' : grn.payment_status === 'partial' ? 'warning' : 'danger'}">${grn.payment_status || 'unpaid'}</span></p>
                 <p><strong>Storage Location:</strong> ${grn.storage_location || '-'}</p>
                 <p><strong>Notes:</strong> ${grn.notes || '-'}</p>
             </div>
@@ -1481,14 +1492,17 @@ function viewGRN(id) {
                 <tbody>
         `;
 
+        let totalAmount = 0;
         grn.items.forEach(item => {
+            const lineTotal = item.quantity_received * item.cost_price;
+            totalAmount += lineTotal;
             content += `
                 <tr>
                     <td>${item.product_name}</td>
-                    <td>${item.received_quantity}</td>
-                    <td>${item.damaged_quantity || 0} ${item.damage_reason ? `(${item.damage_reason})` : ''}</td>
-                    <td>$${parseFloat(item.unit_cost).toFixed(2)}</td>
-                    <td>$${(item.received_quantity * item.unit_cost).toFixed(2)}</td>
+                    <td>${item.quantity_received}</td>
+                    <td>${item.quantity_damaged || 0} ${item.damage_reason ? `<br><small class="text-muted">(${item.damage_reason})</small>` : ''}</td>
+                    <td>$${parseFloat(item.cost_price).toFixed(2)}</td>
+                    <td>$${lineTotal.toFixed(2)}</td>
                 </tr>
             `;
         });
@@ -1498,16 +1512,30 @@ function viewGRN(id) {
                 <tfoot>
                     <tr>
                         <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
-                        <td><strong>$${parseFloat(grn.total_amount).toFixed(2)}</strong></td>
+                        <td><strong>$${totalAmount.toFixed(2)}</strong></td>
                     </tr>
                 </tfoot>
             </table>
         `;
 
-        alert(content);
+        $('#grnViewContent').html(content);
+        const modal = new bootstrap.Modal($('#grnViewModal'));
+        modal.show();
     });
 }
 
 function generateGRNReport() {
     window.location.href = `${API_BASE}/export/grns`;
+}
+
+function printGRN() {
+    const content = document.getElementById('grnViewContent').innerHTML;
+    const printWindow = window.open('', '', 'height=600,width=800');
+    printWindow.document.write('<html><head><title>GRN</title>');
+    printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(content);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    printWindow.print();
 }
