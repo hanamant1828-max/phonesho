@@ -360,23 +360,39 @@ function loadInventory() {
 }
 
 function loadFilterDropdowns() {
+    // Load categories for filter dropdown
     $.get(`${API_BASE}/categories`, function(data) {
-        const select = $('#filterCategory, #productCategory');
-        select.empty().append('<option value="">Select Category</option>');
+        const filterSelect = $('#filterCategory');
+        filterSelect.empty().append('<option value="">All Categories</option>');
         data.forEach(cat => {
-            select.append(`<option value="${cat.id}">${cat.name}</option>`);
+            filterSelect.append(`<option value="${cat.id}">${cat.name}</option>`);
+        });
+        
+        // Also populate product form dropdown
+        const productSelect = $('#productCategory');
+        productSelect.empty().append('<option value="">Select Category</option>');
+        data.forEach(cat => {
+            productSelect.append(`<option value="${cat.id}">${cat.name}</option>`);
         });
     });
 
+    // Load brands for filter dropdown
     $.get(`${API_BASE}/brands`, function(data) {
-        const select = $('#filterBrand, #productBrand');
-        select.empty().append('<option value="">Select Brand</option>');
+        const filterSelect = $('#filterBrand');
+        filterSelect.empty().append('<option value="">All Brands</option>');
         data.forEach(brand => {
-            select.append(`<option value="${brand.id}">${brand.name}</option>`);
+            filterSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
+        });
+        
+        // Also populate product form dropdown
+        const productSelect = $('#productBrand');
+        productSelect.empty().append('<option value="">Select Brand</option>');
+        data.forEach(brand => {
+            productSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
         });
     });
     
-    // Load all models and store their brand_id for filtering
+    // Load all models for product form
     $.get(`${API_BASE}/models`, function(data) {
         const modelSelect = $('#productModel');
         modelSelect.empty().append('<option value="">Select Model</option>');
