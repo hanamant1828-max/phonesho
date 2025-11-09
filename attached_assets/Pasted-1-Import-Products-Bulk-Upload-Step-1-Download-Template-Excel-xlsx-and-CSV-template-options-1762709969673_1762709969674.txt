@@ -1,0 +1,82 @@
+1 Import Products (Bulk Upload)
+Step 1: Download Template
+✓ Excel (.xlsx) and CSV template options
+✓ Template includes:
+  - All required and optional fields
+  - Sample data rows
+  - Field descriptions
+  - Validation rules
+✓ Import guide PDF
+Step 2: Upload File
+✓ Drag & drop file upload
+✓ Support .xlsx, .xls, .csv (max 10MB, 1000 products)
+✓ Options:
+  - First row contains headers
+  - Update existing products (match by SKU)
+  - Skip products with errors
+Step 3: Map Columns
+✓ Auto-map columns based on names
+✓ Manual column mapping dropdowns
+✓ Preview first 3 rows of data
+✓ Option to ignore certain columns
+Step 4: Validate & Import
+✓ Validate all data before import
+✓ Show validation results:
+  - Valid rows count
+  - Rows with errors count
+  - List of errors with row numbers
+✓ Download error report
+✓ Options:
+  - Import valid rows only
+  - Auto-create missing categories/brands
+  - Generate barcode if missing
+  - Create as Draft first
+✓ Progress bar during import
+✓ Import completion summary with log download
+5.2 Export Inventory
+✓ Export options:
+  - All Products
+  - Filtered Products (current view)
+  - Selected Products
+  - Products by Category
+  - Products by Brand
+✓ Format options: Excel, CSV, PDF Report
+✓ Column selection (choose which columns to export)
+✓ Additional options:
+  - Include product images (as URLs)
+  - Include stock movement history
+  - Include sales data
+  - Group by category
+✓ Date range filter
+✓ Save export template for reuse
+✓ Progress indicator
+✓ Download link when ready
+5.3 Grid View
+✓ Card-based layout with product images
+✓ Card shows:
+  - Product image (200x200px)
+  - Badges (Featured, New, Low Stock)
+  - Product name and variant
+  - SKU
+  - Price with profit margin badge
+  - Stock status with count
+  - Category and Brand tags
+  - Quick action buttons
+✓ Responsive grid (4 cols desktop, 3 tablet, 2 mobile)
+✓ Card size options (Small/Medium/Large)
+✓ Hover effects
+5.4 Compact View
+✓ Minimal list layout (40-50px per row)
+✓ Shows only essential info:
+  - Small thumbnail (40x40px)
+  - Product name + variant
+  - SKU below name
+  - Price
+  - Stock status badge
+  - Quick actions
+✓ Dense spacing for maximum items visible
+✓ Faster loading for large lists
+5.5 View Toggle
+✓ Toggle buttons: Table / Grid / Compact
+✓ Remember user preference
+✓ Table density options (Comfortable/Compact/Expanded)
