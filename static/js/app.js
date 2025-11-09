@@ -353,6 +353,15 @@ function loadInventory() {
     loadFilterDropdowns();
     loadInventoryData();
 
+    // Add event handlers for filters
+    $('#searchProduct').on('keyup', function() {
+        applyFilters();
+    });
+    
+    $('#filterCategory, #filterBrand, #filterStockStatus, #filterStatus').on('change', function() {
+        applyFilters();
+    });
+
     $('#selectAll').on('change', function() {
         $('input[name="productCheck"]').prop('checked', this.checked);
         updateBulkActions();
@@ -424,36 +433,40 @@ function loadInventoryData() {
         const tbody = $('#inventoryTable tbody');
         tbody.empty();
 
-        data.forEach(product => {
-            const stockClass = product.current_stock === 0 ? 'stock-out' : 
-                             (product.current_stock <= product.min_stock_level ? 'stock-low' : 'stock-ok');
+        if (data.length === 0) {
+            tbody.append('<tr><td colspan="11" class="text-center text-muted">No products found</td></tr>');
+        } else {
+            data.forEach(product => {
+                const stockClass = product.current_stock === 0 ? 'stock-out' : 
+                                 (product.current_stock <= product.min_stock_level ? 'stock-low' : 'stock-ok');
 
-            tbody.append(`
-                <tr>
-                    <td><input type="checkbox" name="productCheck" value="${product.id}"></td>
-                    <td>${product.sku || '-'}</td>
-                    <td>${product.name}</td>
-                    <td>${product.category_name || '-'}</td>
-                    <td>${product.brand_name || '-'}</td>
-                    <td>${product.model_name || '-'}</td>
-                    <td>$${parseFloat(product.cost_price || 0).toFixed(2)}</td>
-                    <td>$${parseFloat(product.selling_price || 0).toFixed(2)}</td>
-                    <td class="${stockClass}">${product.current_stock}</td>
-                    <td><span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></td>
-                    <td>
-                        <button class="btn btn-sm btn-info action-btn" onclick="viewStockHistory(${product.id})" title="Stock History">
-                            <i class="bi bi-clock-history"></i>
-                        </button>
-                        <button class="btn btn-sm btn-primary action-btn" onclick="editProduct(${product.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteProduct(${product.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
+                tbody.append(`
+                    <tr>
+                        <td><input type="checkbox" name="productCheck" value="${product.id}"></td>
+                        <td>${product.sku || '-'}</td>
+                        <td>${product.name}</td>
+                        <td>${product.category_name || '-'}</td>
+                        <td>${product.brand_name || '-'}</td>
+                        <td>${product.model_name || '-'}</td>
+                        <td>$${parseFloat(product.cost_price || 0).toFixed(2)}</td>
+                        <td>$${parseFloat(product.selling_price || 0).toFixed(2)}</td>
+                        <td class="${stockClass}">${product.current_stock}</td>
+                        <td><span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-info action-btn" onclick="viewStockHistory(${product.id})" title="Stock History">
+                                <i class="bi bi-clock-history"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary action-btn" onclick="editProduct(${product.id})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger action-btn" onclick="deleteProduct(${product.id})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+        }
 
         inventoryTable = $('#inventoryTable').DataTable({
             order: [[2, 'asc']],
@@ -464,11 +477,22 @@ function loadInventoryData() {
         });
 
         $('input[name="productCheck"]').on('change', updateBulkActions);
+    }).fail(function(xhr) {
+        console.error('Error loading products:', xhr);
+        alert('Error loading products. Please try again.');
     });
 }
 
 function applyFilters() {
-    loadInventoryData();
+    // Clear any existing search timeout
+    if (window.filterTimeout) {
+        clearTimeout(window.filterTimeout);
+    }
+    
+    // Add small delay to prevent too many rapid requests
+    window.filterTimeout = setTimeout(function() {
+        loadInventoryData();
+    }, 300);
 }
 
 function updateBulkActions() {
