@@ -59,6 +59,42 @@ def init_db():
         )
     ''')
     
+    # Create GRN table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS grns (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grn_number TEXT UNIQUE NOT NULL,
+            po_id INTEGER NOT NULL,
+            po_number TEXT NOT NULL,
+            supplier_name TEXT NOT NULL,
+            received_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            total_items INTEGER DEFAULT 0,
+            total_quantity INTEGER DEFAULT 0,
+            payment_status TEXT DEFAULT 'unpaid',
+            storage_location TEXT,
+            notes TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS grn_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            grn_id INTEGER NOT NULL,
+            product_id INTEGER,
+            product_name TEXT NOT NULL,
+            quantity_received INTEGER NOT NULL,
+            quantity_damaged INTEGER DEFAULT 0,
+            damage_reason TEXT,
+            cost_price REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (grn_id) REFERENCES grns (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -665,6 +701,27 @@ def receive_purchase_order(id):
         storage_location = data.get('storage_location', '')
         damaged_count = 0
         
+        # Get PO details
+        cursor.execute('SELECT po_number, supplier_name FROM purchase_orders WHERE id = ?', (id,))
+        po_row = cursor.fetchone()
+        if not po_row:
+            return jsonify({'success': False, 'error': 'Purchase order not found'}), 404
+        
+        po_data = dict(po_row)
+        
+        # Generate GRN number
+        grn_number = f"GRN-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        # Create GRN record
+        cursor.execute('''
+            INSERT INTO grns (grn_number, po_id, po_number, supplier_name, payment_status, storage_location, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (grn_number, id, po_data['po_number'], po_data['supplier_name'], payment_status, storage_location, session.get('username', 'admin')))
+        
+        grn_id = cursor.lastrowid
+        total_items = 0
+        total_quantity = 0
+        
         for item in data.get('items', []):
             item_id = item['id']
             received_qty = item.get('received_quantity', 0)
@@ -688,6 +745,15 @@ def receive_purchase_order(id):
                 SET received_quantity = received_quantity + ?
                 WHERE id = ?
             ''', (total_received, item_id))
+            
+            # Add to GRN items
+            cursor.execute('''
+                INSERT INTO grn_items (grn_id, product_id, product_name, quantity_received, quantity_damaged, damage_reason, cost_price)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (grn_id, po_item['product_id'], po_item['product_name'], received_qty, damaged_qty, damage_reason, po_item['cost_price']))
+            
+            total_items += 1
+            total_quantity += received_qty
             
             # Record damaged items if any
             if damaged_qty > 0:
@@ -806,10 +872,18 @@ def receive_purchase_order(id):
             WHERE id = ?
         ''', (new_status, payment_status, storage_location, id))
         
+        # Update GRN totals
+        cursor.execute('''
+            UPDATE grns 
+            SET total_items = ?, total_quantity = ?
+            WHERE id = ?
+        ''', (total_items, total_quantity, grn_id))
+        
         conn.commit()
         return jsonify({
             'success': True, 
             'message': 'Items received successfully',
+            'grn_number': grn_number,
             'status': new_status,
             'total_qty': totals['total_qty'],
             'received_qty': totals['received_qty'],
@@ -820,6 +894,49 @@ def receive_purchase_order(id):
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
+
+@app.route('/api/grns', methods=['GET'])
+@login_required
+def get_grns():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT * FROM grns 
+        ORDER BY created_at DESC
+    ''')
+    grns = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify(grns)
+
+@app.route('/api/grns/<int:id>', methods=['GET'])
+@login_required
+def get_grn_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM grns WHERE id = ?', (id,))
+    grn_row = cursor.fetchone()
+    
+    if not grn_row:
+        conn.close()
+        return jsonify({'error': 'GRN not found'}), 404
+    
+    grn = dict(grn_row)
+    
+    cursor.execute('''
+        SELECT gi.*, p.sku, p.brand_id, p.category_id
+        FROM grn_items gi
+        LEFT JOIN products p ON gi.product_id = p.id
+        WHERE gi.grn_id = ?
+    ''', (id,))
+    items = [dict(row) for row in cursor.fetchall()]
+    
+    grn['items'] = items
+    conn.close()
+    
+    return jsonify(grn)
 
 @app.route('/api/dashboard/stats', methods=['GET'])
 @login_required

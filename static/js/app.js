@@ -6,10 +6,10 @@ let isAuthenticated = false;
 
 $(document).ready(function() {
     checkAuth();
-    
+
     $('#productCostPrice, #productSellingPrice').on('input', calculateProfitMargin);
     $('#productBrand').on('change', loadModelsForBrand);
-    
+
     $('#saveCategoryBtn').on('click', saveCategory);
     $('#saveBrandBtn').on('click', saveBrand);
     $('#saveModelBtn').on('click', saveModel);
@@ -19,7 +19,7 @@ $(document).ready(function() {
     $('#addPOItemBtn').on('click', addPOItem);
     $('#loginBtn').on('click', performLogin);
     $('#logoutBtn').on('click', performLogout);
-    
+
     $('#loginPassword').on('keypress', function(e) {
         if (e.which === 13) {
             performLogin();
@@ -57,12 +57,12 @@ function showLoginModal() {
 function performLogin() {
     const username = $('#loginUsername').val();
     const password = $('#loginPassword').val();
-    
+
     if (!username || !password) {
         $('#loginError').text('Please enter username and password').show();
         return;
     }
-    
+
     $.ajax({
         url: `${API_BASE}/login`,
         method: 'POST',
@@ -89,7 +89,7 @@ function performLogin() {
 
 function performLogout() {
     if (!confirm('Are you sure you want to logout?')) return;
-    
+
     $.ajax({
         url: `${API_BASE}/logout`,
         method: 'POST',
@@ -105,7 +105,7 @@ function initNavigation() {
         e.preventDefault();
         const page = $(this).data('page');
         loadPage(page);
-        
+
         $('a[data-page]').removeClass('active');
         $(this).addClass('active');
     });
@@ -114,7 +114,7 @@ function initNavigation() {
 function loadPage(page) {
     currentPage = page;
     const contentArea = $('#content-area');
-    
+
     switch(page) {
         case 'dashboard':
             loadDashboard();
@@ -133,6 +133,9 @@ function loadPage(page) {
             break;
         case 'purchase-orders':
             loadPurchaseOrders();
+            break;
+        case 'grns':
+            loadGRNs();
             break;
     }
 }
@@ -172,7 +175,7 @@ function loadDashboard() {
                 </div>
             </div>
         </div>
-        
+
         <div class="row">
             <div class="col-md-6">
                 <div class="card">
@@ -220,13 +223,13 @@ function loadDashboard() {
             </div>
         </div>
     `);
-    
+
     $.get(`${API_BASE}/dashboard/stats`, function(data) {
         $('#totalProducts').text(data.total_products);
         $('#lowStock').text(data.low_stock);
         $('#outOfStock').text(data.out_of_stock);
         $('#stockValue').text('$' + data.stock_value.toFixed(2));
-        
+
         const lowStockBody = $('#lowStockTable tbody');
         lowStockBody.empty();
         if (data.low_stock_items.length === 0) {
@@ -243,7 +246,7 @@ function loadDashboard() {
                 `);
             });
         }
-        
+
         const movementsBody = $('#recentMovementsTable tbody');
         movementsBody.empty();
         if (data.recent_movements.length === 0) {
@@ -274,7 +277,7 @@ function loadInventory() {
                 <button class="btn btn-secondary" onclick="showImportModal()"><i class="bi bi-upload"></i> Import</button>
             </div>
         </div>
-        
+
         <div class="filter-section">
             <div class="row">
                 <div class="col-md-3">
@@ -314,7 +317,7 @@ function loadInventory() {
                 </div>
             </div>
         </div>
-        
+
         <div class="bulk-actions" id="bulkActions">
             <strong>Selected: <span id="selectedCount">0</span> items</strong>
             <div class="mt-2">
@@ -322,7 +325,7 @@ function loadInventory() {
                 <button class="btn btn-sm btn-warning" onclick="showBulkUpdate()"><i class="bi bi-pencil"></i> Bulk Update</button>
             </div>
         </div>
-        
+
         <div class="card">
             <div class="card-body">
                 <table class="table table-hover" id="inventoryTable">
@@ -346,10 +349,10 @@ function loadInventory() {
             </div>
         </div>
     `);
-    
+
     loadFilterDropdowns();
     loadInventoryData();
-    
+
     $('#selectAll').on('change', function() {
         $('input[name="productCheck"]').prop('checked', this.checked);
         updateBulkActions();
@@ -363,7 +366,7 @@ function loadFilterDropdowns() {
             select.append(`<option value="${cat.id}">${cat.name}</option>`);
         });
     });
-    
+
     $.get(`${API_BASE}/brands`, function(data) {
         const select = $('#filterBrand, #productBrand');
         data.forEach(brand => {
@@ -379,25 +382,25 @@ function loadInventoryData() {
     const brand = $('#filterBrand').val();
     const stockStatus = $('#filterStockStatus').val();
     const status = $('#filterStatus').val();
-    
+
     if (search) params.append('search', search);
     if (category) params.append('category_id', category);
     if (brand) params.append('brand_id', brand);
     if (stockStatus) params.append('stock_status', stockStatus);
     if (status) params.append('status', status);
-    
+
     $.get(`${API_BASE}/products?${params.toString()}`, function(data) {
         if (inventoryTable) {
             inventoryTable.destroy();
         }
-        
+
         const tbody = $('#inventoryTable tbody');
         tbody.empty();
-        
+
         data.forEach(product => {
             const stockClass = product.current_stock === 0 ? 'stock-out' : 
                              (product.current_stock <= product.min_stock_level ? 'stock-low' : 'stock-ok');
-            
+
             tbody.append(`
                 <tr>
                     <td><input type="checkbox" name="productCheck" value="${product.id}"></td>
@@ -421,7 +424,7 @@ function loadInventoryData() {
                 </tr>
             `);
         });
-        
+
         inventoryTable = $('#inventoryTable').DataTable({
             order: [[2, 'asc']],
             pageLength: 25,
@@ -429,7 +432,7 @@ function loadInventoryData() {
                 { orderable: false, targets: [0, 10] }
             ]
         });
-        
+
         $('input[name="productCheck"]').on('change', updateBulkActions);
     });
 }
@@ -452,9 +455,9 @@ function bulkDelete() {
     const ids = $('input[name="productCheck"]:checked').map(function() {
         return parseInt($(this).val());
     }).get();
-    
+
     if (!confirm(`Delete ${ids.length} products?`)) return;
-    
+
     $.ajax({
         url: `${API_BASE}/products/bulk-delete`,
         method: 'POST',
@@ -471,13 +474,13 @@ function showBulkUpdate() {
     const ids = $('input[name="productCheck"]:checked').map(function() {
         return parseInt($(this).val());
     }).get();
-    
+
     const updateType = prompt('Update type:\n1. Category\n2. Status\n3. Selling Price\n4. Cost Price');
-    
+
     if (!updateType) return;
-    
+
     const updates = {};
-    
+
     switch(updateType) {
         case '1':
             const categoryId = prompt('Enter category ID:');
@@ -496,9 +499,9 @@ function showBulkUpdate() {
             if (costPrice) updates.cost_price = parseFloat(costPrice);
             break;
     }
-    
+
     if (Object.keys(updates).length === 0) return;
-    
+
     $.ajax({
         url: `${API_BASE}/products/bulk-update`,
         method: 'POST',
@@ -515,16 +518,16 @@ function showAddProduct() {
     $('#productId').val('');
     $('#productForm')[0].reset();
     $('#productModalLabel').text('Add Product');
-    
+
     loadFilterDropdowns();
-    
+
     const modal = new bootstrap.Modal($('#productModal'));
     modal.show();
 }
 
 function editProduct(id) {
     $.get(`${API_BASE}/products/${id}`, function(product) {
-        $('#productId').val(product.id);
+        $('#productId').val(id);
         $('#productSKU').val(product.sku);
         $('#productName').val(product.name);
         $('#productCategory').val(product.category_id);
@@ -545,12 +548,12 @@ function editProduct(id) {
         $('#productSupplierContact').val(product.supplier_contact);
         $('#productImage').val(product.image_url);
         $('#productStatus').val(product.status);
-        
+
         loadModelsForBrand();
         $('#productModel').val(product.model_id);
-        
+
         $('#productModalLabel').text('Edit Product');
-        
+
         const modal = new bootstrap.Modal($('#productModal'));
         modal.show();
     });
@@ -558,7 +561,7 @@ function editProduct(id) {
 
 function deleteProduct(id) {
     if (!confirm('Are you sure you want to delete this product?')) return;
-    
+
     $.ajax({
         url: `${API_BASE}/products/${id}`,
         method: 'DELETE',
@@ -595,10 +598,10 @@ function saveProduct() {
         image_url: $('#productImage').val(),
         status: $('#productStatus').val()
     };
-    
+
     const url = id ? `${API_BASE}/products/${id}` : `${API_BASE}/products`;
     const method = id ? 'PUT' : 'POST';
-    
+
     $.ajax({
         url: url,
         method: method,
@@ -618,7 +621,7 @@ function saveProduct() {
 function calculateProfitMargin() {
     const cost = parseFloat($('#productCostPrice').val()) || 0;
     const selling = parseFloat($('#productSellingPrice').val()) || 0;
-    
+
     if (cost > 0) {
         const margin = ((selling - cost) / cost * 100).toFixed(2);
         $('#profitMargin').text(margin + '%');
@@ -630,11 +633,11 @@ function calculateProfitMargin() {
 function loadModelsForBrand() {
     const brandId = $('#productBrand').val();
     const modelSelect = $('#productModel');
-    
+
     modelSelect.empty().append('<option value="">Select Model</option>');
-    
+
     if (!brandId) return;
-    
+
     $.get(`${API_BASE}/models`, function(data) {
         data.filter(m => m.brand_id == brandId).forEach(model => {
             modelSelect.append(`<option value="${model.id}">${model.name}</option>`);
@@ -651,10 +654,10 @@ function showImportModal() {
     fileInput.on('change', function() {
         const file = this.files[0];
         if (!file) return;
-        
+
         const formData = new FormData();
         formData.append('file', file);
-        
+
         $.ajax({
             url: `${API_BASE}/import/products`,
             method: 'POST',
@@ -698,11 +701,11 @@ function loadCategories() {
             </div>
         </div>
     `);
-    
+
     $.get(`${API_BASE}/categories`, function(data) {
         const tbody = $('#categoriesTable tbody');
         tbody.empty();
-        
+
         data.forEach(cat => {
             const date = new Date(cat.created_at);
             tbody.append(`
@@ -721,7 +724,7 @@ function loadCategories() {
                 </tr>
             `);
         });
-        
+
         $('#categoriesTable').DataTable();
     });
 }
@@ -745,7 +748,7 @@ function editCategory(id, name, description) {
 
 function deleteCategory(id) {
     if (!confirm('Are you sure?')) return;
-    
+
     $.ajax({
         url: `${API_BASE}/categories/${id}`,
         method: 'DELETE',
@@ -765,10 +768,10 @@ function saveCategory() {
         name: $('#categoryName').val(),
         description: $('#categoryDescription').val()
     };
-    
+
     const url = id ? `${API_BASE}/categories/${id}` : `${API_BASE}/categories`;
     const method = id ? 'PUT' : 'POST';
-    
+
     $.ajax({
         url: url,
         method: method,
@@ -807,11 +810,11 @@ function loadBrands() {
             </div>
         </div>
     `);
-    
+
     $.get(`${API_BASE}/brands`, function(data) {
         const tbody = $('#brandsTable tbody');
         tbody.empty();
-        
+
         data.forEach(brand => {
             const date = new Date(brand.created_at);
             tbody.append(`
@@ -830,7 +833,7 @@ function loadBrands() {
                 </tr>
             `);
         });
-        
+
         $('#brandsTable').DataTable();
     });
 }
@@ -854,7 +857,7 @@ function editBrand(id, name, description) {
 
 function deleteBrand(id) {
     if (!confirm('Are you sure?')) return;
-    
+
     $.ajax({
         url: `${API_BASE}/brands/${id}`,
         method: 'DELETE',
@@ -874,10 +877,10 @@ function saveBrand() {
         name: $('#brandName').val(),
         description: $('#brandDescription').val()
     };
-    
+
     const url = id ? `${API_BASE}/brands/${id}` : `${API_BASE}/brands`;
     const method = id ? 'PUT' : 'POST';
-    
+
     $.ajax({
         url: url,
         method: method,
@@ -917,14 +920,14 @@ function loadModels() {
             </div>
         </div>
     `);
-    
+
     Promise.all([
         $.get(`${API_BASE}/models`),
         $.get(`${API_BASE}/brands`)
     ]).then(([models, brands]) => {
         const tbody = $('#modelsTable tbody');
         tbody.empty();
-        
+
         models.forEach(model => {
             const date = new Date(model.created_at);
             tbody.append(`
@@ -944,7 +947,7 @@ function loadModels() {
                 </tr>
             `);
         });
-        
+
         $('#modelsTable').DataTable();
     });
 }
@@ -953,7 +956,7 @@ function showAddModel() {
     $('#modelId').val('');
     $('#modelForm')[0].reset();
     $('#modelModalLabel').text('Add Model');
-    
+
     $.get(`${API_BASE}/brands`, function(brands) {
         const select = $('#modelBrand');
         select.empty().append('<option value="">Select Brand</option>');
@@ -961,7 +964,7 @@ function showAddModel() {
             select.append(`<option value="${brand.id}">${brand.name}</option>`);
         });
     });
-    
+
     const modal = new bootstrap.Modal($('#modelModal'));
     modal.show();
 }
@@ -971,7 +974,7 @@ function editModel(id, name, brandId, description) {
     $('#modelName').val(name);
     $('#modelDescription').val(description);
     $('#modelModalLabel').text('Edit Model');
-    
+
     $.get(`${API_BASE}/brands`, function(brands) {
         const select = $('#modelBrand');
         select.empty().append('<option value="">Select Brand</option>');
@@ -979,14 +982,14 @@ function editModel(id, name, brandId, description) {
             select.append(`<option value="${brand.id}" ${brand.id === brandId ? 'selected' : ''}>${brand.name}</option>`);
         });
     });
-    
+
     const modal = new bootstrap.Modal($('#modelModal'));
     modal.show();
 }
 
 function deleteModel(id) {
     if (!confirm('Are you sure?')) return;
-    
+
     $.ajax({
         url: `${API_BASE}/models/${id}`,
         method: 'DELETE',
@@ -1007,10 +1010,10 @@ function saveModel() {
         brand_id: $('#modelBrand').val(),
         description: $('#modelDescription').val()
     };
-    
+
     const url = id ? `${API_BASE}/models/${id}` : `${API_BASE}/models`;
     const method = id ? 'PUT' : 'POST';
-    
+
     $.ajax({
         url: url,
         method: method,
@@ -1052,24 +1055,24 @@ function loadPurchaseOrders() {
             </div>
         </div>
     `);
-    
+
     $.get(`${API_BASE}/purchase-orders`, function(data) {
         const tbody = $('#poTable tbody');
         tbody.empty();
-        
+
         data.forEach(po => {
             const orderDate = new Date(po.order_date);
             const expectedDate = po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '-';
-            
+
             let statusBadge = 'secondary';
             if (po.status === 'completed') statusBadge = 'success';
             else if (po.status === 'partial') statusBadge = 'warning';
             else if (po.status === 'pending') statusBadge = 'info';
-            
+
             let paymentBadge = 'danger';
             if (po.payment_status === 'paid') paymentBadge = 'success';
             else if (po.payment_status === 'partial') paymentBadge = 'warning';
-            
+
             tbody.append(`
                 <tr>
                     <td>${po.po_number}</td>
@@ -1089,7 +1092,7 @@ function loadPurchaseOrders() {
                 </tr>
             `);
         });
-        
+
         $('#poTable').DataTable({
             order: [[0, 'desc']]
         });
@@ -1100,18 +1103,18 @@ function showAddPO() {
     $('#poForm')[0].reset();
     $('#poItemsBody').empty();
     poItemCounter = 0;
-    
+
     const today = new Date().toISOString().split('T')[0];
     $('#poDate').val(today);
     $('#poNumber').val('PO-' + Date.now());
-    
+
     const modal = new bootstrap.Modal($('#poModal'));
     modal.show();
 }
 
 function addPOItem() {
     poItemCounter++;
-    
+
     Promise.all([
         $.get(`${API_BASE}/categories`),
         $.get(`${API_BASE}/brands`),
@@ -1144,9 +1147,9 @@ function addPOItem() {
                 <td><button type="button" class="btn btn-sm btn-danger" onclick="removePOItem(${poItemCounter})"><i class="bi bi-x"></i></button></td>
             </tr>
         `);
-        
+
         $('#poItemsBody').append(row);
-        
+
         row.find('.po-quantity, .po-cost').on('input', calculatePOTotal);
     });
 }
@@ -1158,22 +1161,22 @@ function removePOItem(id) {
 
 function calculatePOTotal() {
     let total = 0;
-    
+
     $('#poItemsBody tr').each(function() {
         const qty = parseFloat($(this).find('.po-quantity').val()) || 0;
         const cost = parseFloat($(this).find('.po-cost').val()) || 0;
         const lineTotal = qty * cost;
-        
+
         $(this).find('.po-line-total').text(lineTotal.toFixed(2));
         total += lineTotal;
     });
-    
+
     $('#poTotalAmount').text(total.toFixed(2));
 }
 
 function savePurchaseOrder() {
     const items = [];
-    
+
     $('#poItemsBody tr').each(function() {
         items.push({
             product_name: $(this).find('.po-product-name').val(),
@@ -1184,12 +1187,12 @@ function savePurchaseOrder() {
             cost_price: parseFloat($(this).find('.po-cost').val())
         });
     });
-    
+
     if (items.length === 0) {
         alert('Please add at least one item');
         return;
     }
-    
+
     const data = {
         po_number: $('#poNumber').val(),
         supplier_name: $('#poSupplier').val(),
@@ -1200,7 +1203,7 @@ function savePurchaseOrder() {
         notes: $('#poNotes').val(),
         items: items
     };
-    
+
     $.ajax({
         url: `${API_BASE}/purchase-orders`,
         method: 'POST',
@@ -1221,11 +1224,11 @@ function viewPO(id) {
     $.get(`${API_BASE}/purchase-orders/${id}`, function(po) {
         const orderDate = new Date(po.order_date).toLocaleDateString();
         const expectedDate = po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '-';
-        
+
         let paymentBadge = 'danger';
         if (po.payment_status === 'paid') paymentBadge = 'success';
         else if (po.payment_status === 'partial') paymentBadge = 'warning';
-        
+
         let content = `
             <div class="mb-3">
                 <h6>PO Details</h6>
@@ -1251,7 +1254,7 @@ function viewPO(id) {
                 </thead>
                 <tbody>
         `;
-        
+
         po.items.forEach(item => {
             content += `
                 <tr>
@@ -1263,7 +1266,7 @@ function viewPO(id) {
                 </tr>
             `;
         });
-        
+
         content += `
                 </tbody>
                 <tfoot>
@@ -1274,7 +1277,7 @@ function viewPO(id) {
                 </tfoot>
             </table>
         `;
-        
+
         alert(content);
     });
 }
@@ -1298,7 +1301,7 @@ function receivePO(id) {
                     </thead>
                     <tbody id="receiveItemsBody">
         `;
-        
+
         po.items.forEach(item => {
             const remaining = item.quantity - item.received_quantity;
             content += `
@@ -1321,12 +1324,12 @@ function receivePO(id) {
                 </tr>
             `;
         });
-        
+
         content += '</tbody></table></div>';
-        
+
         $('#receivePOContent').html(content);
         $('#confirmReceivePOBtn').data('po-id', id);
-        
+
         const modal = new bootstrap.Modal($('#receivePOModal'));
         modal.show();
     });
@@ -1335,13 +1338,13 @@ function receivePO(id) {
 function confirmReceivePO() {
     const poId = $('#confirmReceivePOBtn').data('po-id');
     const items = [];
-    
+
     $('.receive-qty').each(function() {
         const itemId = $(this).data('item-id');
         const receivedQty = parseInt($(this).val()) || 0;
         const damagedQty = parseInt($(`.receive-damaged[data-item-id="${itemId}"]`).val()) || 0;
         const damageReason = $(`.receive-damage-reason[data-item-id="${itemId}"]`).val();
-        
+
         if (receivedQty > 0 || damagedQty > 0) {
             items.push({
                 id: itemId,
@@ -1351,15 +1354,15 @@ function confirmReceivePO() {
             });
         }
     });
-    
+
     if (items.length === 0) {
         alert('Please enter quantities to receive or mark as damaged');
         return;
     }
-    
+
     const paymentStatus = $('#receivePaymentStatus').val();
     const storageLocation = $('#receiveStorageLocation').val();
-    
+
     $.ajax({
         url: `${API_BASE}/purchase-orders/${poId}/receive`,
         method: 'POST',
@@ -1375,11 +1378,11 @@ function confirmReceivePO() {
                       'Stock has been updated in inventory.\n' +
                       'Payment status: ' + paymentStatus + '\n' +
                       (storageLocation ? 'Storage location: ' + storageLocation : '');
-                
+
                 if (response.damaged_count > 0) {
                     message += '\n\n⚠ ' + response.damaged_count + ' damaged item(s) recorded';
                 }
-                
+
                 alert(message);
                 bootstrap.Modal.getInstance($('#receivePOModal')).hide();
                 loadPurchaseOrders();
@@ -1395,4 +1398,116 @@ function confirmReceivePO() {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to receive items'));
         }
     });
+}
+
+function loadGRNs() {
+    $('#content-area').html(`
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-receipt"></i> Goods Receipt Notes (GRNs)</h2>
+            <button class="btn btn-primary" onclick="generateGRNReport()"><i class="bi bi-download"></i> Generate Report</button>
+        </div>
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover" id="grnTable">
+                    <thead>
+                        <tr>
+                            <th>GRN Number</th>
+                            <th>PO Number</th>
+                            <th>Supplier</th>
+                            <th>Received Date</th>
+                            <th>Total Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `);
+
+    $.get(`${API_BASE}/grns`, function(data) {
+        const tbody = $('#grnTable tbody');
+        tbody.empty();
+
+        data.forEach(grn => {
+            const receivedDate = new Date(grn.received_date).toLocaleDateString();
+            tbody.append(`
+                <tr>
+                    <td>${grn.grn_number}</td>
+                    <td>${grn.po_number || '-'}</td>
+                    <td>${grn.supplier_name || '-'}</td>
+                    <td>${receivedDate}</td>
+                    <td>$${parseFloat(grn.total_amount || 0).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info action-btn" onclick="viewGRN(${grn.id})">
+                            <i class="bi bi-eye"></i> View
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        $('#grnTable').DataTable({
+            order: [[0, 'desc']]
+        });
+    });
+}
+
+function viewGRN(id) {
+    $.get(`${API_BASE}/grns/${id}`, function(grn) {
+        const receivedDate = new Date(grn.received_date).toLocaleDateString();
+
+        let content = `
+            <div class="mb-3">
+                <h6>GRN Details</h6>
+                <p><strong>GRN Number:</strong> ${grn.grn_number}</p>
+                <p><strong>PO Number:</strong> ${grn.po_number || '-'}</p>
+                <p><strong>Supplier:</strong> ${grn.supplier_name || '-'}</p>
+                <p><strong>Received Date:</strong> ${receivedDate}</p>
+                <p><strong>Storage Location:</strong> ${grn.storage_location || '-'}</p>
+                <p><strong>Notes:</strong> ${grn.notes || '-'}</p>
+            </div>
+            <h6>Items Received</h6>
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Quantity Received</th>
+                        <th>Quantity Damaged</th>
+                        <th>Unit Cost</th>
+                        <th>Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        grn.items.forEach(item => {
+            content += `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>${item.received_quantity}</td>
+                    <td>${item.damaged_quantity || 0} ${item.damage_reason ? `(${item.damage_reason})` : ''}</td>
+                    <td>$${parseFloat(item.unit_cost).toFixed(2)}</td>
+                    <td>$${(item.received_quantity * item.unit_cost).toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        content += `
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
+                        <td><strong>$${parseFloat(grn.total_amount).toFixed(2)}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+
+        alert(content);
+    });
+}
+
+function generateGRNReport() {
+    window.location.href = `${API_BASE}/export/grns`;
 }

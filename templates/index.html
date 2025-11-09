@@ -42,6 +42,13 @@
                             <li><a class="dropdown-item" href="#" data-page="brands">Brands</a></li>
                             <li><a class="dropdown-item" href="#" data-page="models">Models</a></li>
                         </ul>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="grns">
+                            <i class="bi bi-receipt"></i> GRNs
+                        </a>
+                    </li>
+
                     </li>
                     <li class="nav-item">
                         <span class="nav-link"><i class="bi bi-person"></i> <span id="username-display"></span></span>
@@ -370,6 +377,29 @@
                             </div>
                             <div class="col-md-6">
                                 <label for="poDate" class="form-label">Order Date *</label>
+
+
+    <div class="modal fade" id="grnViewModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-receipt"></i> Goods Receipt Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="grnViewContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="printGRN()">
+                        <i class="bi bi-printer"></i> Print GRN
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
                                 <input type="date" class="form-control" id="poDate" required>
                             </div>
                             <div class="col-md-6">
