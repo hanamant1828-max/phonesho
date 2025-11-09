@@ -968,13 +968,9 @@ def get_stock_history(id):
             CASE 
                 WHEN sm.reference_type = 'purchase_order' THEN po.po_number
                 WHEN sm.reference_type = 'grn' THEN g.grn_number
-                ELSE NULL
+                ELSE sm.reference_type
             END as reference_number,
-            CASE 
-                WHEN sm.reference_type = 'purchase_order' THEN g.created_by
-                WHEN sm.reference_type = 'grn' THEN g.created_by
-                ELSE 'System'
-            END as received_by
+            COALESCE(g.created_by, 'System') as received_by
         FROM stock_movements sm
         LEFT JOIN purchase_orders po ON sm.reference_type = 'purchase_order' AND sm.reference_id = po.id
         LEFT JOIN grns g ON sm.reference_type = 'grn' AND sm.reference_id = g.id
@@ -983,7 +979,37 @@ def get_stock_history(id):
     ''', (id,))
     
     movements = [dict(row) for row in cursor.fetchall()]
+    
+    # Calculate running balance
+    running_balance = 0
+    history = []
+    
+    for movement in movements:
+        # Calculate stock change
+        if movement['type'] in ['purchase', 'adjustment_in']:
+            stock_added = movement['quantity']
+            stock_removed = 0
+            running_balance += movement['quantity']
+        else:
+            stock_added = 0
+            stock_removed = movement['quantity']
+            running_balance -= movement['quantity']
+        
+        history.append({
+            'date_time': movement['created_at'],
+            'stock_added': stock_added,
+            'stock_removed': stock_removed,
+            'reference': movement['reference_number'] or 'N/A',
+            'received_by': movement['received_by'],
+            'running_balance': running_balance
+        })
+    
     conn.close()
+    
+    return jsonify({
+        'product_name': product_name,
+        'history': history
+    })
 
     # Calculate running balance
     running_balance = 0
