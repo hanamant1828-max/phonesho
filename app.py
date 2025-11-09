@@ -1050,36 +1050,233 @@ def dashboard_stats():
         'recent_movements': recent_movements
     })
 
+@app.route('/api/export/template', methods=['GET'])
+@login_required
+def export_template():
+    format_type = request.args.get('format', 'excel')
+    
+    # Create template with headers and sample data
+    template_data = {
+        'sku': ['SKU001', 'SKU002'],
+        'name': ['Sample Product 1', 'Sample Product 2'],
+        'category_name': ['Smartphones', 'Accessories'],
+        'brand_name': ['Apple', 'Samsung'],
+        'model_name': ['iPhone 14', 'Galaxy S23'],
+        'description': ['Sample description', 'Another description'],
+        'cost_price': [500.00, 300.00],
+        'selling_price': [650.00, 400.00],
+        'mrp': [699.00, 449.00],
+        'current_stock': [10, 25],
+        'min_stock_level': [5, 10],
+        'storage_location': ['A1', 'B2'],
+        'imei': ['123456789012345', ''],
+        'color': ['Black', 'White'],
+        'storage_capacity': ['128GB', '64GB'],
+        'ram': ['6GB', '8GB'],
+        'warranty_period': ['12 months', '24 months'],
+        'supplier_name': ['Supplier A', 'Supplier B'],
+        'supplier_contact': ['+1234567890', '+0987654321'],
+        'status': ['active', 'active']
+    }
+    
+    df = pd.DataFrame(template_data)
+    
+    if format_type == 'csv':
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='product_import_template.csv'
+        )
+    else:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Products')
+            workbook = writer.book
+            worksheet = writer.sheets['Products']
+            
+            # Add instructions sheet
+            instructions = workbook.create_sheet('Instructions')
+            instructions['A1'] = 'Product Import Instructions'
+            instructions['A3'] = 'Required Fields:'
+            instructions['A4'] = '- name: Product name (required)'
+            instructions['A6'] = 'Optional Fields:'
+            instructions['A7'] = '- sku: Unique product code'
+            instructions['A8'] = '- category_name: Product category'
+            instructions['A9'] = '- brand_name: Brand name'
+            instructions['A10'] = '- model_name: Model name'
+            instructions['A11'] = '- cost_price, selling_price, mrp: Prices'
+            instructions['A12'] = '- current_stock: Stock quantity'
+            instructions['A13'] = '- status: active or inactive'
+            
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='product_import_template.xlsx'
+        )
+
 @app.route('/api/export/products', methods=['GET'])
 @login_required
 def export_products():
     conn = get_db()
     cursor = conn.cursor()
 
-    cursor.execute('''
+    format_type = request.args.get('format', 'excel')
+    columns_param = request.args.get('columns', '')
+    selected_columns = columns_param.split(',') if columns_param else []
+    
+    # Build query based on filters
+    query = '''
         SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
         LEFT JOIN models m ON p.model_id = m.id
-        ORDER BY p.name
-    ''')
+        WHERE 1=1
+    '''
+    params = []
+    
+    # Apply filters
+    search = request.args.get('search', '')
+    category_id = request.args.get('category_id', '')
+    brand_id = request.args.get('brand_id', '')
+    status = request.args.get('status', '')
+    stock_status = request.args.get('stock_status', '')
+    ids = request.args.get('ids', '')
+    
+    if search:
+        query += ' AND (p.name LIKE ? OR p.sku LIKE ?)'
+        search_param = f'%{search}%'
+        params.extend([search_param, search_param])
+    
+    if category_id:
+        query += ' AND p.category_id = ?'
+        params.append(category_id)
+    
+    if brand_id:
+        query += ' AND p.brand_id = ?'
+        params.append(brand_id)
+    
+    if status:
+        query += ' AND p.status = ?'
+        params.append(status)
+    
+    if stock_status == 'low':
+        query += ' AND p.current_stock <= p.min_stock_level'
+    elif stock_status == 'out':
+        query += ' AND p.current_stock = 0'
+    
+    if ids:
+        id_list = ids.split(',')
+        placeholders = ','.join('?' * len(id_list))
+        query += f' AND p.id IN ({placeholders})'
+        params.extend(id_list)
+    
+    query += ' ORDER BY p.name'
+    
+    cursor.execute(query, params)
     products = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
+    # Filter columns if specified
+    if selected_columns:
+        column_mapping = {
+            'sku': 'sku',
+            'name': 'name',
+            'category': 'category_name',
+            'brand': 'brand_name',
+            'model': 'model_name',
+            'cost_price': 'cost_price',
+            'selling_price': 'selling_price',
+            'current_stock': 'current_stock',
+            'status': 'status'
+        }
+        
+        filtered_products = []
+        for product in products:
+            filtered_product = {}
+            for col in selected_columns:
+                if col in column_mapping:
+                    filtered_product[col] = product.get(column_mapping[col], '')
+            filtered_products.append(filtered_product)
+        products = filtered_products
+
     df = pd.DataFrame(products)
+    
+    if format_type == 'csv':
+        output = io.StringIO()
+        df.to_csv(output, index=False)
+        output.seek(0)
+        return send_file(
+            io.BytesIO(output.getvalue().encode()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'products_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+    else:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Products')
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'products_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
 
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Products')
-    output.seek(0)
+@app.route('/api/import/products/preview', methods=['POST'])
+@login_required
+def import_products_preview():
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
 
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=f'products_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
-    )
+    file = request.files['file']
+    first_row_headers = request.form.get('first_row_headers', 'true') == 'true'
+
+    try:
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file)
+
+        total_rows = len(df)
+        preview_rows = df.head(3).fillna('').to_dict('records')
+        columns = list(df.columns)
+        
+        # Basic validation
+        errors = []
+        valid_count = 0
+        
+        for index, row in df.iterrows():
+            row_errors = []
+            
+            if pd.isna(row.get('name')) or str(row.get('name')).strip() == '':
+                row_errors.append(f"Row {index + 2}: Product name is required")
+            else:
+                valid_count += 1
+            
+            if row_errors:
+                errors.extend(row_errors)
+        
+        return jsonify({
+            'success': True,
+            'total_rows': total_rows,
+            'preview_rows': preview_rows,
+            'columns': columns,
+            'validation': {
+                'valid_count': valid_count,
+                'error_count': len(errors),
+                'errors': errors[:50]  # Return first 50 errors
+            }
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
 
 @app.route('/api/import/products', methods=['POST'])
 @login_required
@@ -1088,6 +1285,10 @@ def import_products():
         return jsonify({'success': False, 'error': 'No file provided'}), 400
 
     file = request.files['file']
+    first_row_headers = request.form.get('first_row_headers', 'true') == 'true'
+    update_existing = request.form.get('update_existing', 'false') == 'true'
+    skip_errors = request.form.get('skip_errors', 'true') == 'true'
+    auto_create = request.form.get('auto_create', 'true') == 'true'
 
     try:
         if file.filename.endswith('.csv'):
@@ -1099,25 +1300,125 @@ def import_products():
         cursor = conn.cursor()
 
         imported = 0
+        updated = 0
         errors = []
+        created_categories = 0
+        created_brands = 0
+        category_cache = {}
+        brand_cache = {}
 
         for index, row in df.iterrows():
             try:
-                cursor.execute('''
-                    INSERT INTO products (
-                        sku, name, category_id, brand_id, model_id, description,
-                        cost_price, selling_price, mrp, current_stock, min_stock_level, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    row.get('sku'), row.get('name'), row.get('category_id'),
-                    row.get('brand_id'), row.get('model_id'), row.get('description'),
-                    row.get('cost_price', 0), row.get('selling_price', 0),
-                    row.get('mrp', 0), row.get('current_stock', 0),
-                    row.get('min_stock_level', 10), row.get('status', 'active')
-                ))
-                imported += 1
+                # Validate required fields
+                if pd.isna(row.get('name')) or str(row.get('name')).strip() == '':
+                    if skip_errors:
+                        errors.append(f"Row {index + 2}: Missing product name - skipped")
+                        continue
+                    else:
+                        raise ValueError("Product name is required")
+
+                # Auto-create category if needed
+                category_id = None
+                if auto_create and not pd.isna(row.get('category_name')):
+                    category_name = str(row.get('category_name')).strip()
+                    if category_name:
+                        if category_name in category_cache:
+                            category_id = category_cache[category_name]
+                        else:
+                            cursor.execute('SELECT id FROM categories WHERE name = ?', (category_name,))
+                            existing = cursor.fetchone()
+                            if existing:
+                                category_id = existing['id']
+                            else:
+                                cursor.execute('INSERT INTO categories (name) VALUES (?)', (category_name,))
+                                category_id = cursor.lastrowid
+                                created_categories += 1
+                            category_cache[category_name] = category_id
+
+                # Auto-create brand if needed
+                brand_id = None
+                if auto_create and not pd.isna(row.get('brand_name')):
+                    brand_name = str(row.get('brand_name')).strip()
+                    if brand_name:
+                        if brand_name in brand_cache:
+                            brand_id = brand_cache[brand_name]
+                        else:
+                            cursor.execute('SELECT id FROM brands WHERE name = ?', (brand_name,))
+                            existing = cursor.fetchone()
+                            if existing:
+                                brand_id = existing['id']
+                            else:
+                                cursor.execute('INSERT INTO brands (name) VALUES (?)', (brand_name,))
+                                brand_id = cursor.lastrowid
+                                created_brands += 1
+                            brand_cache[brand_name] = brand_id
+
+                # Check if product exists by SKU
+                existing_product = None
+                if update_existing and not pd.isna(row.get('sku')):
+                    cursor.execute('SELECT id FROM products WHERE sku = ?', (row.get('sku'),))
+                    existing_product = cursor.fetchone()
+
+                if existing_product:
+                    # Update existing product
+                    cursor.execute('''
+                        UPDATE products SET
+                            name = ?, category_id = ?, brand_id = ?, description = ?,
+                            cost_price = ?, selling_price = ?, mrp = ?,
+                            current_stock = ?, min_stock_level = ?, status = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (
+                        row.get('name'), category_id, brand_id,
+                        row.get('description', ''),
+                        float(row.get('cost_price', 0) or 0),
+                        float(row.get('selling_price', 0) or 0),
+                        float(row.get('mrp', 0) or 0),
+                        int(row.get('current_stock', 0) or 0),
+                        int(row.get('min_stock_level', 10) or 10),
+                        row.get('status', 'active'),
+                        existing_product['id']
+                    ))
+                    updated += 1
+                else:
+                    # Insert new product
+                    cursor.execute('''
+                        INSERT INTO products (
+                            sku, name, category_id, brand_id, description,
+                            cost_price, selling_price, mrp, current_stock, opening_stock,
+                            min_stock_level, storage_location, imei, color,
+                            storage_capacity, ram, warranty_period, supplier_name,
+                            supplier_contact, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        row.get('sku'), row.get('name'), category_id, brand_id,
+                        row.get('description', ''),
+                        float(row.get('cost_price', 0) or 0),
+                        float(row.get('selling_price', 0) or 0),
+                        float(row.get('mrp', 0) or 0),
+                        int(row.get('current_stock', 0) or 0),
+                        int(row.get('current_stock', 0) or 0),
+                        int(row.get('min_stock_level', 10) or 10),
+                        row.get('storage_location', ''),
+                        row.get('imei', ''),
+                        row.get('color', ''),
+                        row.get('storage_capacity', ''),
+                        row.get('ram', ''),
+                        row.get('warranty_period', ''),
+                        row.get('supplier_name', ''),
+                        row.get('supplier_contact', ''),
+                        row.get('status', 'active')
+                    ))
+                    imported += 1
+
             except Exception as e:
-                errors.append(f"Row {index + 1}: {str(e)}")
+                error_msg = f"Row {index + 2}: {str(e)}"
+                if skip_errors:
+                    errors.append(error_msg)
+                else:
+                    conn.rollback()
+                    conn.close()
+                    return jsonify({'success': False, 'error': error_msg}), 400
 
         conn.commit()
         conn.close()
@@ -1125,6 +1426,9 @@ def import_products():
         return jsonify({
             'success': True,
             'imported': imported,
+            'updated': updated,
+            'created_categories': created_categories,
+            'created_brands': created_brands,
             'errors': errors
         })
     except Exception as e:

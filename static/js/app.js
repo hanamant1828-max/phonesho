@@ -719,37 +719,411 @@ function loadModelsForBrand() {
 }
 
 function exportProducts() {
-    window.location.href = `${API_BASE}/export/products`;
+    // Show export options modal
+    const content = `
+        <div class="mb-3">
+            <label class="form-label">Export Scope</label>
+            <select class="form-select" id="exportScope">
+                <option value="all">All Products</option>
+                <option value="filtered">Current Filtered View</option>
+                <option value="selected">Selected Products Only</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Format</label>
+            <select class="form-select" id="exportFormat">
+                <option value="excel">Excel (.xlsx)</option>
+                <option value="csv">CSV</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Columns to Include</label>
+            <div class="row">
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="sku" checked id="col_sku">
+                        <label class="form-check-label" for="col_sku">SKU</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="name" checked id="col_name">
+                        <label class="form-check-label" for="col_name">Product Name</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="category" checked id="col_category">
+                        <label class="form-check-label" for="col_category">Category</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="brand" checked id="col_brand">
+                        <label class="form-check-label" for="col_brand">Brand</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="model" checked id="col_model">
+                        <label class="form-check-label" for="col_model">Model</label>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="cost_price" checked id="col_cost">
+                        <label class="form-check-label" for="col_cost">Cost Price</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="selling_price" checked id="col_selling">
+                        <label class="form-check-label" for="col_selling">Selling Price</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="current_stock" checked id="col_stock">
+                        <label class="form-check-label" for="col_stock">Current Stock</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input export-col" type="checkbox" value="status" checked id="col_status">
+                        <label class="form-check-label" for="col_status">Status</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const modal = $(`
+        <div class="modal fade" id="exportModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-download"></i> Export Products</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">${content}</div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="performExport()">Export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    $('body').append(modal);
+    const modalInstance = new bootstrap.Modal($('#exportModal'));
+    modalInstance.show();
+
+    $('#exportModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+    });
 }
 
+function performExport() {
+    const scope = $('#exportScope').val();
+    const format = $('#exportFormat').val();
+    const columns = $('.export-col:checked').map(function() {
+        return $(this).val();
+    }).get();
+
+    let url = `${API_BASE}/export/products?format=${format}&columns=${columns.join(',')}`;
+
+    if (scope === 'filtered') {
+        const search = $('#searchProduct').val();
+        const category = $('#filterCategory').val();
+        const brand = $('#filterBrand').val();
+        const stockStatus = $('#filterStockStatus').val();
+        const status = $('#filterStatus').val();
+
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (category) url += `&category_id=${category}`;
+        if (brand) url += `&brand_id=${brand}`;
+        if (stockStatus) url += `&stock_status=${stockStatus}`;
+        if (status) url += `&status=${status}`;
+    } else if (scope === 'selected') {
+        const selectedIds = $('input[name="productCheck"]:checked').map(function() {
+            return $(this).val();
+        }).get();
+
+        if (selectedIds.length === 0) {
+            alert('Please select products to export');
+            return;
+        }
+        url += `&ids=${selectedIds.join(',')}`;
+    }
+
+    window.location.href = url;
+    bootstrap.Modal.getInstance($('#exportModal')).hide();
+}
+
+let importFile = null;
+let importPreviewData = [];
+
 function showImportModal() {
-    const fileInput = $('<input type="file" accept=".csv,.xlsx,.xls">');
-    fileInput.on('change', function() {
-        const file = this.files[0];
-        if (!file) return;
+    const content = `
+        <div id="importStep1">
+            <h6 class="mb-3"><i class="bi bi-1-circle"></i> Download Template</h6>
+            <p>Download the template file to prepare your product data:</p>
+            <div class="mb-3">
+                <a href="${API_BASE}/export/template?format=excel" class="btn btn-outline-primary me-2">
+                    <i class="bi bi-file-earmark-excel"></i> Excel Template
+                </a>
+                <a href="${API_BASE}/export/template?format=csv" class="btn btn-outline-primary">
+                    <i class="bi bi-file-earmark-text"></i> CSV Template
+                </a>
+            </div>
+            <hr>
+            <h6 class="mb-3"><i class="bi bi-2-circle"></i> Upload File</h6>
+            <div class="mb-3">
+                <input type="file" class="form-control" id="importFileInput" accept=".csv,.xlsx,.xls">
+                <div class="form-text">Max 10MB, up to 1000 products. Supports .xlsx, .xls, .csv</div>
+            </div>
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="importFirstRowHeaders" checked>
+                    <label class="form-check-label" for="importFirstRowHeaders">
+                        First row contains headers
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="importUpdateExisting">
+                    <label class="form-check-label" for="importUpdateExisting">
+                        Update existing products (match by SKU)
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="importSkipErrors" checked>
+                    <label class="form-check-label" for="importSkipErrors">
+                        Skip products with errors
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="importAutoCreate" checked>
+                    <label class="form-check-label" for="importAutoCreate">
+                        Auto-create missing categories/brands
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div id="importStep2" style="display:none;">
+            <h6 class="mb-3"><i class="bi bi-check-circle"></i> File Uploaded</h6>
+            <p id="importFileInfo"></p>
+            <div id="importPreview"></div>
+        </div>
+        <div id="importProgress" style="display:none;">
+            <div class="progress mb-3">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="importProgressBar" 
+                     role="progressbar" style="width: 0%"></div>
+            </div>
+            <p id="importProgressText" class="text-center"></p>
+        </div>
+        <div id="importResult" style="display:none;"></div>
+    `;
 
-        const formData = new FormData();
-        formData.append('file', file);
+    const modal = $(`
+        <div class="modal fade" id="importModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-upload"></i> Import Products</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">${content}</div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="importUploadBtn" onclick="uploadImportFile()">
+                            <i class="bi bi-cloud-upload"></i> Upload & Preview
+                        </button>
+                        <button type="button" class="btn btn-success" id="importConfirmBtn" style="display:none;" onclick="confirmImport()">
+                            <i class="bi bi-check-circle"></i> Import Products
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
 
-        $.ajax({
-            url: `${API_BASE}/import/products`,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            success: function(response) {
-                alert(`Imported ${response.imported} products successfully`);
-                if (response.errors.length > 0) {
-                    console.error('Import errors:', response.errors);
-                }
-                loadInventoryData();
-            },
-            error: function(xhr) {
-                alert('Import failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
-            }
-        });
+    $('body').append(modal);
+    const modalInstance = new bootstrap.Modal($('#importModal'));
+    modalInstance.show();
+
+    $('#importModal').on('hidden.bs.modal', function() {
+        $(this).remove();
+        importFile = null;
+        importPreviewData = [];
     });
-    fileInput.click();
+
+    $('#importFileInput').on('change', function(e) {
+        importFile = e.target.files[0];
+        if (importFile) {
+            $('#importUploadBtn').prop('disabled', false);
+        }
+    });
+}
+
+function uploadImportFile() {
+    if (!importFile) {
+        alert('Please select a file');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', importFile);
+    formData.append('first_row_headers', $('#importFirstRowHeaders').is(':checked'));
+    formData.append('preview_only', 'true');
+
+    $('#importUploadBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Uploading...');
+
+    $.ajax({
+        url: `${API_BASE}/import/products/preview`,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(response) {
+            importPreviewData = response;
+            showImportPreview(response);
+            $('#importStep1').hide();
+            $('#importStep2').show();
+            $('#importUploadBtn').hide();
+            $('#importConfirmBtn').show();
+        },
+        error: function(xhr) {
+            alert('Upload failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
+            $('#importUploadBtn').prop('disabled', false).html('<i class="bi bi-cloud-upload"></i> Upload & Preview');
+        }
+    });
+}
+
+function showImportPreview(data) {
+    const { total_rows, preview_rows, columns, validation } = data;
+
+    let html = `
+        <div class="alert alert-info">
+            <strong>File contains ${total_rows} products</strong>
+        </div>
+        <div class="mb-3">
+            <h6>Preview (first 3 rows):</h6>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr>
+    `;
+
+    columns.forEach(col => {
+        html += `<th>${col}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    preview_rows.forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => {
+            html += `<td>${row[col] || ''}</td>`;
+        });
+        html += '</tr>';
+    });
+
+    html += `</tbody></table></div></div>`;
+
+    if (validation.errors.length > 0) {
+        html += `
+            <div class="alert alert-warning">
+                <strong>⚠ ${validation.errors.length} validation error(s) found:</strong>
+                <ul class="mb-0 mt-2">
+        `;
+        validation.errors.slice(0, 10).forEach(err => {
+            html += `<li>${err}</li>`;
+        });
+        if (validation.errors.length > 10) {
+            html += `<li><em>... and ${validation.errors.length - 10} more errors</em></li>`;
+        }
+        html += `</ul></div>`;
+    }
+
+    html += `
+        <div class="alert alert-success">
+            <strong>✓ ${validation.valid_count} valid products ready to import</strong>
+        </div>
+    `;
+
+    $('#importFileInfo').html(`<strong>${importFile.name}</strong> (${(importFile.size / 1024).toFixed(1)} KB)`);
+    $('#importPreview').html(html);
+}
+
+function confirmImport() {
+    if (!importFile) return;
+
+    const formData = new FormData();
+    formData.append('file', importFile);
+    formData.append('first_row_headers', $('#importFirstRowHeaders').is(':checked'));
+    formData.append('update_existing', $('#importUpdateExisting').is(':checked'));
+    formData.append('skip_errors', $('#importSkipErrors').is(':checked'));
+    formData.append('auto_create', $('#importAutoCreate').is(':checked'));
+
+    $('#importStep2').hide();
+    $('#importConfirmBtn').hide();
+    $('#importProgress').show();
+    $('#importProgressBar').css('width', '10%');
+    $('#importProgressText').text('Starting import...');
+
+    $.ajax({
+        url: `${API_BASE}/import/products`,
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        xhr: function() {
+            const xhr = new window.XMLHttpRequest();
+            xhr.upload.addEventListener("progress", function(evt) {
+                if (evt.lengthComputable) {
+                    const percentComplete = (evt.loaded / evt.total) * 100;
+                    $('#importProgressBar').css('width', percentComplete + '%');
+                    $('#importProgressText').text('Uploading file... ' + percentComplete.toFixed(0) + '%');
+                }
+            }, false);
+            return xhr;
+        },
+        success: function(response) {
+            $('#importProgressBar').css('width', '100%').removeClass('progress-bar-animated');
+            $('#importProgressText').text('Import completed!');
+
+            let resultHtml = `
+                <div class="alert alert-success">
+                    <h6>✓ Import Completed Successfully!</h6>
+                    <p class="mb-1"><strong>${response.imported}</strong> products imported</p>
+                    ${response.updated ? `<p class="mb-1"><strong>${response.updated}</strong> products updated</p>` : ''}
+                    ${response.created_categories ? `<p class="mb-1"><strong>${response.created_categories}</strong> new categories created</p>` : ''}
+                    ${response.created_brands ? `<p class="mb-1"><strong>${response.created_brands}</strong> new brands created</p>` : ''}
+                </div>
+            `;
+
+            if (response.errors && response.errors.length > 0) {
+                resultHtml += `
+                    <div class="alert alert-warning">
+                        <h6>⚠ ${response.errors.length} error(s) encountered:</h6>
+                        <ul class="mb-0">
+                `;
+                response.errors.slice(0, 10).forEach(err => {
+                    resultHtml += `<li>${err}</li>`;
+                });
+                if (response.errors.length > 10) {
+                    resultHtml += `<li><em>... and ${response.errors.length - 10} more errors</em></li>`;
+                }
+                resultHtml += `</ul></div>`;
+            }
+
+            $('#importProgress').hide();
+            $('#importResult').html(resultHtml).show();
+
+            setTimeout(() => {
+                bootstrap.Modal.getInstance($('#importModal')).hide();
+                loadInventoryData();
+            }, 3000);
+        },
+        error: function(xhr) {
+            $('#importProgressBar').removeClass('progress-bar-animated').addClass('bg-danger');
+            $('#importProgressText').text('Import failed!');
+            
+            const errorMsg = xhr.responseJSON?.error || 'Unknown error';
+            $('#importResult').html(`
+                <div class="alert alert-danger">
+                    <h6>✗ Import Failed</h6>
+                    <p>${errorMsg}</p>
+                </div>
+            `).show();
+        }
+    });
 }
 
 function loadCategories() {
