@@ -44,6 +44,21 @@ def init_db():
     if 'storage_location' not in columns:
         cursor.execute('ALTER TABLE purchase_orders ADD COLUMN storage_location TEXT')
     
+    # Create damaged_items table if it doesn't exist
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS damaged_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            po_id INTEGER NOT NULL,
+            po_item_id INTEGER NOT NULL,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            damage_reason TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (po_id) REFERENCES purchase_orders (id),
+            FOREIGN KEY (po_item_id) REFERENCES purchase_order_items (id)
+        )
+    ''')
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -648,12 +663,15 @@ def receive_purchase_order(id):
     try:
         payment_status = data.get('payment_status', 'unpaid')
         storage_location = data.get('storage_location', '')
+        damaged_count = 0
         
         for item in data.get('items', []):
             item_id = item['id']
-            received_qty = item['received_quantity']
+            received_qty = item.get('received_quantity', 0)
+            damaged_qty = item.get('damaged_quantity', 0)
+            damage_reason = item.get('damage_reason', '')
             
-            if received_qty <= 0:
+            if received_qty <= 0 and damaged_qty <= 0:
                 continue
             
             cursor.execute('SELECT * FROM purchase_order_items WHERE id = ?', (item_id,))
@@ -663,12 +681,21 @@ def receive_purchase_order(id):
                 
             po_item = dict(po_item_row)
             
-            # Update received quantity
+            # Update received quantity (good + damaged)
+            total_received = received_qty + damaged_qty
             cursor.execute('''
                 UPDATE purchase_order_items 
                 SET received_quantity = received_quantity + ?
                 WHERE id = ?
-            ''', (received_qty, item_id))
+            ''', (total_received, item_id))
+            
+            # Record damaged items if any
+            if damaged_qty > 0:
+                cursor.execute('''
+                    INSERT INTO damaged_items (po_id, po_item_id, product_name, quantity, damage_reason)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (id, item_id, po_item['product_name'], damaged_qty, damage_reason))
+                damaged_count += 1
             
             # Check if product exists or needs to be created
             if po_item['product_id']:
@@ -785,7 +812,8 @@ def receive_purchase_order(id):
             'message': 'Items received successfully',
             'status': new_status,
             'total_qty': totals['total_qty'],
-            'received_qty': totals['received_qty']
+            'received_qty': totals['received_qty'],
+            'damaged_count': damaged_count
         })
     except Exception as e:
         conn.rollback()

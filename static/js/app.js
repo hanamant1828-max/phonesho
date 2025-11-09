@@ -1284,16 +1284,19 @@ function receivePO(id) {
         let content = `
             <p><strong>PO Number:</strong> ${po.po_number}</p>
             <p><strong>Supplier:</strong> ${po.supplier_name}</p>
-            <table class="table table-sm">
-                <thead>
-                    <tr>
-                        <th>Product</th>
-                        <th>Ordered</th>
-                        <th>Already Received</th>
-                        <th>Receive Now</th>
-                    </tr>
-                </thead>
-                <tbody id="receiveItemsBody">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Ordered</th>
+                            <th>Already Received</th>
+                            <th>Receive Now</th>
+                            <th>Damaged</th>
+                            <th>Damage Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="receiveItemsBody">
         `;
         
         po.items.forEach(item => {
@@ -1307,11 +1310,19 @@ function receivePO(id) {
                         <input type="number" class="form-control form-control-sm receive-qty" 
                                data-item-id="${item.id}" value="${remaining}" min="0" max="${remaining}">
                     </td>
+                    <td>
+                        <input type="number" class="form-control form-control-sm receive-damaged" 
+                               data-item-id="${item.id}" value="0" min="0" max="${remaining}">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm receive-damage-reason" 
+                               data-item-id="${item.id}" placeholder="Enter reason if damaged">
+                    </td>
                 </tr>
             `;
         });
         
-        content += '</tbody></table>';
+        content += '</tbody></table></div>';
         
         $('#receivePOContent').html(content);
         $('#confirmReceivePOBtn').data('po-id', id);
@@ -1326,17 +1337,23 @@ function confirmReceivePO() {
     const items = [];
     
     $('.receive-qty').each(function() {
-        const qty = parseInt($(this).val()) || 0;
-        if (qty > 0) {
+        const itemId = $(this).data('item-id');
+        const receivedQty = parseInt($(this).val()) || 0;
+        const damagedQty = parseInt($(`.receive-damaged[data-item-id="${itemId}"]`).val()) || 0;
+        const damageReason = $(`.receive-damage-reason[data-item-id="${itemId}"]`).val();
+        
+        if (receivedQty > 0 || damagedQty > 0) {
             items.push({
-                id: $(this).data('item-id'),
-                received_quantity: qty
+                id: itemId,
+                received_quantity: receivedQty,
+                damaged_quantity: damagedQty,
+                damage_reason: damageReason
             });
         }
     });
     
     if (items.length === 0) {
-        alert('Please enter quantities to receive');
+        alert('Please enter quantities to receive or mark as damaged');
         return;
     }
     
@@ -1354,10 +1371,16 @@ function confirmReceivePO() {
         }),
         success: function(response) {
             if (response.success) {
-                alert('✓ Items received successfully!\n\n' + 
+                let message = '✓ Items received successfully!\n\n' + 
                       'Stock has been updated in inventory.\n' +
                       'Payment status: ' + paymentStatus + '\n' +
-                      (storageLocation ? 'Storage location: ' + storageLocation : ''));
+                      (storageLocation ? 'Storage location: ' + storageLocation : '');
+                
+                if (response.damaged_count > 0) {
+                    message += '\n\n⚠ ' + response.damaged_count + ' damaged item(s) recorded';
+                }
+                
+                alert(message);
                 bootstrap.Modal.getInstance($('#receivePOModal')).hide();
                 loadPurchaseOrders();
                 // Reload inventory if on that page
