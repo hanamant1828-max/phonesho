@@ -940,6 +940,79 @@ def get_grn_detail(id):
 
     return jsonify(grn)
 
+@app.route('/api/products/<int:id>/stock-history', methods=['GET'])
+@login_required
+def get_stock_history(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # Get product name
+    cursor.execute('SELECT name FROM products WHERE id = ?', (id,))
+    product_row = cursor.fetchone()
+    if not product_row:
+        conn.close()
+        return jsonify({'error': 'Product not found'}), 404
+
+    product_name = product_row['name']
+
+    # Get stock movements with running balance
+    cursor.execute('''
+        SELECT 
+            sm.id,
+            sm.type,
+            sm.quantity,
+            sm.reference_type,
+            sm.reference_id,
+            sm.notes,
+            sm.created_at,
+            CASE 
+                WHEN sm.reference_type = 'purchase_order' THEN po.po_number
+                WHEN sm.reference_type = 'grn' THEN g.grn_number
+                ELSE NULL
+            END as reference_number,
+            CASE 
+                WHEN sm.reference_type = 'purchase_order' THEN g.created_by
+                WHEN sm.reference_type = 'grn' THEN g.created_by
+                ELSE 'System'
+            END as received_by
+        FROM stock_movements sm
+        LEFT JOIN purchase_orders po ON sm.reference_type = 'purchase_order' AND sm.reference_id = po.id
+        LEFT JOIN grns g ON sm.reference_type = 'grn' AND sm.reference_id = g.id
+        WHERE sm.product_id = ?
+        ORDER BY sm.created_at ASC
+    ''', (id,))
+    
+    movements = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    # Calculate running balance
+    running_balance = 0
+    history = []
+    
+    for movement in movements:
+        if movement['type'] in ['purchase', 'opening_stock', 'adjustment']:
+            running_balance += movement['quantity']
+        elif movement['type'] in ['sale', 'damage', 'return']:
+            running_balance -= abs(movement['quantity'])
+        
+        history.append({
+            'id': movement['id'],
+            'type': movement['type'],
+            'stock_added': movement['quantity'] if movement['quantity'] > 0 else 0,
+            'stock_removed': abs(movement['quantity']) if movement['quantity'] < 0 else 0,
+            'reference': movement['reference_number'] or movement['notes'] or '-',
+            'reference_type': movement['reference_type'] or 'manual',
+            'date_time': movement['created_at'],
+            'received_by': movement['received_by'] or 'admin',
+            'running_balance': running_balance,
+            'notes': movement['notes']
+        })
+
+    return jsonify({
+        'product_name': product_name,
+        'history': history
+    })
+
 @app.route('/api/dashboard/stats', methods=['GET'])
 @login_required
 def dashboard_stats():

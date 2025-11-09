@@ -196,7 +196,7 @@
                 <div class="modal-body">
                     <form id="productForm">
                         <input type="hidden" id="productId">
-                        
+
                         <ul class="nav nav-tabs mb-3" id="productTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button">Basic Info</button>
@@ -380,20 +380,32 @@
 
 
     <div class="modal fade" id="grnViewModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-receipt"></i> Goods Receipt Note</h5>
+                    <h5 class="modal-title">GRN Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="grnViewContent"></div>
-                </div>
+                <div class="modal-body" id="grnViewContent"></div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="printGRN()">
-                        <i class="bi bi-printer"></i> Print GRN
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="printGRN()"><i class="bi bi-printer"></i> Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stock History Modal -->
+    <div class="modal fade" id="stockHistoryModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-clock-history"></i> Stock History</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="stockHistoryContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

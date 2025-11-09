@@ -414,6 +414,9 @@ function loadInventoryData() {
                     <td class="${stockClass}">${product.current_stock}</td>
                     <td><span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></td>
                     <td>
+                        <button class="btn btn-sm btn-info action-btn" onclick="viewStockHistory(${product.id})" title="Stock History">
+                            <i class="bi bi-clock-history"></i>
+                        </button>
                         <button class="btn btn-sm btn-primary action-btn" onclick="editProduct(${product.id})">
                             <i class="bi bi-pencil"></i>
                         </button>
@@ -1540,4 +1543,64 @@ function printGRN() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+}
+
+function viewStockHistory(productId) {
+    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
+        let content = `
+            <div class="mb-3">
+                <h6>Stock History for: ${data.product_name}</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Stock Added</th>
+                            <th>Reference</th>
+                            <th>User</th>
+                            <th>Running Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (data.history.length === 0) {
+            content += '<tr><td colspan="5" class="text-center text-muted">No stock movements found</td></tr>';
+        } else {
+            data.history.forEach(item => {
+                const date = new Date(item.date_time);
+                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                
+                let stockChange = '';
+                if (item.stock_added > 0) {
+                    stockChange = `<span class="text-success">+${item.stock_added}</span>`;
+                } else if (item.stock_removed > 0) {
+                    stockChange = `<span class="text-danger">-${item.stock_removed}</span>`;
+                }
+
+                content += `
+                    <tr>
+                        <td>${formattedDate}</td>
+                        <td>${stockChange}</td>
+                        <td>${item.reference}</td>
+                        <td>${item.received_by}</td>
+                        <td><strong>${item.running_balance}</strong></td>
+                    </tr>
+                `;
+            });
+        }
+
+        content += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        $('#stockHistoryContent').html(content);
+        const modal = new bootstrap.Modal($('#stockHistoryModal'));
+        modal.show();
+    }).fail(function(xhr) {
+        alert('Error loading stock history: ' + (xhr.responseJSON?.error || 'Unknown error'));
+    });
 }
