@@ -362,6 +362,7 @@ function loadInventory() {
 function loadFilterDropdowns() {
     $.get(`${API_BASE}/categories`, function(data) {
         const select = $('#filterCategory, #productCategory');
+        select.empty().append('<option value="">Select Category</option>');
         data.forEach(cat => {
             select.append(`<option value="${cat.id}">${cat.name}</option>`);
         });
@@ -369,8 +370,18 @@ function loadFilterDropdowns() {
 
     $.get(`${API_BASE}/brands`, function(data) {
         const select = $('#filterBrand, #productBrand');
+        select.empty().append('<option value="">Select Brand</option>');
         data.forEach(brand => {
             select.append(`<option value="${brand.id}">${brand.name}</option>`);
+        });
+    });
+    
+    // Load all models and store their brand_id for filtering
+    $.get(`${API_BASE}/models`, function(data) {
+        const modelSelect = $('#productModel');
+        modelSelect.empty().append('<option value="">Select Model</option>');
+        data.forEach(model => {
+            modelSelect.append(`<option value="${model.id}" data-brand-id="${model.brand_id}">${model.name}</option>`);
         });
     });
 }
@@ -523,44 +534,94 @@ function showAddProduct() {
     $('#productModalLabel').text('Add Product');
 
     loadFilterDropdowns();
+    
+    // Ensure model dropdown is fully visible for adding new products
+    $('#productModel option').show();
 
     const modal = new bootstrap.Modal($('#productModal'));
     modal.show();
 }
 
 function editProduct(id) {
-    $.get(`${API_BASE}/products/${id}`, function(product) {
-        $('#productId').val(id);
-        $('#productSKU').val(product.sku);
-        $('#productName').val(product.name);
-        $('#productCategory').val(product.category_id);
-        $('#productBrand').val(product.brand_id);
-        $('#productDescription').val(product.description);
-        $('#productCostPrice').val(product.cost_price);
-        $('#productSellingPrice').val(product.selling_price);
-        $('#productMRP').val(product.mrp);
-        $('#productCurrentStock').val(product.current_stock);
-        $('#productMinStock').val(product.min_stock_level);
-        $('#productLocation').val(product.storage_location);
-        $('#productIMEI').val(product.imei);
-        $('#productColor').val(product.color);
-        $('#productStorage').val(product.storage_capacity);
-        $('#productRAM').val(product.ram);
-        $('#productWarranty').val(product.warranty_period);
-        $('#productSupplierName').val(product.supplier_name);
-        $('#productSupplierContact').val(product.supplier_contact);
-        $('#productImage').val(product.image_url);
-        $('#productStatus').val(product.status);
+    loadFilterDropdowns();
 
-        loadModelsForBrand();
-        $('#productModel').val(product.model_id);
+    // Add brand change handler
+    $('#productBrand').off('change').on('change', function() {
+        const brandId = $(this).val();
+        const modelSelect = $('#productModel');
 
-        $('#productModalLabel').text('Edit Product');
-
-        const modal = new bootstrap.Modal($('#productModal'));
-        modal.show();
+        if (brandId) {
+            modelSelect.find('option').each(function() {
+                const option = $(this);
+                if (option.val() === '') {
+                    option.show();
+                } else if (option.data('brand-id') == brandId) {
+                    option.show();
+                } else {
+                    option.hide();
+                }
+            });
+        } else {
+            modelSelect.find('option').show();
+        }
+        // Reset model selection if brand changes
+        modelSelect.val('');
     });
+
+    // Wait for dropdowns to load, then populate form
+    setTimeout(function() {
+        $.get(`${API_BASE}/products/${id}`, function(product) {
+            $('#productId').val(product.id);
+            $('#productSKU').val(product.sku);
+            $('#productName').val(product.name);
+            $('#productCategory').val(product.category_id);
+            $('#productBrand').val(product.brand_id);
+
+            // Trigger the change event for brand to filter models correctly
+            $('#productBrand').trigger('change');
+
+            // Filter models by brand first
+            if (product.brand_id) {
+                $('#productModel option').each(function() {
+                    const option = $(this);
+                    if (option.val() === '') {
+                        option.show();
+                    } else if (option.data('brand-id') == product.brand_id) {
+                        option.show();
+                    } else {
+                        option.hide();
+                    }
+                });
+            }
+
+            $('#productModel').val(product.model_id);
+            $('#productDescription').val(product.description);
+            $('#productCostPrice').val(product.cost_price);
+            $('#productSellingPrice').val(product.selling_price);
+            $('#productMRP').val(product.mrp);
+            $('#productOpeningStock').val(product.opening_stock);
+            $('#productCurrentStock').val(product.current_stock);
+            $('#productMinStock').val(product.min_stock_level);
+            $('#productLocation').val(product.storage_location);
+            $('#productIMEI').val(product.imei);
+            $('#productColor').val(product.color);
+            $('#productStorage').val(product.storage_capacity);
+            $('#productRAM').val(product.ram);
+            $('#productWarranty').val(product.warranty_period);
+            $('#productSupplierName').val(product.supplier_name);
+            $('#productSupplierContact').val(product.supplier_contact);
+            $('#productImage').val(product.image_url);
+            $('#productStatus').val(product.status);
+            $('#productModalLabel').text('Edit Product');
+
+            calculateProfitMargin(); // Renamed from updateProfitMargin
+
+            const modal = new bootstrap.Modal($('#productModal'));
+            modal.show();
+        });
+    }, 200); // Short delay to ensure dropdowns are populated
 }
+
 
 function deleteProduct(id) {
     if (!confirm('Are you sure you want to delete this product?')) return;
@@ -639,11 +700,20 @@ function loadModelsForBrand() {
 
     modelSelect.empty().append('<option value="">Select Model</option>');
 
-    if (!brandId) return;
+    if (!brandId) {
+        // If no brand is selected, show all models
+        $.get(`${API_BASE}/models`, function(data) {
+            data.forEach(model => {
+                modelSelect.append(`<option value="${model.id}" data-brand-id="${model.brand_id}">${model.name}</option>`);
+            });
+        });
+        return;
+    }
 
+    // Fetch all models and filter them by the selected brand
     $.get(`${API_BASE}/models`, function(data) {
         data.filter(m => m.brand_id == brandId).forEach(model => {
-            modelSelect.append(`<option value="${model.id}">${model.name}</option>`);
+            modelSelect.append(`<option value="${model.id}" data-brand-id="${model.brand_id}">${model.name}</option>`);
         });
     });
 }
@@ -1571,7 +1641,7 @@ function viewStockHistory(productId) {
             data.history.forEach(item => {
                 const date = new Date(item.date_time);
                 const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-                
+
                 let stockChange = '-';
                 if (item.stock_added > 0) {
                     stockChange = `<span class="text-success fw-bold">+${item.stock_added}</span>`;
