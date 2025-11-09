@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Shop Inventory Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#"><i class="bi bi-phone"></i> Mobile Shop Manager</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" id="navbar-menu" style="display:none;">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-page="dashboard">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="inventory">
+                            <i class="bi bi-box-seam"></i> Inventory
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="purchase-orders">
+                            <i class="bi bi-cart-plus"></i> Purchase Orders
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-gear"></i> Master Data
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" data-page="categories">Categories</a></li>
+                            <li><a class="dropdown-item" href="#" data-page="brands">Brands</a></li>
+                            <li><a class="dropdown-item" href="#" data-page="models">Models</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <span class="nav-link"><i class="bi bi-person"></i> <span id="username-display"></span></span>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-sm btn-outline-light" id="logoutBtn" style="display:none;">
+                            <i class="bi bi-box-arrow-right"></i> Logout
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div id="content-area"></div>
+    </div>
+
+    <div class="modal fade" id="loginModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-lock"></i> Login Required</h5>
+                </div>
+                <div class="modal-body">
+                    <form id="loginForm">
+                        <div class="mb-3">
+                            <label for="loginUsername" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="loginUsername" value="admin" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="loginPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="loginPassword" required>
+                            <div class="form-text">Default: admin / admin123</div>
+                        </div>
+                        <div class="alert alert-danger" id="loginError" style="display:none;"></div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary w-100" id="loginBtn">
+                        <i class="bi bi-box-arrow-in-right"></i> Login
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="categoryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="categoryModalLabel">Add Category</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="categoryForm">
+                        <input type="hidden" id="categoryId">
+                        <div class="mb-3">
+                            <label for="categoryName" class="form-label">Category Name *</label>
+                            <input type="text" class="form-control" id="categoryName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="categoryDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="categoryDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveCategoryBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="brandModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="brandModalLabel">Add Brand</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="brandForm">
+                        <input type="hidden" id="brandId">
+                        <div class="mb-3">
+                            <label for="brandName" class="form-label">Brand Name *</label>
+                            <input type="text" class="form-control" id="brandName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="brandDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="brandDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveBrandBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modelModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modelModalLabel">Add Model</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="modelForm">
+                        <input type="hidden" id="modelId">
+                        <div class="mb-3">
+                            <label for="modelBrand" class="form-label">Brand *</label>
+                            <select class="form-select" id="modelBrand" required>
+                                <option value="">Select Brand</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modelName" class="form-label">Model Name *</label>
+                            <input type="text" class="form-control" id="modelName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modelDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="modelDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveModelBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="productModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="productModalLabel">Add Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="productForm">
+                        <input type="hidden" id="productId">
+                        
+                        <ul class="nav nav-tabs mb-3" id="productTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button">Basic Info</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="pricing-tab" data-bs-toggle="tab" data-bs-target="#pricing" type="button">Pricing</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="stock-tab" data-bs-toggle="tab" data-bs-target="#stock" type="button">Stock</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="specs-tab" data-bs-toggle="tab" data-bs-target="#specs" type="button">Specifications</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="supplier-tab" data-bs-toggle="tab" data-bs-target="#supplier" type="button">Supplier</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="productTabContent">
+                            <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productSKU" class="form-label">SKU</label>
+                                        <input type="text" class="form-control" id="productSKU">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productName" class="form-label">Product Name *</label>
+                                        <input type="text" class="form-control" id="productName" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productCategory" class="form-label">Category</label>
+                                        <select class="form-select" id="productCategory">
+                                            <option value="">Select Category</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productBrand" class="form-label">Brand</label>
+                                        <select class="form-select" id="productBrand">
+                                            <option value="">Select Brand</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productModel" class="form-label">Model</label>
+                                        <select class="form-select" id="productModel">
+                                            <option value="">Select Model</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-12 mb-3">
+                                        <label for="productDescription" class="form-label">Description</label>
+                                        <textarea class="form-control" id="productDescription" rows="3"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="pricing" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productCostPrice" class="form-label">Cost Price</label>
+                                        <input type="number" step="0.01" class="form-control" id="productCostPrice" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productSellingPrice" class="form-label">Selling Price</label>
+                                        <input type="number" step="0.01" class="form-control" id="productSellingPrice" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productMRP" class="form-label">MRP</label>
+                                        <input type="number" step="0.01" class="form-control" id="productMRP" value="0">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="alert alert-info">
+                                            <strong>Profit Margin:</strong> <span id="profitMargin">0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="stock" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productOpeningStock" class="form-label">Opening Stock</label>
+                                        <input type="number" class="form-control" id="productOpeningStock" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productMinStock" class="form-label">Minimum Stock Level</label>
+                                        <input type="number" class="form-control" id="productMinStock" value="10">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productLocation" class="form-label">Storage Location</label>
+                                        <input type="text" class="form-control" id="productLocation">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productIMEI" class="form-label">IMEI</label>
+                                        <input type="text" class="form-control" id="productIMEI">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productStatus" class="form-label">Status</label>
+                                        <select class="form-select" id="productStatus">
+                                            <option value="active">Active</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="specs" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productColor" class="form-label">Color</label>
+                                        <input type="text" class="form-control" id="productColor">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productStorage" class="form-label">Storage Capacity</label>
+                                        <input type="text" class="form-control" id="productStorage" placeholder="e.g., 128GB">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="productRAM" class="form-label">RAM</label>
+                                        <input type="text" class="form-control" id="productRAM" placeholder="e.g., 8GB">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productWarranty" class="form-label">Warranty Period</label>
+                                        <input type="text" class="form-control" id="productWarranty" placeholder="e.g., 12 months">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productImage" class="form-label">Image URL</label>
+                                        <input type="text" class="form-control" id="productImage">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="supplier" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productSupplierName" class="form-label">Supplier Name</label>
+                                        <input type="text" class="form-control" id="productSupplierName">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="productSupplierContact" class="form-label">Supplier Contact</label>
+                                        <input type="text" class="form-control" id="productSupplierContact">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveProductBtn">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="poModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Purchase Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="poForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="poNumber" class="form-label">PO Number *</label>
+                                <input type="text" class="form-control" id="poNumber" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="poSupplier" class="form-label">Supplier Name *</label>
+                                <input type="text" class="form-control" id="poSupplier" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="poSupplierContact" class="form-label">Supplier Contact</label>
+                                <input type="text" class="form-control" id="poSupplierContact">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="poDate" class="form-label">Order Date *</label>
+                                <input type="date" class="form-control" id="poDate" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="poExpectedDelivery" class="form-label">Expected Delivery</label>
+                                <input type="date" class="form-control" id="poExpectedDelivery">
+                            </div>
+                        </div>
+
+                        <h6>Items</h6>
+                        <button type="button" class="btn btn-sm btn-success mb-2" id="addPOItemBtn">
+                            <i class="bi bi-plus"></i> Add Item
+                        </button>
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="poItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Category</th>
+                                        <th>Brand</th>
+                                        <th>Model</th>
+                                        <th>Quantity</th>
+                                        <th>Cost Price</th>
+                                        <th>Total</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="poItemsBody">
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colspan="6" class="text-end"><strong>Total Amount:</strong></td>
+                                        <td><strong id="poTotalAmount">0.00</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="poNotes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="poNotes" rows="2"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="savePOBtn">Create PO</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="receivePOModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Receive Purchase Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="receivePOContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmReceivePOBtn">Confirm Receipt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
