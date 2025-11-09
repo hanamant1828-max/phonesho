@@ -927,11 +927,12 @@ def get_grn_detail(id):
     grn = dict(grn_row)
 
     cursor.execute('''
-        SELECT gi.*, p.sku, p.brand_id, p.category_id
+        SELECT gi.*, p.sku, p.brand_id, p.category_id, poi.quantity as ordered_quantity
         FROM grn_items gi
         LEFT JOIN products p ON gi.product_id = p.id
+        LEFT JOIN purchase_order_items poi ON gi.product_name = poi.product_name AND poi.po_id = ?
         WHERE gi.grn_id = ?
-    ''', (id,))
+    ''', (grn['po_id'], id))
     items = [dict(row) for row in cursor.fetchall()]
 
     grn['items'] = items

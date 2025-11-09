@@ -1395,7 +1395,7 @@ function confirmReceivePO() {
                     bootstrap.Modal.getInstance($('#receivePOModal')).hide();
                     loadPurchaseOrders();
                 }
-                
+
                 // Reload inventory if on that page
                 if (currentPage === 'inventory') {
                     loadInventoryData();
@@ -1483,8 +1483,9 @@ function viewGRN(id) {
                 <thead>
                     <tr>
                         <th>Product</th>
-                        <th>Quantity Received</th>
-                        <th>Quantity Damaged</th>
+                        <th>Ordered</th>
+                        <th>Received</th>
+                        <th>Damaged</th>
                         <th>Unit Cost</th>
                         <th>Line Total</th>
                     </tr>
@@ -1499,6 +1500,7 @@ function viewGRN(id) {
             content += `
                 <tr>
                     <td>${item.product_name}</td>
+                    <td>${item.ordered_quantity || '-'}</td>
                     <td>${item.quantity_received}</td>
                     <td>${item.quantity_damaged || 0} ${item.damage_reason ? `<br><small class="text-muted">(${item.damage_reason})</small>` : ''}</td>
                     <td>$${parseFloat(item.cost_price).toFixed(2)}</td>
@@ -1511,7 +1513,7 @@ function viewGRN(id) {
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="4" class="text-end"><strong>Total Amount:</strong></td>
+                        <td colspan="5" class="text-end"><strong>Total Amount:</strong></td>
                         <td><strong>$${totalAmount.toFixed(2)}</strong></td>
                     </tr>
                 </tfoot>
