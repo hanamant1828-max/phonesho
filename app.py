@@ -36,6 +36,14 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     
+    # Migration: Add payment_status and storage_location to purchase_orders if they don't exist
+    cursor.execute("PRAGMA table_info(purchase_orders)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'payment_status' not in columns:
+        cursor.execute('ALTER TABLE purchase_orders ADD COLUMN payment_status TEXT DEFAULT "unpaid"')
+    if 'storage_location' not in columns:
+        cursor.execute('ALTER TABLE purchase_orders ADD COLUMN storage_location TEXT')
+    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -108,6 +116,8 @@ def init_db():
             order_date DATE NOT NULL,
             expected_delivery DATE,
             status TEXT DEFAULT 'pending',
+            payment_status TEXT DEFAULT 'unpaid',
+            storage_location TEXT,
             total_amount REAL DEFAULT 0,
             notes TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -636,6 +646,9 @@ def receive_purchase_order(id):
     cursor = conn.cursor()
     
     try:
+        payment_status = data.get('payment_status', 'unpaid')
+        storage_location = data.get('storage_location', '')
+        
         for item in data.get('items', []):
             item_id = item['id']
             received_qty = item['received_quantity']
@@ -650,11 +663,19 @@ def receive_purchase_order(id):
             ''', (received_qty, item_id))
             
             if po_item['product_id']:
-                cursor.execute('''
-                    UPDATE products 
-                    SET current_stock = current_stock + ?
-                    WHERE id = ?
-                ''', (received_qty, po_item['product_id']))
+                # Update product stock and optionally set storage location
+                if storage_location:
+                    cursor.execute('''
+                        UPDATE products 
+                        SET current_stock = current_stock + ?, storage_location = ?
+                        WHERE id = ?
+                    ''', (received_qty, storage_location, po_item['product_id']))
+                else:
+                    cursor.execute('''
+                        UPDATE products 
+                        SET current_stock = current_stock + ?
+                        WHERE id = ?
+                    ''', (received_qty, po_item['product_id']))
                 
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
@@ -664,12 +685,13 @@ def receive_purchase_order(id):
                 cursor.execute('''
                     INSERT INTO products (
                         name, category_id, brand_id, model_id, cost_price,
-                        selling_price, mrp, current_stock, opening_stock, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        selling_price, mrp, current_stock, opening_stock, 
+                        storage_location, status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     po_item['product_name'], po_item['category_id'], po_item['brand_id'],
                     po_item['model_id'], po_item['cost_price'], po_item['cost_price'] * 1.2,
-                    po_item['cost_price'] * 1.3, received_qty, 0, 'active'
+                    po_item['cost_price'] * 1.3, received_qty, 0, storage_location, 'active'
                 ))
                 new_product_id = cursor.lastrowid
                 
@@ -691,9 +713,17 @@ def receive_purchase_order(id):
         totals = dict(cursor.fetchone())
         
         if totals['total_qty'] == totals['received_qty']:
-            cursor.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', ('completed', id))
+            cursor.execute('''
+                UPDATE purchase_orders 
+                SET status = ?, payment_status = ?, storage_location = ?
+                WHERE id = ?
+            ''', ('completed', payment_status, storage_location, id))
         else:
-            cursor.execute('UPDATE purchase_orders SET status = ? WHERE id = ?', ('partial', id))
+            cursor.execute('''
+                UPDATE purchase_orders 
+                SET status = ?, payment_status = ?, storage_location = ?
+                WHERE id = ?
+            ''', ('partial', payment_status, storage_location, id))
         
         conn.commit()
         return jsonify({'success': True})

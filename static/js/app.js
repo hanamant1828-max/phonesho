@@ -1066,6 +1066,10 @@ function loadPurchaseOrders() {
             else if (po.status === 'partial') statusBadge = 'warning';
             else if (po.status === 'pending') statusBadge = 'info';
             
+            let paymentBadge = 'danger';
+            if (po.payment_status === 'paid') paymentBadge = 'success';
+            else if (po.payment_status === 'partial') paymentBadge = 'warning';
+            
             tbody.append(`
                 <tr>
                     <td>${po.po_number}</td>
@@ -1218,6 +1222,10 @@ function viewPO(id) {
         const orderDate = new Date(po.order_date).toLocaleDateString();
         const expectedDate = po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '-';
         
+        let paymentBadge = 'danger';
+        if (po.payment_status === 'paid') paymentBadge = 'success';
+        else if (po.payment_status === 'partial') paymentBadge = 'warning';
+        
         let content = `
             <div class="mb-3">
                 <h6>PO Details</h6>
@@ -1226,6 +1234,8 @@ function viewPO(id) {
                 <p><strong>Order Date:</strong> ${orderDate}</p>
                 <p><strong>Expected Delivery:</strong> ${expectedDate}</p>
                 <p><strong>Status:</strong> <span class="badge bg-info">${po.status}</span></p>
+                <p><strong>Payment Status:</strong> <span class="badge bg-${paymentBadge}">${po.payment_status || 'unpaid'}</span></p>
+                <p><strong>Storage Location:</strong> ${po.storage_location || '-'}</p>
                 <p><strong>Notes:</strong> ${po.notes || '-'}</p>
             </div>
             <h6>Items</h6>
@@ -1330,11 +1340,18 @@ function confirmReceivePO() {
         return;
     }
     
+    const paymentStatus = $('#receivePaymentStatus').val();
+    const storageLocation = $('#receiveStorageLocation').val();
+    
     $.ajax({
         url: `${API_BASE}/purchase-orders/${poId}/receive`,
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ items: items }),
+        data: JSON.stringify({ 
+            items: items,
+            payment_status: paymentStatus,
+            storage_location: storageLocation
+        }),
         success: function() {
             alert('Items received successfully');
             bootstrap.Modal.getInstance($('#receivePOModal')).hide();

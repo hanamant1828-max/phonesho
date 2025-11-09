@@ -430,6 +430,20 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="receivePaymentStatus" class="form-label">Payment Status *</label>
+                            <select class="form-select" id="receivePaymentStatus" required>
+                                <option value="unpaid">Unpaid</option>
+                                <option value="partial">Partially Paid</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="receiveStorageLocation" class="form-label">Storage Location</label>
+                            <input type="text" class="form-control" id="receiveStorageLocation" placeholder="e.g., Shelf A1, Warehouse 2">
+                        </div>
+                    </div>
                     <div id="receivePOContent"></div>
                 </div>
                 <div class="modal-footer">
