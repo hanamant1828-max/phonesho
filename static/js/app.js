@@ -1556,7 +1556,7 @@ function viewStockHistory(productId) {
                     <thead>
                         <tr>
                             <th>Date & Time</th>
-                            <th>Stock Added</th>
+                            <th>Stock Change</th>
                             <th>Reference</th>
                             <th>User</th>
                             <th>Running Balance</th>
@@ -1565,27 +1565,27 @@ function viewStockHistory(productId) {
                     <tbody>
         `;
 
-        if (data.history.length === 0) {
+        if (!data.history || data.history.length === 0) {
             content += '<tr><td colspan="5" class="text-center text-muted">No stock movements found</td></tr>';
         } else {
             data.history.forEach(item => {
                 const date = new Date(item.date_time);
                 const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
                 
-                let stockChange = '';
+                let stockChange = '-';
                 if (item.stock_added > 0) {
-                    stockChange = `<span class="text-success">+${item.stock_added}</span>`;
+                    stockChange = `<span class="text-success fw-bold">+${item.stock_added}</span>`;
                 } else if (item.stock_removed > 0) {
-                    stockChange = `<span class="text-danger">-${item.stock_removed}</span>`;
+                    stockChange = `<span class="text-danger fw-bold">-${item.stock_removed}</span>`;
                 }
 
                 content += `
                     <tr>
-                        <td>${formattedDate}</td>
+                        <td><small>${formattedDate}</small></td>
                         <td>${stockChange}</td>
-                        <td>${item.reference}</td>
-                        <td>${item.received_by}</td>
-                        <td><strong>${item.running_balance}</strong></td>
+                        <td><small>${item.reference || 'N/A'}</small></td>
+                        <td><small>${item.received_by || 'System'}</small></td>
+                        <td><strong class="text-primary">${item.running_balance}</strong></td>
                     </tr>
                 `;
             });

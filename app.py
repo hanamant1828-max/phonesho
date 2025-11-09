@@ -1011,34 +1011,6 @@ def get_stock_history(id):
         'history': history
     })
 
-    # Calculate running balance
-    running_balance = 0
-    history = []
-    
-    for movement in movements:
-        if movement['type'] in ['purchase', 'opening_stock', 'adjustment']:
-            running_balance += movement['quantity']
-        elif movement['type'] in ['sale', 'damage', 'return']:
-            running_balance -= abs(movement['quantity'])
-        
-        history.append({
-            'id': movement['id'],
-            'type': movement['type'],
-            'stock_added': movement['quantity'] if movement['quantity'] > 0 else 0,
-            'stock_removed': abs(movement['quantity']) if movement['quantity'] < 0 else 0,
-            'reference': movement['reference_number'] or movement['notes'] or '-',
-            'reference_type': movement['reference_type'] or 'manual',
-            'date_time': movement['created_at'],
-            'received_by': movement['received_by'] or 'admin',
-            'running_balance': running_balance,
-            'notes': movement['notes']
-        })
-
-    return jsonify({
-        'product_name': product_name,
-        'history': history
-    })
-
 @app.route('/api/dashboard/stats', methods=['GET'])
 @login_required
 def dashboard_stats():
