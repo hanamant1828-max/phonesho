@@ -1352,10 +1352,21 @@ function confirmReceivePO() {
             payment_status: paymentStatus,
             storage_location: storageLocation
         }),
-        success: function() {
-            alert('Items received successfully');
-            bootstrap.Modal.getInstance($('#receivePOModal')).hide();
-            loadPurchaseOrders();
+        success: function(response) {
+            if (response.success) {
+                alert('✓ Items received successfully!\n\n' + 
+                      'Stock has been updated in inventory.\n' +
+                      'Payment status: ' + paymentStatus + '\n' +
+                      (storageLocation ? 'Storage location: ' + storageLocation : ''));
+                bootstrap.Modal.getInstance($('#receivePOModal')).hide();
+                loadPurchaseOrders();
+                // Reload inventory if on that page
+                if (currentPage === 'inventory') {
+                    loadInventoryData();
+                }
+            } else {
+                alert('Error: ' + (response.error || 'Failed to receive items'));
+            }
         },
         error: function(xhr) {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to receive items'));

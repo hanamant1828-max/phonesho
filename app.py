@@ -653,35 +653,81 @@ def receive_purchase_order(id):
             item_id = item['id']
             received_qty = item['received_quantity']
             
-            cursor.execute('SELECT * FROM purchase_order_items WHERE id = ?', (item_id,))
-            po_item = dict(cursor.fetchone())
+            if received_qty <= 0:
+                continue
             
+            cursor.execute('SELECT * FROM purchase_order_items WHERE id = ?', (item_id,))
+            po_item_row = cursor.fetchone()
+            if not po_item_row:
+                continue
+                
+            po_item = dict(po_item_row)
+            
+            # Update received quantity
             cursor.execute('''
                 UPDATE purchase_order_items 
                 SET received_quantity = received_quantity + ?
                 WHERE id = ?
             ''', (received_qty, item_id))
             
+            # Check if product exists or needs to be created
             if po_item['product_id']:
-                # Update product stock and optionally set storage location
-                if storage_location:
-                    cursor.execute('''
-                        UPDATE products 
-                        SET current_stock = current_stock + ?, storage_location = ?
-                        WHERE id = ?
-                    ''', (received_qty, storage_location, po_item['product_id']))
-                else:
-                    cursor.execute('''
-                        UPDATE products 
-                        SET current_stock = current_stock + ?
-                        WHERE id = ?
-                    ''', (received_qty, po_item['product_id']))
+                # Product exists, update stock
+                cursor.execute('SELECT * FROM products WHERE id = ?', (po_item['product_id'],))
+                existing_product = cursor.fetchone()
                 
-                cursor.execute('''
-                    INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id, f"Received from PO {po_item['po_id']}"))
+                if existing_product:
+                    # Update stock and storage location
+                    update_query = 'UPDATE products SET current_stock = current_stock + ?, updated_at = CURRENT_TIMESTAMP'
+                    params = [received_qty]
+                    
+                    if storage_location:
+                        update_query += ', storage_location = ?'
+                        params.append(storage_location)
+                    
+                    update_query += ' WHERE id = ?'
+                    params.append(po_item['product_id'])
+                    
+                    cursor.execute(update_query, params)
+                    
+                    # Record stock movement
+                    cursor.execute('''
+                        INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id, 
+                          f"Received from PO #{id}"))
+                else:
+                    # Product was deleted, create new one
+                    cursor.execute('''
+                        INSERT INTO products (
+                            name, category_id, brand_id, model_id, cost_price,
+                            selling_price, mrp, current_stock, opening_stock, 
+                            storage_location, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        po_item['product_name'], po_item['category_id'], po_item['brand_id'],
+                        po_item['model_id'], po_item['cost_price'], 
+                        round(po_item['cost_price'] * 1.2, 2),
+                        round(po_item['cost_price'] * 1.3, 2), 
+                        received_qty, received_qty, storage_location, 'active'
+                    ))
+                    new_product_id = cursor.lastrowid
+                    
+                    # Update PO item with new product ID
+                    cursor.execute('''
+                        UPDATE purchase_order_items 
+                        SET product_id = ?
+                        WHERE id = ?
+                    ''', (new_product_id, item_id))
+                    
+                    # Record stock movement
+                    cursor.execute('''
+                        INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
+                          f"Initial stock from PO #{id}"))
             else:
+                # Create new product
                 cursor.execute('''
                     INSERT INTO products (
                         name, category_id, brand_id, model_id, cost_price,
@@ -690,43 +736,57 @@ def receive_purchase_order(id):
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     po_item['product_name'], po_item['category_id'], po_item['brand_id'],
-                    po_item['model_id'], po_item['cost_price'], po_item['cost_price'] * 1.2,
-                    po_item['cost_price'] * 1.3, received_qty, 0, storage_location, 'active'
+                    po_item['model_id'], po_item['cost_price'], 
+                    round(po_item['cost_price'] * 1.2, 2),
+                    round(po_item['cost_price'] * 1.3, 2), 
+                    received_qty, received_qty, storage_location, 'active'
                 ))
                 new_product_id = cursor.lastrowid
                 
+                # Update PO item with new product ID
                 cursor.execute('''
                     UPDATE purchase_order_items 
                     SET product_id = ?
                     WHERE id = ?
                 ''', (new_product_id, item_id))
                 
+                # Record stock movement
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                     VALUES (?, ?, ?, ?, ?, ?)
-                ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, f"Initial stock from PO"))
+                ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
+                      f"Initial stock from PO #{id}"))
         
+        # Check if all items are fully received
         cursor.execute('''
             SELECT SUM(quantity) as total_qty, SUM(received_quantity) as received_qty
             FROM purchase_order_items WHERE po_id = ?
         ''', (id,))
-        totals = dict(cursor.fetchone())
+        totals_row = cursor.fetchone()
+        totals = dict(totals_row) if totals_row else {'total_qty': 0, 'received_qty': 0}
         
-        if totals['total_qty'] == totals['received_qty']:
-            cursor.execute('''
-                UPDATE purchase_orders 
-                SET status = ?, payment_status = ?, storage_location = ?
-                WHERE id = ?
-            ''', ('completed', payment_status, storage_location, id))
+        # Update PO status
+        if totals['total_qty'] <= totals['received_qty']:
+            new_status = 'completed'
+        elif totals['received_qty'] > 0:
+            new_status = 'partial'
         else:
-            cursor.execute('''
-                UPDATE purchase_orders 
-                SET status = ?, payment_status = ?, storage_location = ?
-                WHERE id = ?
-            ''', ('partial', payment_status, storage_location, id))
+            new_status = 'pending'
+        
+        cursor.execute('''
+            UPDATE purchase_orders 
+            SET status = ?, payment_status = ?, storage_location = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (new_status, payment_status, storage_location, id))
         
         conn.commit()
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True, 
+            'message': 'Items received successfully',
+            'status': new_status,
+            'total_qty': totals['total_qty'],
+            'received_qty': totals['received_qty']
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
