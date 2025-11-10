@@ -357,7 +357,7 @@ function loadInventory() {
     $('#searchProduct').on('keyup', function() {
         applyFilters();
     });
-    
+
     $('#filterCategory, #filterBrand, #filterStockStatus, #filterStatus').on('change', function() {
         applyFilters();
     });
@@ -376,7 +376,7 @@ function loadFilterDropdowns() {
         data.forEach(cat => {
             filterSelect.append(`<option value="${cat.id}">${cat.name}</option>`);
         });
-        
+
         // Also populate product form dropdown
         const productSelect = $('#productCategory');
         productSelect.empty().append('<option value="">Select Category</option>');
@@ -392,7 +392,7 @@ function loadFilterDropdowns() {
         data.forEach(brand => {
             filterSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
         });
-        
+
         // Also populate product form dropdown
         const productSelect = $('#productBrand');
         productSelect.empty().append('<option value="">Select Brand</option>');
@@ -400,7 +400,7 @@ function loadFilterDropdowns() {
             productSelect.append(`<option value="${brand.id}">${brand.name}</option>`);
         });
     });
-    
+
     // Load all models for product form
     $.get(`${API_BASE}/models`, function(data) {
         const modelSelect = $('#productModel');
@@ -466,8 +466,7 @@ function loadInventoryData() {
                                 <i class="bi bi-trash"></i>
                             </button>
                         </td>
-                    </tr>
-                `);
+                    </tr>`)
             });
         }
 
@@ -491,7 +490,7 @@ function applyFilters() {
     if (window.filterTimeout) {
         clearTimeout(window.filterTimeout);
     }
-    
+
     // Add small delay to prevent too many rapid requests
     window.filterTimeout = setTimeout(function() {
         loadInventoryData();
@@ -577,7 +576,7 @@ function showAddProduct() {
     $('#productModalLabel').text('Add Product');
 
     loadFilterDropdowns();
-    
+
     // Ensure model dropdown is fully visible for adding new products
     $('#productModel option').show();
 
@@ -1157,7 +1156,7 @@ function confirmImport() {
         error: function(xhr) {
             $('#importProgressBar').removeClass('progress-bar-animated').addClass('bg-danger');
             $('#importProgressText').text('Import failed!');
-            
+
             const errorMsg = xhr.responseJSON?.error || 'Unknown error';
             $('#importResult').html(`
                 <div class="alert alert-danger">
@@ -2035,21 +2034,21 @@ function printGRN() {
 function viewProductDetails(productId) {
     // Show loading state
     $('#productDetailsContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading product details...</p></div>');
-    
+
     const modal = new bootstrap.Modal($('#productDetailsModal'));
     modal.show();
-    
+
     $.get(`${API_BASE}/products/${productId}`, function(product) {
         const costPrice = parseFloat(product.cost_price || 0);
         const sellingPrice = parseFloat(product.selling_price || 0);
         const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
         const profitColor = profitMargin > 30 ? 'success' : profitMargin > 15 ? 'warning' : 'danger';
-        
+
         const stockStatus = product.current_stock === 0 ? 'Out of Stock' : 
                            product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
         const stockBadgeClass = product.current_stock === 0 ? 'danger' : 
                                product.current_stock <= product.min_stock_level ? 'warning' : 'success';
-        
+
         let content = `
             <div class="row">
                 <!-- Left Column: Image Gallery -->
@@ -2068,7 +2067,7 @@ function viewProductDetails(productId) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Quick Actions -->
                     <div class="card">
                         <div class="card-header">
@@ -2092,7 +2091,7 @@ function viewProductDetails(productId) {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Right Column: Details -->
                 <div class="col-md-8">
                     <!-- Basic Information -->
@@ -2120,7 +2119,7 @@ function viewProductDetails(productId) {
                             ${product.description ? `<p class="mb-0"><strong>Description:</strong><br>${product.description}</p>` : ''}
                         </div>
                     </div>
-                    
+
                     <!-- Pricing Information -->
                     <div class="card mb-3">
                         <div class="card-header">
@@ -2143,7 +2142,7 @@ function viewProductDetails(productId) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Stock Information -->
                     <div class="card mb-3">
                         <div class="card-header">
@@ -2177,7 +2176,7 @@ function viewProductDetails(productId) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Supplier Information -->
                     <div class="card mb-3">
                         <div class="card-header">
@@ -2200,7 +2199,7 @@ function viewProductDetails(productId) {
                             </div>
                         </div>
                     </div>
-                    
+
                     <!-- Specifications -->
                     <div class="card mb-3">
                         <div class="card-header">
@@ -2220,7 +2219,7 @@ function viewProductDetails(productId) {
                 </div>
             </div>
         `;
-        
+
         $('#productDetailsContent').html(content);
     }).fail(function(xhr) {
         const errorMsg = xhr.responseJSON?.error || 'Failed to load product details.';
@@ -2278,7 +2277,7 @@ function adjustStock(productId) {
                 alert('Stock cannot be negative');
                 return;
             }
-            
+
             $.ajax({
                 url: `${API_BASE}/products/${productId}`,
                 method: 'PUT',
@@ -2307,7 +2306,7 @@ function reorderProduct(productId) {
     $.get(`${API_BASE}/products/${productId}`, function(product) {
         const recommended = Math.max(product.min_stock_level * 2, 10);
         const quantity = prompt(`Reorder ${product.name}\n\nCurrent Stock: ${product.current_stock}\nMin Level: ${product.min_stock_level}\nRecommended Quantity: ${recommended}\n\nEnter quantity to order:`, recommended);
-        
+
         if (quantity && parseInt(quantity) > 0) {
             alert('Creating purchase order...\n\nThis will create a PO for ' + quantity + ' units of ' + product.name);
             // Future: Automatically create PO
@@ -2321,15 +2320,15 @@ function viewStockHistory(productId) {
     if (productDetailsModal) {
         productDetailsModal.hide();
     }
-    
+
     // Wait a brief moment for the first modal to close, then show stock history modal
     setTimeout(() => {
         // Show loading state
         $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
-        
+
         const modal = new bootstrap.Modal($('#stockHistoryModal'));
         modal.show();
-        
+
         // Load the stock history data
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
         let content = `
