@@ -251,6 +251,60 @@ def init_db():
         )
     ''')
 
+    # POS Sales Tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pos_sales (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_number TEXT UNIQUE NOT NULL,
+            customer_name TEXT,
+            customer_phone TEXT,
+            customer_email TEXT,
+            sale_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            subtotal REAL DEFAULT 0,
+            discount_amount REAL DEFAULT 0,
+            discount_percentage REAL DEFAULT 0,
+            tax_amount REAL DEFAULT 0,
+            tax_percentage REAL DEFAULT 0,
+            total_amount REAL DEFAULT 0,
+            payment_method TEXT,
+            payment_status TEXT DEFAULT 'paid',
+            notes TEXT,
+            cashier_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pos_sale_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            product_name TEXT NOT NULL,
+            sku TEXT,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            discount REAL DEFAULT 0,
+            tax REAL DEFAULT 0,
+            total_price REAL NOT NULL,
+            imei TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sale_id) REFERENCES pos_sales (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pos_payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sale_id INTEGER NOT NULL,
+            payment_method TEXT NOT NULL,
+            amount REAL NOT NULL,
+            reference_number TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sale_id) REFERENCES pos_sales (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -1810,6 +1864,170 @@ def import_products():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+
+@app.route('/api/pos/sales', methods=['GET', 'POST'])
+@login_required
+def pos_sales():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        try:
+            sale_number = f"POS-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            items = data.get('items', [])
+            
+            if not items:
+                return jsonify({'success': False, 'error': 'No items in sale'}), 400
+            
+            # Calculate totals
+            subtotal = sum(item['quantity'] * item['unit_price'] for item in items)
+            discount_percentage = float(data.get('discount_percentage', 0))
+            tax_percentage = float(data.get('tax_percentage', 0))
+            
+            discount_amount = subtotal * (discount_percentage / 100)
+            taxable_amount = subtotal - discount_amount
+            tax_amount = taxable_amount * (tax_percentage / 100)
+            total_amount = taxable_amount + tax_amount
+            
+            # Create sale record
+            cursor.execute('''
+                INSERT INTO pos_sales (
+                    sale_number, customer_name, customer_phone, customer_email,
+                    subtotal, discount_amount, discount_percentage,
+                    tax_amount, tax_percentage, total_amount,
+                    payment_method, payment_status, notes, cashier_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                sale_number, data.get('customer_name'), data.get('customer_phone'),
+                data.get('customer_email'), subtotal, discount_amount, discount_percentage,
+                tax_amount, tax_percentage, total_amount, data.get('payment_method', 'cash'),
+                'paid', data.get('notes'), session.get('username')
+            ))
+            
+            sale_id = cursor.lastrowid
+            
+            # Add sale items and update stock
+            for item in items:
+                product_id = item['product_id']
+                quantity = item['quantity']
+                unit_price = item['unit_price']
+                item_total = quantity * unit_price
+                
+                # Check stock
+                cursor.execute('SELECT current_stock, name FROM products WHERE id = ?', (product_id,))
+                product = cursor.fetchone()
+                if not product:
+                    raise ValueError(f'Product ID {product_id} not found')
+                
+                if product['current_stock'] < quantity:
+                    raise ValueError(f'Insufficient stock for {product["name"]}')
+                
+                # Add sale item
+                cursor.execute('''
+                    INSERT INTO pos_sale_items (
+                        sale_id, product_id, product_name, sku, quantity,
+                        unit_price, total_price, imei
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    sale_id, product_id, product['name'], item.get('sku'),
+                    quantity, unit_price, item_total, item.get('imei')
+                ))
+                
+                # Update stock
+                cursor.execute(
+                    'UPDATE products SET current_stock = current_stock - ? WHERE id = ?',
+                    (quantity, product_id)
+                )
+                
+                # Record stock movement
+                cursor.execute('''
+                    INSERT INTO stock_movements (
+                        product_id, type, quantity, reference_type, reference_id, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?)
+                ''', (product_id, 'sale', -quantity, 'pos_sale', sale_id, f'POS Sale {sale_number}'))
+            
+            # Record payment
+            if data.get('payment_method'):
+                cursor.execute('''
+                    INSERT INTO pos_payments (sale_id, payment_method, amount, reference_number)
+                    VALUES (?, ?, ?, ?)
+                ''', (sale_id, data.get('payment_method'), total_amount, data.get('payment_reference')))
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'sale_id': sale_id,
+                'sale_number': sale_number,
+                'total_amount': total_amount
+            })
+        
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+    
+    else:
+        # GET - List all sales
+        cursor.execute('''
+            SELECT * FROM pos_sales 
+            ORDER BY created_at DESC
+            LIMIT 100
+        ''')
+        sales = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(sales)
+
+@app.route('/api/pos/sales/<int:id>', methods=['GET'])
+@login_required
+def get_pos_sale(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM pos_sales WHERE id = ?', (id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        conn.close()
+        return jsonify({'error': 'Sale not found'}), 404
+    
+    sale_dict = dict(sale)
+    
+    cursor.execute('''
+        SELECT psi.*, p.sku, p.brand_id, p.category_id
+        FROM pos_sale_items psi
+        LEFT JOIN products p ON psi.product_id = p.id
+        WHERE psi.sale_id = ?
+    ''', (id,))
+    
+    sale_dict['items'] = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify(sale_dict)
+
+@app.route('/api/pos/products/search', methods=['GET'])
+@login_required
+def pos_product_search():
+    search = request.args.get('q', '')
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN models m ON p.model_id = m.id
+        WHERE p.status = 'active' 
+        AND p.current_stock > 0
+        AND (p.name LIKE ? OR p.sku LIKE ? OR p.imei LIKE ?)
+        LIMIT 20
+    ''', (f'%{search}%', f'%{search}%', f'%{search}%'))
+    
+    products = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return jsonify(products)
 
 if __name__ == '__main__':
     init_db()

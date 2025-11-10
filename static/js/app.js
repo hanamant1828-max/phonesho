@@ -143,6 +143,9 @@ function loadPage(page) {
         case 'grns':
             loadGRNs();
             break;
+        case 'pos':
+            loadPOS();
+            break;
     }
 }
 
@@ -3055,6 +3058,350 @@ function reorderProduct(productId) {
         if (quantity && parseInt(quantity) > 0) {
             alert('Creating purchase order...\n\nThis will create a PO for ' + quantity + ' units of ' + product.name);
             // Future: Automatically create PO
+        }
+    });
+}
+
+let posCart = [];
+let posCustomer = {};
+
+function loadPOS() {
+    posCart = [];
+    posCustomer = {};
+    
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
+        </div>
+        
+        <div class="row">
+            <!-- Left Side - Product Search and Cart -->
+            <div class="col-md-8">
+                <!-- Product Search -->
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-search"></i> Product Search</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                            <input type="text" class="form-control" id="posProductSearch" 
+                                   placeholder="Search by product name, SKU, or IMEI..." autofocus>
+                        </div>
+                        <div id="posSearchResults" class="mt-3"></div>
+                    </div>
+                </div>
+                
+                <!-- Shopping Cart -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-cart"></i> Shopping Cart (<span id="cartItemCount">0</span> items)</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0" id="posCartTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Price</th>
+                                        <th style="width: 120px;">Qty</th>
+                                        <th>Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="posCartBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="emptyCart" class="text-center text-muted py-5">
+                            <i class="bi bi-cart-x" style="font-size: 3rem;"></i>
+                            <p class="mt-2">Cart is empty. Search and add products above.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Side - Customer and Payment -->
+            <div class="col-md-4">
+                <!-- Customer Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-person"></i> Customer Information (Optional)</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="customerName" placeholder="Customer Name">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="customerPhone" placeholder="Phone Number">
+                        </div>
+                        <div class="mb-2">
+                            <input type="email" class="form-control form-control-sm" id="customerEmail" placeholder="Email">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bill Summary -->
+                <div class="card mb-3">
+                    <div class="card-header bg-dark text-white">
+                        <h6 class="mb-0"><i class="bi bi-receipt"></i> Bill Summary</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong id="posSubtotal">$0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Discount (%):</span>
+                            <div class="input-group input-group-sm" style="width: 100px;">
+                                <input type="number" class="form-control" id="posDiscountPercent" value="0" min="0" max="100">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Discount Amount:</span>
+                            <strong id="posDiscountAmount" class="text-danger">-$0.00</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>Tax (%):</span>
+                            <div class="input-group input-group-sm" style="width: 100px;">
+                                <input type="number" class="form-control" id="posTaxPercent" value="0" min="0" max="100">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tax Amount:</span>
+                            <strong id="posTaxAmount" class="text-info">+$0.00</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <h5>Total:</h5>
+                            <h5 class="text-success" id="posTotal">$0.00</h5>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Payment Method -->
+                <div class="card mb-3">
+                    <div class="card-header bg-warning">
+                        <h6 class="mb-0"><i class="bi bi-credit-card"></i> Payment Method</h6>
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select mb-2" id="posPaymentMethod">
+                            <option value="cash">Cash</option>
+                            <option value="card">Credit/Debit Card</option>
+                            <option value="upi">UPI</option>
+                            <option value="wallet">Digital Wallet</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                        <input type="text" class="form-control form-control-sm" id="posPaymentReference" placeholder="Reference Number (Optional)">
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="d-grid gap-2">
+                    <button class="btn btn-success btn-lg" onclick="completePOSSale()">
+                        <i class="bi bi-check-circle"></i> Complete Sale
+                    </button>
+                    <button class="btn btn-danger" onclick="clearPOSCart()">
+                        <i class="bi bi-x-circle"></i> Clear Cart
+                    </button>
+                    <button class="btn btn-secondary" onclick="loadPage('pos')">
+                        <i class="bi bi-arrow-clockwise"></i> New Transaction
+                    </button>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    updatePOSCart();
+    
+    // Product search with debounce
+    let searchTimeout;
+    $('#posProductSearch').on('input', function() {
+        clearTimeout(searchTimeout);
+        const query = $(this).val();
+        
+        if (query.length >= 2) {
+            searchTimeout = setTimeout(() => searchPOSProducts(query), 300);
+        } else {
+            $('#posSearchResults').empty();
+        }
+    });
+    
+    // Calculate totals on discount/tax change
+    $('#posDiscountPercent, #posTaxPercent').on('input', updatePOSCart);
+}
+
+function searchPOSProducts(query) {
+    $.get(`${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`, function(products) {
+        const resultsDiv = $('#posSearchResults');
+        resultsDiv.empty();
+        
+        if (products.length === 0) {
+            resultsDiv.html('<div class="alert alert-info">No products found</div>');
+            return;
+        }
+        
+        const html = products.map(p => `
+            <div class="product-search-item" onclick='addToPOSCart(${JSON.stringify(p)})' style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${p.name}</strong>
+                        <div class="small text-muted">
+                            ${p.sku ? `SKU: ${p.sku} | ` : ''}
+                            ${p.brand_name || ''} ${p.model_name || ''}
+                            <span class="badge bg-${p.current_stock > 10 ? 'success' : p.current_stock > 0 ? 'warning' : 'danger'}">
+                                Stock: ${p.current_stock}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-success">$${parseFloat(p.selling_price).toFixed(2)}</strong>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        resultsDiv.html(html);
+    });
+}
+
+function addToPOSCart(product) {
+    const existingItem = posCart.find(item => item.product_id === product.id);
+    
+    if (existingItem) {
+        if (existingItem.quantity >= product.current_stock) {
+            alert(`Maximum stock reached for ${product.name}. Available: ${product.current_stock}`);
+            return;
+        }
+        existingItem.quantity++;
+    } else {
+        posCart.push({
+            product_id: product.id,
+            product_name: product.name,
+            sku: product.sku,
+            unit_price: parseFloat(product.selling_price),
+            quantity: 1,
+            max_stock: product.current_stock
+        });
+    }
+    
+    $('#posProductSearch').val('').focus();
+    $('#posSearchResults').empty();
+    updatePOSCart();
+}
+
+function updatePOSCartQuantity(index, quantity) {
+    if (quantity <= 0) {
+        posCart.splice(index, 1);
+    } else if (quantity <= posCart[index].max_stock) {
+        posCart[index].quantity = quantity;
+    } else {
+        alert(`Maximum stock is ${posCart[index].max_stock}`);
+        return;
+    }
+    updatePOSCart();
+}
+
+function removeFromPOSCart(index) {
+    posCart.splice(index, 1);
+    updatePOSCart();
+}
+
+function updatePOSCart() {
+    const tbody = $('#posCartBody');
+    tbody.empty();
+    
+    if (posCart.length === 0) {
+        $('#emptyCart').show();
+        $('#posCartTable').hide();
+    } else {
+        $('#emptyCart').hide();
+        $('#posCartTable').show();
+        
+        posCart.forEach((item, index) => {
+            const itemTotal = item.quantity * item.unit_price;
+            tbody.append(`
+                <tr>
+                    <td>
+                        <strong>${item.product_name}</strong>
+                        <div class="small text-muted">${item.sku || ''}</div>
+                    </td>
+                    <td>$${item.unit_price.toFixed(2)}</td>
+                    <td>
+                        <div class="input-group input-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity - 1})">-</button>
+                            <input type="number" class="form-control text-center" value="${item.quantity}" 
+                                   onchange="updatePOSCartQuantity(${index}, parseInt(this.value))" min="1" max="${item.max_stock}">
+                            <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity + 1})">+</button>
+                        </div>
+                    </td>
+                    <td><strong>$${itemTotal.toFixed(2)}</strong></td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    }
+    
+    // Calculate totals
+    const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
+    const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
+    
+    const discountAmount = subtotal * (discountPercent / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (taxPercent / 100);
+    const total = taxableAmount + taxAmount;
+    
+    $('#cartItemCount').text(posCart.length);
+    $('#posSubtotal').text('$' + subtotal.toFixed(2));
+    $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
+    $('#posTaxAmount').text('+$' + taxAmount.toFixed(2));
+    $('#posTotal').text('$' + total.toFixed(2));
+}
+
+function clearPOSCart() {
+    if (posCart.length > 0 && !confirm('Clear all items from cart?')) {
+        return;
+    }
+    posCart = [];
+    updatePOSCart();
+}
+
+function completePOSSale() {
+    if (posCart.length === 0) {
+        alert('Please add items to cart');
+        return;
+    }
+    
+    const saleData = {
+        items: posCart,
+        customer_name: $('#customerName').val(),
+        customer_phone: $('#customerPhone').val(),
+        customer_email: $('#customerEmail').val(),
+        discount_percentage: parseFloat($('#posDiscountPercent').val()) || 0,
+        tax_percentage: parseFloat($('#posTaxPercent').val()) || 0,
+        payment_method: $('#posPaymentMethod').val(),
+        payment_reference: $('#posPaymentReference').val()
+    };
+    
+    $.ajax({
+        url: `${API_BASE}/pos/sales`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(saleData),
+        success: function(response) {
+            if (response.success) {
+                alert(`✓ Sale completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: $${response.total_amount.toFixed(2)}\n\nThank you!`);
+                loadPOS(); // Reset for new sale
+            }
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete sale'));
         }
     });
 }
