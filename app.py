@@ -1296,6 +1296,67 @@ def import_products_preview():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 400
 
+@app.route('/api/export/grns', methods=['GET'])
+@login_required
+def export_grns():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT 
+            g.grn_number,
+            g.po_number,
+            g.supplier_name,
+            g.received_date,
+            g.total_items,
+            g.total_quantity,
+            g.payment_status,
+            g.storage_location,
+            g.created_by,
+            gi.product_name,
+            gi.quantity_received,
+            gi.quantity_damaged,
+            gi.damage_reason,
+            gi.cost_price,
+            (gi.quantity_received * gi.cost_price) as line_total
+        FROM grns g
+        LEFT JOIN grn_items gi ON g.id = gi.grn_id
+        ORDER BY g.received_date DESC, g.grn_number
+    ''')
+    
+    grn_data = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    df = pd.DataFrame(grn_data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='GRN Report')
+        
+        workbook = writer.book
+        worksheet = writer.sheets['GRN Report']
+        
+        # Auto-adjust column widths
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'grn_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
 @app.route('/api/import/products', methods=['POST'])
 @login_required
 def import_products():
