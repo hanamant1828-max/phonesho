@@ -1400,6 +1400,7 @@ function loadModels() {
                 <table class="table table-hover" id="modelsTable">
                     <thead>
                         <tr>
+                            <th>Image</th>
                             <th>Name</th>
                             <th>Brand</th>
                             <th>Description</th>
@@ -1422,14 +1423,17 @@ function loadModels() {
 
         models.forEach(model => {
             const date = new Date(model.created_at);
+            const imageUrl = model.image_url || 'https://via.placeholder.com/50x50?text=No+Image';
+            const escapedImageUrl = model.image_url ? model.image_url.replace(/'/g, "\\'") : '';
             tbody.append(`
                 <tr>
+                    <td><img src="${imageUrl}" alt="${model.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"></td>
                     <td>${model.name}</td>
                     <td>${model.brand_name || '-'}</td>
                     <td>${model.description || '-'}</td>
                     <td>${date.toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary action-btn" onclick="editModel(${model.id}, '${model.name}', ${model.brand_id}, '${model.description || ''}')">
+                        <button class="btn btn-sm btn-primary action-btn" onclick='editModel(${model.id}, "${model.name}", ${model.brand_id}, "${(model.description || '').replace(/"/g, '&quot;')}", "${escapedImageUrl}")'>
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteModel(${model.id})">
@@ -1461,10 +1465,11 @@ function showAddModel() {
     modal.show();
 }
 
-function editModel(id, name, brandId, description) {
+function editModel(id, name, brandId, description, imageUrl) {
     $('#modelId').val(id);
     $('#modelName').val(name);
     $('#modelDescription').val(description);
+    $('#modelImageUrl').val(imageUrl || '');
     $('#modelModalLabel').text('Edit Model');
 
     $.get(`${API_BASE}/brands`, function(brands) {
@@ -1500,7 +1505,8 @@ function saveModel() {
     const data = {
         name: $('#modelName').val(),
         brand_id: $('#modelBrand').val(),
-        description: $('#modelDescription').val()
+        description: $('#modelDescription').val(),
+        image_url: $('#modelImageUrl').val()
     };
 
     const url = id ? `${API_BASE}/models/${id}` : `${API_BASE}/models`;

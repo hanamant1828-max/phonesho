@@ -60,6 +60,7 @@ def init_db():
             name TEXT NOT NULL,
             brand_id INTEGER NOT NULL,
             description TEXT,
+            image_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (brand_id) REFERENCES brands (id),
             UNIQUE(name, brand_id)
@@ -343,8 +344,8 @@ def models():
     if request.method == 'POST':
         data = request.json
         try:
-            cursor.execute('INSERT INTO models (name, brand_id, description) VALUES (?, ?, ?)',
-                         (data['name'], data['brand_id'], data.get('description', '')))
+            cursor.execute('INSERT INTO models (name, brand_id, description, image_url) VALUES (?, ?, ?, ?)',
+                         (data['name'], data['brand_id'], data.get('description', ''), data.get('image_url', '')))
             conn.commit()
             return jsonify({'success': True, 'id': cursor.lastrowid})
         except sqlite3.IntegrityError:
@@ -371,8 +372,8 @@ def model_detail(id):
     if request.method == 'PUT':
         data = request.json
         try:
-            cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ? WHERE id = ?',
-                         (data['name'], data['brand_id'], data.get('description', ''), id))
+            cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_url = ? WHERE id = ?',
+                         (data['name'], data['brand_id'], data.get('description', ''), data.get('image_url', ''), id))
             conn.commit()
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
