@@ -76,6 +76,14 @@ def init_db():
             UNIQUE(name, brand_id)
         )
     ''')
+    
+    # Add image_data column if it doesn't exist (migration)
+    try:
+        cursor.execute('ALTER TABLE models ADD COLUMN image_data TEXT')
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Column already exists, ignore
+        pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
