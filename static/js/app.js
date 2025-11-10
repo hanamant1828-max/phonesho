@@ -134,6 +134,9 @@ function loadPage(page) {
         case 'purchase-orders':
             loadPurchaseOrders();
             break;
+        case 'quick-order':
+            loadQuickOrder();
+            break;
         case 'grns':
             loadGRNs();
             break;
@@ -2147,6 +2150,274 @@ function printGRN() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+}
+
+let quickOrderItems = [];
+
+function loadQuickOrder() {
+    quickOrderItems = [];
+    
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-bag-plus"></i> Quick Order</h2>
+            <p class="text-muted">Simple order entry - Select products and quantities</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Add Items to Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Select Product</label>
+                                <select class="form-select" id="quickOrderProduct">
+                                    <option value="">-- Choose a product --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quickOrderQuantity" min="1" value="1">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="addQuickOrderItem()">
+                                    <i class="bi bi-plus-circle"></i> Add Item
+                                </button>
+                            </div>
+                        </div>
+                        <div id="productInfo" class="alert alert-info d-none">
+                            <strong>Product Info:</strong>
+                            <div id="productInfoContent"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Order Items</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="quickOrderItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Unit Price</th>
+                                        <th>Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot>
+                                    <tr class="table-primary">
+                                        <td colspan="3" class="text-end"><strong>Total Amount:</strong></td>
+                                        <td><strong id="orderTotalAmount">$0.00</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div id="emptyOrderMessage" class="text-center text-muted py-4">
+                            No items added yet. Select products above to start your order.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Submit Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="quickOrderNotes" rows="3" placeholder="Add any notes about this order..."></textarea>
+                        </div>
+                        <button class="btn btn-success w-100" onclick="submitQuickOrder()">
+                            <i class="bi bi-check-circle"></i> Submit Order
+                        </button>
+                    </div>
+                    <div class="card-footer">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> Stock will be automatically reduced when order is submitted
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    loadProductsForQuickOrder();
+    updateQuickOrderTable();
+    
+    $('#quickOrderProduct').on('change', function() {
+        const productId = $(this).val();
+        if (productId) {
+            showProductInfo(productId);
+        } else {
+            $('#productInfo').addClass('d-none');
+        }
+    });
+}
+
+function loadProductsForQuickOrder() {
+    $.get(`${API_BASE}/products`, function(products) {
+        const select = $('#quickOrderProduct');
+        select.empty().append('<option value="">-- Choose a product --</option>');
+        
+        products.filter(p => p.status === 'active' && p.current_stock > 0).forEach(product => {
+            select.append(`<option value="${product.id}" data-stock="${product.current_stock}" data-price="${product.selling_price}" data-name="${product.name}">
+                ${product.name} - Stock: ${product.current_stock} - $${parseFloat(product.selling_price || 0).toFixed(2)}
+            </option>`);
+        });
+    });
+}
+
+function showProductInfo(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const content = `
+            <div class="row">
+                <div class="col-6"><strong>Available Stock:</strong></div>
+                <div class="col-6">${product.current_stock} units</div>
+            </div>
+            <div class="row">
+                <div class="col-6"><strong>Price:</strong></div>
+                <div class="col-6">$${parseFloat(product.selling_price || 0).toFixed(2)}</div>
+            </div>
+            <div class="row">
+                <div class="col-6"><strong>SKU:</strong></div>
+                <div class="col-6">${product.sku || 'N/A'}</div>
+            </div>
+        `;
+        $('#productInfoContent').html(content);
+        $('#productInfo').removeClass('d-none');
+    });
+}
+
+function addQuickOrderItem() {
+    const select = $('#quickOrderProduct');
+    const productId = select.val();
+    const quantity = parseInt($('#quickOrderQuantity').val()) || 1;
+    
+    if (!productId) {
+        alert('Please select a product');
+        return;
+    }
+    
+    if (quantity <= 0) {
+        alert('Please enter a valid quantity');
+        return;
+    }
+    
+    const option = select.find('option:selected');
+    const productName = option.data('name');
+    const stock = parseInt(option.data('stock'));
+    const price = parseFloat(option.data('price'));
+    
+    const existingItem = quickOrderItems.find(item => item.product_id === parseInt(productId));
+    const currentQty = existingItem ? existingItem.quantity : 0;
+    
+    if (currentQty + quantity > stock) {
+        alert(`Insufficient stock! Available: ${stock}, Already in order: ${currentQty}, Requested: ${quantity}`);
+        return;
+    }
+    
+    if (existingItem) {
+        existingItem.quantity += quantity;
+    } else {
+        quickOrderItems.push({
+            product_id: parseInt(productId),
+            product_name: productName,
+            quantity: quantity,
+            price: price
+        });
+    }
+    
+    $('#quickOrderQuantity').val(1);
+    select.val('');
+    $('#productInfo').addClass('d-none');
+    updateQuickOrderTable();
+}
+
+function removeQuickOrderItem(index) {
+    quickOrderItems.splice(index, 1);
+    updateQuickOrderTable();
+}
+
+function updateQuickOrderTable() {
+    const tbody = $('#quickOrderItemsTable tbody');
+    tbody.empty();
+    
+    if (quickOrderItems.length === 0) {
+        $('#emptyOrderMessage').show();
+        $('#quickOrderItemsTable').hide();
+        return;
+    }
+    
+    $('#emptyOrderMessage').hide();
+    $('#quickOrderItemsTable').show();
+    
+    let totalAmount = 0;
+    
+    quickOrderItems.forEach((item, index) => {
+        const itemTotal = item.quantity * item.price;
+        totalAmount += itemTotal;
+        
+        tbody.append(`
+            <tr>
+                <td>${item.product_name}</td>
+                <td>${item.quantity}</td>
+                <td>$${item.price.toFixed(2)}</td>
+                <td>$${itemTotal.toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeQuickOrderItem(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+    
+    $('#orderTotalAmount').text('$' + totalAmount.toFixed(2));
+}
+
+function submitQuickOrder() {
+    if (quickOrderItems.length === 0) {
+        alert('Please add at least one item to the order');
+        return;
+    }
+    
+    if (!confirm(`Submit order with ${quickOrderItems.length} item(s)?`)) {
+        return;
+    }
+    
+    const orderData = {
+        items: quickOrderItems,
+        notes: $('#quickOrderNotes').val()
+    };
+    
+    $.ajax({
+        url: `${API_BASE}/quick-orders`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(orderData),
+        success: function(response) {
+            if (response.success) {
+                alert(`Order ${response.order_number} created successfully!`);
+                loadQuickOrder();
+            } else {
+                alert('Error: ' + (response.error || 'Failed to create order'));
+            }
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to create order'));
+        }
+    });
 }
 
 function viewProductDetails(productId) {

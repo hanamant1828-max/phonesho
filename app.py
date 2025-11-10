@@ -223,6 +223,34 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS quick_orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_number TEXT UNIQUE NOT NULL,
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            total_items INTEGER DEFAULT 0,
+            total_amount REAL DEFAULT 0,
+            notes TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS quick_order_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER NOT NULL,
+            product_id INTEGER NOT NULL,
+            product_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            total_price REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (order_id) REFERENCES quick_orders (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -973,6 +1001,118 @@ def get_grn_detail(id):
     conn.close()
 
     return jsonify(grn)
+
+@app.route('/api/quick-orders', methods=['GET', 'POST'])
+@login_required
+def quick_orders():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        try:
+            order_number = f"QO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            items = data.get('items', [])
+            
+            if not items:
+                return jsonify({'success': False, 'error': 'No items in order'}), 400
+            
+            total_items = len(items)
+            total_amount = 0
+            
+            cursor.execute('''
+                INSERT INTO quick_orders (order_number, total_items, notes, created_by)
+                VALUES (?, ?, ?, ?)
+            ''', (order_number, total_items, data.get('notes', ''), session.get('username')))
+            
+            order_id = cursor.lastrowid
+            
+            for item in items:
+                product_id = item['product_id']
+                quantity = item['quantity']
+                
+                if not isinstance(quantity, int) or quantity <= 0:
+                    raise ValueError(f'Invalid quantity: {quantity}. Quantity must be a positive integer')
+                
+                cursor.execute('SELECT name, selling_price, current_stock FROM products WHERE id = ?', (product_id,))
+                product_row = cursor.fetchone()
+                
+                if not product_row:
+                    raise ValueError(f'Product ID {product_id} not found')
+                
+                product_name = product_row['name']
+                unit_price = product_row['selling_price']
+                current_stock = product_row['current_stock']
+                
+                if current_stock < quantity:
+                    raise ValueError(f'Insufficient stock for {product_name}. Available: {current_stock}, Requested: {quantity}')
+                
+                item_total = unit_price * quantity
+                total_amount += item_total
+                
+                cursor.execute('''
+                    INSERT INTO quick_order_items (order_id, product_id, product_name, quantity, unit_price, total_price)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (order_id, product_id, product_name, quantity, unit_price, item_total))
+                
+                new_stock = current_stock - quantity
+                cursor.execute('UPDATE products SET current_stock = ? WHERE id = ?', (new_stock, product_id))
+                
+                cursor.execute('''
+                    INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (product_id, 'sale', -quantity, 'quick_order', order_id, f'Quick Order {order_number}'))
+            
+            cursor.execute('UPDATE quick_orders SET total_amount = ? WHERE id = ?', (total_amount, order_id))
+            
+            conn.commit()
+            return jsonify({'success': True, 'order_id': order_id, 'order_number': order_number})
+        
+        except ValueError as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            conn.close()
+    
+    else:
+        cursor.execute('''
+            SELECT * FROM quick_orders 
+            ORDER BY created_at DESC
+        ''')
+        orders = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(orders)
+
+@app.route('/api/quick-orders/<int:id>', methods=['GET'])
+@login_required
+def get_quick_order_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT * FROM quick_orders WHERE id = ?', (id,))
+    order_row = cursor.fetchone()
+
+    if not order_row:
+        conn.close()
+        return jsonify({'error': 'Order not found'}), 404
+
+    order = dict(order_row)
+
+    cursor.execute('''
+        SELECT qoi.*, p.sku, p.brand_id, p.category_id
+        FROM quick_order_items qoi
+        LEFT JOIN products p ON qoi.product_id = p.id
+        WHERE qoi.order_id = ?
+    ''', (id,))
+    items = [dict(row) for row in cursor.fetchall()]
+
+    order['items'] = items
+    conn.close()
+
+    return jsonify(order)
 
 @app.route('/api/products/<int:id>/stock-history', methods=['GET'])
 @login_required
