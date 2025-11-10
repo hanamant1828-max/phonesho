@@ -1019,43 +1019,6 @@ def get_stock_history(id):
         'history': history
     })
 
-    
-                running_balance += quantity
-            else:
-                stock_added = 0
-                stock_removed = quantity
-                running_balance -= quantity
-        elif movement['type'] in ['sale', 'return', 'adjustment_out']:
-            stock_added = 0
-            stock_removed = quantity
-            running_balance -= quantity
-        else:
-            # Default behavior
-            if movement['quantity'] >= 0:
-                stock_added = quantity
-                stock_removed = 0
-                running_balance += quantity
-            else:
-                stock_added = 0
-                stock_removed = quantity
-                running_balance -= quantity
-        
-        history.append({
-            'date_time': movement['created_at'],
-            'stock_added': stock_added,
-            'stock_removed': stock_removed,
-            'reference': movement['reference_number'] or movement.get('notes', 'N/A'),
-            'received_by': movement['received_by'],
-            'running_balance': running_balance
-        })
-    
-    conn.close()
-    
-    return jsonify({
-        'product_name': product_name,
-        'history': history
-    })
-
 @app.route('/api/dashboard/stats', methods=['GET'])
 @login_required
 def dashboard_stats():
