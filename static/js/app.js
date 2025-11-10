@@ -2343,49 +2343,117 @@ function viewStockHistory(productId) {
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
             let content = `
                 <div class="mb-3">
-                    <h6><i class="bi bi-box-seam"></i> Stock History for: ${data.product_name}</h6>
+                    <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${data.product_name}</strong></h6>
+                    <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
                 </div>
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped table-hover">
-                        <thead class="table-light">
+                    <table class="table table-sm table-striped table-hover table-bordered">
+                        <thead class="table-dark">
                             <tr>
-                                <th>Date & Time</th>
-                                <th>Stock Added</th>
-                                <th>Stock Removed</th>
-                                <th>Reference</th>
-                                <th>User</th>
-                                <th>Running Balance</th>
+                                <th style="min-width: 150px;"><i class="bi bi-calendar-event"></i> Date & Time</th>
+                                <th style="min-width: 100px;" class="text-center"><i class="bi bi-plus-circle text-success"></i> Stock Added</th>
+                                <th style="min-width: 100px;" class="text-center"><i class="bi bi-dash-circle text-danger"></i> Stock Removed</th>
+                                <th style="min-width: 150px;"><i class="bi bi-receipt"></i> Reference Number</th>
+                                <th style="min-width: 120px;"><i class="bi bi-person"></i> Performed By</th>
+                                <th style="min-width: 120px;" class="text-center"><i class="bi bi-bar-chart"></i> Running Balance</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
 
             if (!data.history || data.history.length === 0) {
-                content += '<tr><td colspan="6" class="text-center text-muted py-4">No stock movements found for this product</td></tr>';
+                content += '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
             } else {
-                data.history.forEach(item => {
+                data.history.forEach((item, index) => {
                     const date = new Date(item.date_time);
-                    const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                    const formattedDate = date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                    const formattedTime = date.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
 
-                    const stockAdded = item.stock_added > 0 ? `<span class="text-success fw-bold">+${item.stock_added}</span>` : '-';
-                    const stockRemoved = item.stock_removed > 0 ? `<span class="text-danger fw-bold">-${item.stock_removed}</span>` : '-';
+                    const stockAdded = item.stock_added > 0 
+                        ? `<span class="badge bg-success">+${item.stock_added}</span>` 
+                        : '<span class="text-muted">-</span>';
+                    
+                    const stockRemoved = item.stock_removed > 0 
+                        ? `<span class="badge bg-danger">-${item.stock_removed}</span>` 
+                        : '<span class="text-muted">-</span>';
+
+                    const reference = item.reference || 'Manual Entry';
+                    const performedBy = item.received_by || 'System';
+                    
+                    // Determine balance color based on stock level
+                    let balanceClass = 'text-primary';
+                    if (item.running_balance === 0) {
+                        balanceClass = 'text-danger';
+                    } else if (item.running_balance < 10) {
+                        balanceClass = 'text-warning';
+                    }
 
                     content += `
                         <tr>
-                            <td><small>${formattedDate}</small></td>
-                            <td>${stockAdded}</td>
-                            <td>${stockRemoved}</td>
-                            <td><small>${item.reference || 'Manual Entry'}</small></td>
-                            <td><small>${item.received_by || 'System'}</small></td>
-                            <td><strong class="text-primary">${item.running_balance}</strong></td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">${formattedDate}</span>
+                                    <small class="text-muted">${formattedTime}</small>
+                                </div>
+                            </td>
+                            <td class="text-center">${stockAdded}</td>
+                            <td class="text-center">${stockRemoved}</td>
+                            <td>
+                                <span class="badge bg-info bg-opacity-10 text-dark">
+                                    <i class="bi bi-link-45deg"></i> ${reference}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-10 text-dark">
+                                    <i class="bi bi-person-circle"></i> ${performedBy}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <strong class="${balanceClass}" style="font-size: 1.1em;">${item.running_balance}</strong>
+                            </td>
                         </tr>
                     `;
                 });
+
+                // Add summary row
+                const totalAdded = data.history.reduce((sum, item) => sum + item.stock_added, 0);
+                const totalRemoved = data.history.reduce((sum, item) => sum + item.stock_removed, 0);
+                const currentBalance = data.history.length > 0 ? data.history[data.history.length - 1].running_balance : 0;
+
+                content += `
+                        <tr class="table-light fw-bold">
+                            <td class="text-end">SUMMARY:</td>
+                            <td class="text-center text-success">+${totalAdded}</td>
+                            <td class="text-center text-danger">-${totalRemoved}</td>
+                            <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
+                            <td class="text-center text-primary" style="font-size: 1.2em;">${currentBalance}</td>
+                        </tr>
+                `;
             }
 
             content += `
                         </tbody>
                     </table>
+                </div>
+                <div class="mt-3">
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> <strong>Legend:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Stock Added:</strong> Incoming stock from purchases, returns, or manual adjustments</li>
+                            <li><strong>Stock Removed:</strong> Outgoing stock from sales or manual adjustments</li>
+                            <li><strong>Reference Number:</strong> Associated PO number, GRN number, or transaction identifier</li>
+                            <li><strong>Performed By:</strong> User who performed the transaction</li>
+                            <li><strong>Running Balance:</strong> Current stock level after each transaction</li>
+                        </ul>
+                    </div>
                 </div>
             `;
 
@@ -2395,6 +2463,7 @@ function viewStockHistory(productId) {
             $('#stockHistoryContent').html(`
                 <div class="alert alert-danger">
                     <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                    <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
                 </div>
             `);
             console.error('Stock history error:', xhr);
