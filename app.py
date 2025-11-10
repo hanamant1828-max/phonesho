@@ -1114,6 +1114,58 @@ def get_quick_order_detail(id):
 
     return jsonify(order)
 
+@app.route('/api/stock-adjustment', methods=['POST'])
+@login_required
+def stock_adjustment():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        data = request.json
+        product_id = data.get('product_id')
+        quantity = data.get('quantity')
+        notes = data.get('notes', '')
+        
+        if not product_id:
+            return jsonify({'success': False, 'error': 'Product ID is required'}), 400
+        
+        if not isinstance(quantity, int) or quantity <= 0:
+            return jsonify({'success': False, 'error': 'Quantity must be a positive integer'}), 400
+        
+        cursor.execute('SELECT name, current_stock FROM products WHERE id = ?', (product_id,))
+        product_row = cursor.fetchone()
+        
+        if not product_row:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+        
+        product_name = product_row['name']
+        current_stock = product_row['current_stock'] or 0
+        new_stock = current_stock + quantity
+        
+        cursor.execute('UPDATE products SET current_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+                      (new_stock, product_id))
+        
+        cursor.execute('''
+            INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (product_id, 'adjustment', quantity, 'manual', notes or 'Stock adjustment'))
+        
+        conn.commit()
+        
+        return jsonify({
+            'success': True, 
+            'product_name': product_name,
+            'previous_stock': current_stock,
+            'added_quantity': quantity,
+            'new_stock': new_stock
+        })
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route('/api/products/<int:id>/stock-history', methods=['GET'])
 @login_required
 def get_stock_history(id):

@@ -134,6 +134,9 @@ function loadPage(page) {
         case 'purchase-orders':
             loadPurchaseOrders();
             break;
+        case 'stock-adjustment':
+            loadStockAdjustment();
+            break;
         case 'quick-order':
             loadQuickOrder();
             break;
@@ -2150,6 +2153,173 @@ function printGRN() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+}
+
+function loadStockAdjustment() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-box-arrow-in-down"></i> Stock Adjustment</h2>
+            <p class="text-muted">Add stock to existing products</p>
+        </div>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Adjust Stock</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select Product</label>
+                            <select class="form-select form-select-lg" id="adjustmentProduct">
+                                <option value="">-- Choose a product --</option>
+                            </select>
+                        </div>
+                        
+                        <div id="currentStockInfo" class="alert alert-info d-none mb-4">
+                            <h6 class="alert-heading">Current Stock Information</h6>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <strong>Product:</strong>
+                                    <div id="currentProductName" class="fs-5">-</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>Current Stock:</strong>
+                                    <div id="currentStockQty" class="fs-3 text-primary">0</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <strong>SKU:</strong>
+                                    <div id="currentProductSku" class="fs-5">-</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="adjustmentForm" class="d-none">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">Quantity to Add</label>
+                                    <input type="number" class="form-control form-control-lg" id="adjustmentQuantity" min="1" value="" placeholder="Enter quantity to add">
+                                    <small class="text-muted">Enter how many units you want to add to stock</small>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label fw-bold">New Stock (Preview)</label>
+                                    <input type="text" class="form-control form-control-lg bg-light" id="newStockPreview" readonly placeholder="0">
+                                    <small class="text-muted">This will be the new stock level</small>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Notes (Optional)</label>
+                                <textarea class="form-control" id="adjustmentNotes" rows="3" placeholder="Add any notes about this adjustment (e.g., 'Received from supplier', 'Return from customer')"></textarea>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-success btn-lg" onclick="submitStockAdjustment()">
+                                    <i class="bi bi-check-circle"></i> Update Stock
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    loadProductsForAdjustment();
+    
+    $('#adjustmentProduct').on('change', function() {
+        const productId = $(this).val();
+        if (productId) {
+            showCurrentStock(productId);
+        } else {
+            $('#currentStockInfo').addClass('d-none');
+            $('#adjustmentForm').addClass('d-none');
+        }
+    });
+    
+    $('#adjustmentQuantity').on('input', function() {
+        updateStockPreview();
+    });
+}
+
+function loadProductsForAdjustment() {
+    $.get(`${API_BASE}/products`, function(products) {
+        const select = $('#adjustmentProduct');
+        select.empty().append('<option value="">-- Choose a product --</option>');
+        
+        products.filter(p => p.status === 'active').forEach(product => {
+            select.append(`<option value="${product.id}" data-stock="${product.current_stock}" data-name="${product.name}" data-sku="${product.sku || 'N/A'}">
+                ${product.name} - Current Stock: ${product.current_stock}
+            </option>`);
+        });
+    });
+}
+
+function showCurrentStock(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        $('#currentProductName').text(product.name);
+        $('#currentStockQty').text(product.current_stock);
+        $('#currentProductSku').text(product.sku || 'N/A');
+        $('#currentStockInfo').removeClass('d-none');
+        $('#adjustmentForm').removeClass('d-none');
+        $('#adjustmentQuantity').val('');
+        $('#newStockPreview').val('');
+        $('#adjustmentNotes').val('');
+    });
+}
+
+function updateStockPreview() {
+    const select = $('#adjustmentProduct');
+    const currentStock = parseInt(select.find('option:selected').data('stock')) || 0;
+    const addQuantity = parseInt($('#adjustmentQuantity').val()) || 0;
+    const newStock = currentStock + addQuantity;
+    $('#newStockPreview').val(newStock);
+}
+
+function submitStockAdjustment() {
+    const productId = $('#adjustmentProduct').val();
+    const quantity = parseInt($('#adjustmentQuantity').val());
+    const notes = $('#adjustmentNotes').val();
+    
+    if (!productId) {
+        alert('Please select a product');
+        return;
+    }
+    
+    if (!quantity || quantity <= 0) {
+        alert('Please enter a valid quantity to add');
+        return;
+    }
+    
+    const productName = $('#adjustmentProduct option:selected').data('name');
+    const currentStock = parseInt($('#adjustmentProduct option:selected').data('stock'));
+    const newStock = currentStock + quantity;
+    
+    if (!confirm(`Add ${quantity} units to ${productName}?\n\nCurrent Stock: ${currentStock}\nNew Stock: ${newStock}`)) {
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_BASE}/stock-adjustment`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            product_id: productId,
+            quantity: quantity,
+            notes: notes
+        }),
+        success: function(response) {
+            if (response.success) {
+                alert(`Stock updated successfully!\n\n${response.product_name}\nPrevious: ${response.previous_stock}\nAdded: +${response.added_quantity}\nNew Stock: ${response.new_stock}`);
+                loadStockAdjustment();
+            } else {
+                alert('Error: ' + (response.error || 'Failed to update stock'));
+            }
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update stock'));
+        }
+    });
 }
 
 let quickOrderItems = [];
