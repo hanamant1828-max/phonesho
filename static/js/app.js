@@ -2159,11 +2159,11 @@ function loadStockAdjustment() {
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-box-arrow-in-down"></i> Stock Adjustment</h2>
-            <p class="text-muted">Add stock to existing products</p>
+            <p class="text-muted">Add stock to existing products with optional IMEI tracking</p>
         </div>
         
         <div class="row justify-content-center">
-            <div class="col-md-8">
+            <div class="col-md-10">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
                         <h5 class="mb-0">Adjust Stock</h5>
@@ -2209,6 +2209,32 @@ function loadStockAdjustment() {
                             </div>
                             
                             <div class="mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="trackIMEI">
+                                    <label class="form-check-label fw-bold" for="trackIMEI">
+                                        <i class="bi bi-upc-scan"></i> Track IMEI Numbers for Each Item
+                                    </label>
+                                </div>
+                                <small class="text-muted">Enable this to enter individual IMEI numbers for mobile devices</small>
+                            </div>
+                            
+                            <div id="imeiFieldsContainer" class="d-none mb-3">
+                                <div class="card">
+                                    <div class="card-header bg-light">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0"><i class="bi bi-list-ol"></i> IMEI Numbers (<span id="imeiCount">0</span>/<span id="imeiTotal">0</span>)</h6>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="autoFillIMEI()">
+                                                <i class="bi bi-magic"></i> Auto-generate Test IMEIs
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                        <div id="imeiFields" class="row g-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
                                 <label class="form-label fw-bold">Notes (Optional)</label>
                                 <textarea class="form-control" id="adjustmentNotes" rows="3" placeholder="Add any notes about this adjustment (e.g., 'Received from supplier', 'Return from customer')"></textarea>
                             </div>
@@ -2239,6 +2265,24 @@ function loadStockAdjustment() {
     
     $('#adjustmentQuantity').on('input', function() {
         updateStockPreview();
+        if ($('#trackIMEI').is(':checked')) {
+            generateIMEIFields();
+        }
+    });
+    
+    $('#trackIMEI').on('change', function() {
+        if ($(this).is(':checked')) {
+            const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
+            if (quantity > 0) {
+                generateIMEIFields();
+                $('#imeiFieldsContainer').removeClass('d-none');
+            } else {
+                alert('Please enter a quantity first');
+                $(this).prop('checked', false);
+            }
+        } else {
+            $('#imeiFieldsContainer').addClass('d-none');
+        }
     });
 }
 
@@ -2276,10 +2320,89 @@ function updateStockPreview() {
     $('#newStockPreview').val(newStock);
 }
 
+function generateIMEIFields() {
+    const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
+    const container = $('#imeiFields');
+    container.empty();
+    
+    if (quantity <= 0) {
+        return;
+    }
+    
+    $('#imeiTotal').text(quantity);
+    
+    for (let i = 1; i <= quantity; i++) {
+        container.append(`
+            <div class="col-md-6 col-lg-4 mb-2">
+                <label class="form-label small mb-1">Item #${i}</label>
+                <input type="text" class="form-control imei-input" id="imei_${i}" 
+                       placeholder="Enter IMEI" maxlength="15" 
+                       data-index="${i}" pattern="[0-9]{15}">
+            </div>
+        `);
+    }
+    
+    // Add input event to count filled IMEIs
+    $('.imei-input').on('input', function() {
+        const filled = $('.imei-input').filter(function() {
+            return $(this).val().trim() !== '';
+        }).length;
+        $('#imeiCount').text(filled);
+        
+        // Validate IMEI format (15 digits)
+        const value = $(this).val().replace(/\D/g, '');
+        if (value.length > 15) {
+            $(this).val(value.substring(0, 15));
+        } else {
+            $(this).val(value);
+        }
+    });
+}
+
+function autoFillIMEI() {
+    const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
+    if (quantity <= 0) return;
+    
+    if (!confirm('This will generate test IMEI numbers. Use this only for testing purposes.\n\nDo you want to continue?')) {
+        return;
+    }
+    
+    // Generate random but valid-looking IMEI numbers for testing
+    for (let i = 1; i <= quantity; i++) {
+        const timestamp = Date.now().toString().substring(3);
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const testIMEI = (timestamp + random + i.toString().padStart(2, '0')).substring(0, 15);
+        $(`#imei_${i}`).val(testIMEI);
+    }
+    
+    $('#imeiCount').text(quantity);
+}
+
+function collectIMEINumbers() {
+    const imeiList = [];
+    const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
+    
+    for (let i = 1; i <= quantity; i++) {
+        const imei = $(`#imei_${i}`).val().trim();
+        if (imei) {
+            if (imei.length !== 15 || !/^\d{15}$/.test(imei)) {
+                throw new Error(`Item #${i}: IMEI must be exactly 15 digits`);
+            }
+            if (imeiList.includes(imei)) {
+                throw new Error(`Item #${i}: Duplicate IMEI number detected (${imei})`);
+            }
+            imeiList.push(imei);
+        }
+    }
+    
+    return imeiList;
+}
+
 function submitStockAdjustment() {
     const productId = $('#adjustmentProduct').val();
     const quantity = parseInt($('#adjustmentQuantity').val());
     const notes = $('#adjustmentNotes').val();
+    const trackIMEI = $('#trackIMEI').is(':checked');
     
     if (!productId) {
         alert('Please select a product');
@@ -2291,26 +2414,57 @@ function submitStockAdjustment() {
         return;
     }
     
+    let imeiNumbers = [];
+    if (trackIMEI) {
+        try {
+            imeiNumbers = collectIMEINumbers();
+            
+            if (imeiNumbers.length < quantity) {
+                if (!confirm(`You've only entered ${imeiNumbers.length} out of ${quantity} IMEI numbers.\n\nDo you want to continue without all IMEI numbers?`)) {
+                    return;
+                }
+            }
+        } catch (error) {
+            alert('IMEI Validation Error: ' + error.message);
+            return;
+        }
+    }
+    
     const productName = $('#adjustmentProduct option:selected').data('name');
     const currentStock = parseInt($('#adjustmentProduct option:selected').data('stock'));
     const newStock = currentStock + quantity;
     
-    if (!confirm(`Add ${quantity} units to ${productName}?\n\nCurrent Stock: ${currentStock}\nNew Stock: ${newStock}`)) {
+    let confirmMessage = `Add ${quantity} units to ${productName}?\n\nCurrent Stock: ${currentStock}\nNew Stock: ${newStock}`;
+    if (trackIMEI && imeiNumbers.length > 0) {
+        confirmMessage += `\n\nIMEI Numbers: ${imeiNumbers.length} recorded`;
+    }
+    
+    if (!confirm(confirmMessage)) {
         return;
+    }
+    
+    const requestData = {
+        product_id: productId,
+        quantity: quantity,
+        notes: notes
+    };
+    
+    if (trackIMEI && imeiNumbers.length > 0) {
+        requestData.imei_numbers = imeiNumbers;
     }
     
     $.ajax({
         url: `${API_BASE}/stock-adjustment`,
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({
-            product_id: productId,
-            quantity: quantity,
-            notes: notes
-        }),
+        data: JSON.stringify(requestData),
         success: function(response) {
             if (response.success) {
-                alert(`Stock updated successfully!\n\n${response.product_name}\nPrevious: ${response.previous_stock}\nAdded: +${response.added_quantity}\nNew Stock: ${response.new_stock}`);
+                let message = `Stock updated successfully!\n\n${response.product_name}\nPrevious: ${response.previous_stock}\nAdded: +${response.added_quantity}\nNew Stock: ${response.new_stock}`;
+                if (trackIMEI && imeiNumbers.length > 0) {
+                    message += `\n\nIMEI Numbers Recorded: ${imeiNumbers.length}`;
+                }
+                alert(message);
                 loadStockAdjustment();
             } else {
                 alert('Error: ' + (response.error || 'Failed to update stock'));
