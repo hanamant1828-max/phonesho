@@ -2162,7 +2162,11 @@ function viewProductDetails(productId) {
         return;
     }
 
-    $.get(`${API_BASE}/products/${productId}`, function(product) {
+    // Fetch product and model data
+    Promise.all([
+        $.get(`${API_BASE}/products/${productId}`),
+        $.get(`${API_BASE}/models`)
+    ]).then(([product, models]) => {
         // Helper function to safely escape HTML
         function escapeHtml(text) {
             if (!text) return '';
@@ -2170,6 +2174,7 @@ function viewProductDetails(productId) {
             div.textContent = text;
             return div.innerHTML;
         }
+        
         const costPrice = parseFloat(product.cost_price || 0);
         const sellingPrice = parseFloat(product.selling_price || 0);
         const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
@@ -2179,6 +2184,18 @@ function viewProductDetails(productId) {
                            product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
         const stockBadgeClass = product.current_stock === 0 ? 'danger' : 
                                product.current_stock <= product.min_stock_level ? 'warning' : 'success';
+        
+        // Find the model image from models array
+        let modelImage = 'https://via.placeholder.com/300x300?text=No+Image';
+        if (product.model_id) {
+            const model = models.find(m => m.id === product.model_id);
+            if (model && model.image_data) {
+                modelImage = model.image_data;
+            }
+        }
+        
+        // Use model image if available, otherwise fall back to product image_url
+        const displayImage = modelImage !== 'https://via.placeholder.com/300x300?text=No+Image' ? modelImage : (product.image_url || 'https://via.placeholder.com/300x300?text=No+Image');
 
         let content = `
             <div class="row">
@@ -2186,13 +2203,14 @@ function viewProductDetails(productId) {
                 <div class="col-md-4">
                     <div class="card mb-3">
                         <div class="card-body text-center">
-                            <img src="${product.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}" 
-                                 class="img-fluid rounded mb-2" style="max-height: 300px;" alt="${product.name}">
+                            <img src="${displayImage}" 
+                                 class="img-fluid rounded mb-2" style="max-height: 300px;" alt="${escapeHtml(product.name)}"
+                                 onerror="this.src='https://via.placeholder.com/300x300?text=No+Image';">
                             <div class="d-flex justify-content-center gap-2">
                                 <button class="btn btn-sm btn-outline-primary" onclick="changeProductImage(${product.id})">
                                     <i class="bi bi-image"></i> Change Image
                                 </button>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="zoomProductImage('${product.image_url || ''}')">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="zoomProductImage('${displayImage}')">
                                     <i class="bi bi-zoom-in"></i> Zoom
                                 </button>
                             </div>
@@ -2352,8 +2370,9 @@ function viewProductDetails(productId) {
         `;
 
         $('#productDetailsContent').html(content);
-    }).fail(function(xhr) {
-        const errorMsg = xhr.responseJSON?.error || 'Failed to load product details.';
+    }).catch(function(error) {
+        console.error('Error loading product details:', error);
+        const errorMsg = error.responseJSON?.error || 'Failed to load product details.';
         $('#productDetailsContent').html(`
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
