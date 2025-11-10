@@ -3081,6 +3081,36 @@ function loadPOS() {
         <div class="row">
             <!-- Left Side - Product Search and Cart -->
             <div class="col-md-8">
+                <!-- Transaction Type Selector -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> Transaction Type</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="transactionType" id="typeSale" value="sale" checked>
+                            <label class="btn btn-outline-success" for="typeSale">
+                                <i class="bi bi-cart-check"></i> Sale
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="transactionType" id="typeReturn" value="return">
+                            <label class="btn btn-outline-danger" for="typeReturn">
+                                <i class="bi bi-arrow-counterclockwise"></i> Return
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="transactionType" id="typeExchange" value="exchange">
+                            <label class="btn btn-outline-warning" for="typeExchange">
+                                <i class="bi bi-arrow-repeat"></i> Exchange
+                            </label>
+                        </div>
+                        <div id="returnExchangeInfo" class="alert alert-info mt-3" style="display:none;">
+                            <small>
+                                <strong>Note:</strong> <span id="transactionTypeNote"></span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Product Search -->
                 <div class="card mb-3">
                     <div class="card-header bg-primary text-white">
@@ -3098,8 +3128,11 @@ function loadPOS() {
                 
                 <!-- Shopping Cart -->
                 <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="bi bi-cart"></i> Shopping Cart (<span id="cartItemCount">0</span> items)</h5>
+                    <div class="card-header text-white" id="cartHeader" style="background-color: #198754;">
+                        <h5 class="mb-0">
+                            <i class="bi bi-cart"></i> <span id="cartTypeLabel">Shopping Cart</span> 
+                            (<span id="cartItemCount">0</span> items)
+                        </h5>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -3213,8 +3246,8 @@ function loadPOS() {
                 
                 <!-- Actions -->
                 <div class="d-grid gap-2">
-                    <button class="btn btn-success btn-lg" onclick="completePOSSale()">
-                        <i class="bi bi-check-circle"></i> Complete Sale
+                    <button class="btn btn-lg" id="completeTransactionBtn" onclick="completePOSSale()" style="background-color: #198754; color: white;">
+                        <i class="bi bi-check-circle"></i> <span id="completeButtonLabel">Complete Sale</span>
                     </button>
                     <button class="btn btn-danger" onclick="clearPOSCart()">
                         <i class="bi bi-x-circle"></i> Clear Cart
@@ -3228,6 +3261,32 @@ function loadPOS() {
     `);
     
     updatePOSCart();
+    
+    // Transaction type change handler
+    $('input[name="transactionType"]').on('change', function() {
+        const transactionType = $(this).val();
+        let buttonColor, buttonLabel;
+        
+        if (transactionType === 'return') {
+            $('#returnExchangeInfo').show();
+            $('#transactionTypeNote').text('Returns will add stock back and refund the customer. Amount will show as negative.');
+            buttonColor = '#dc3545';
+            buttonLabel = 'Complete Return';
+        } else if (transactionType === 'exchange') {
+            $('#returnExchangeInfo').show();
+            $('#transactionTypeNote').text('Exchange allows returning items and adding new items in the same transaction.');
+            buttonColor = '#ffc107';
+            buttonLabel = 'Complete Exchange';
+        } else {
+            $('#returnExchangeInfo').hide();
+            buttonColor = '#198754';
+            buttonLabel = 'Complete Sale';
+        }
+        
+        $('#completeTransactionBtn').css('background-color', buttonColor);
+        $('#completeButtonLabel').text(buttonLabel);
+        updatePOSCart();
+    });
     
     // Product search with debounce
     let searchTimeout;
@@ -3326,6 +3385,27 @@ function updatePOSCart() {
     const tbody = $('#posCartBody');
     tbody.empty();
     
+    // Get transaction type
+    const transactionType = $('input[name="transactionType"]:checked').val();
+    
+    // Update cart header based on transaction type
+    let headerColor, headerIcon, headerLabel;
+    if (transactionType === 'return') {
+        headerColor = '#dc3545';
+        headerIcon = 'arrow-counterclockwise';
+        headerLabel = 'Return Cart';
+    } else if (transactionType === 'exchange') {
+        headerColor = '#ffc107';
+        headerIcon = 'arrow-repeat';
+        headerLabel = 'Exchange Cart';
+    } else {
+        headerColor = '#198754';
+        headerIcon = 'cart';
+        headerLabel = 'Shopping Cart';
+    }
+    $('#cartHeader').css('background-color', headerColor);
+    $('#cartTypeLabel').html(`<i class="bi bi-${headerIcon}"></i> ${headerLabel}`);
+    
     if (posCart.length === 0) {
         $('#emptyCart').show();
         $('#posCartTable').hide();
@@ -3369,20 +3449,25 @@ function updatePOSCart() {
     $('#posTransactionTime').text(now.toLocaleTimeString('en-US', timeOptions));
     
     // Calculate totals
-    const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    let subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
     const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
     
-    const discountAmount = subtotal * (discountPercent / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * (taxPercent / 100);
-    const total = taxableAmount + taxAmount;
+    // For returns, make values negative
+    if (transactionType === 'return') {
+        subtotal = -Math.abs(subtotal);
+    }
+    
+    const discountAmount = Math.abs(subtotal) * (discountPercent / 100);
+    const taxableAmount = subtotal - (transactionType === 'return' ? -discountAmount : discountAmount);
+    const taxAmount = Math.abs(taxableAmount) * (taxPercent / 100);
+    const total = taxableAmount + (transactionType === 'return' ? -taxAmount : taxAmount);
     
     $('#cartItemCount').text(posCart.length);
-    $('#posSubtotal').text('$' + subtotal.toFixed(2));
+    $('#posSubtotal').text((transactionType === 'return' ? '-' : '') + '$' + Math.abs(subtotal).toFixed(2));
     $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
     $('#posTaxAmount').text('+$' + taxAmount.toFixed(2));
-    $('#posTotal').text('$' + total.toFixed(2));
+    $('#posTotal').text((total < 0 ? '-' : '') + '$' + Math.abs(total).toFixed(2));
 }
 
 function clearPOSCart() {
@@ -3399,8 +3484,14 @@ function completePOSSale() {
         return;
     }
     
-    const transactionType = 'sale';
-    const transactionLabel = 'Sale';
+    const transactionType = $('input[name="transactionType"]:checked').val();
+    const transactionLabel = transactionType === 'return' ? 'Return' : 
+                            transactionType === 'exchange' ? 'Exchange' : 'Sale';
+    
+    // Confirm transaction
+    if (!confirm(`Complete this ${transactionLabel}?`)) {
+        return;
+    }
     
     const now = new Date();
     const saleDate = now.toISOString().slice(0, 19).replace('T', ' ');
@@ -3425,7 +3516,8 @@ function completePOSSale() {
         data: JSON.stringify(saleData),
         success: function(response) {
             if (response.success) {
-                alert(`✓ Sale completed successfully!\n\nTransaction Number: ${response.sale_number}\nTotal Amount: $${response.total_amount.toFixed(2)}\n\nThank you!`);
+                const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
+                alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
                 loadPOS(); // Reset for new transaction
             }
         },
