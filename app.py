@@ -1744,69 +1744,6 @@ def report_profit():
         download_name=f'profit_analysis_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
-        current_stock = product_row['current_stock'] or 0
-        new_stock = current_stock + quantity
-        
-        cursor.execute('UPDATE products SET current_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
-                      (new_stock, product_id))
-        
-        # Create stock movement record
-        movement_notes = notes or 'Stock adjustment'
-        if imei_numbers and len(imei_numbers) > 0:
-            movement_notes += f' (with {len(imei_numbers)} IMEI numbers)'
-        
-        cursor.execute('''
-            INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (product_id, 'adjustment', quantity, 'manual', movement_notes))
-        
-        movement_id = cursor.lastrowid
-        
-        # Store IMEI numbers if provided
-        if imei_numbers and len(imei_numbers) > 0:
-            # Create IMEI tracking table if it doesn't exist
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS product_imei (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    product_id INTEGER NOT NULL,
-                    imei TEXT NOT NULL UNIQUE,
-                    stock_movement_id INTEGER,
-                    status TEXT DEFAULT 'in_stock',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (product_id) REFERENCES products (id),
-                    FOREIGN KEY (stock_movement_id) REFERENCES stock_movements (id)
-                )
-            ''')
-            
-            # Insert IMEI numbers
-            for imei in imei_numbers:
-                try:
-                    cursor.execute('''
-                        INSERT INTO product_imei (product_id, imei, stock_movement_id, status)
-                        VALUES (?, ?, ?, ?)
-                    ''', (product_id, imei, movement_id, 'in_stock'))
-                except sqlite3.IntegrityError:
-                    # IMEI already exists
-                    conn.rollback()
-                    return jsonify({'success': False, 'error': f'IMEI number {imei} already exists in the system'}), 400
-        
-        conn.commit()
-        
-        return jsonify({
-            'success': True, 
-            'product_name': product_name,
-            'previous_stock': current_stock,
-            'added_quantity': quantity,
-            'new_stock': new_stock,
-            'imei_count': len(imei_numbers) if imei_numbers else 0
-        })
-    
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
-        conn.close()
-
 @app.route('/api/products/<int:id>/stock-history', methods=['GET'])
 @login_required
 def get_stock_history(id):
