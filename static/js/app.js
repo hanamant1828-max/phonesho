@@ -1959,6 +1959,10 @@ function viewGRN(id) {
     $.get(`${API_BASE}/grns/${id}`, function(grn) {
         const receivedDate = new Date(grn.received_date).toLocaleDateString();
 
+        let paymentBadge = 'danger';
+        if (grn.payment_status === 'paid') paymentBadge = 'success';
+        else if (grn.payment_status === 'partial') paymentBadge = 'warning';
+
         let content = `
             <div class="mb-3">
                 <h6>GRN Details</h6>
@@ -1968,10 +1972,13 @@ function viewGRN(id) {
                 <p><strong>Received Date:</strong> ${receivedDate}</p>
                 <p><strong>Payment Status:</strong> <span class="badge bg-${grn.payment_status === 'paid' ? 'success' : grn.payment_status === 'partial' ? 'warning' : 'danger'}">${grn.payment_status || 'unpaid'}</span></p>
                 <p><strong>Storage Location:</strong> ${grn.storage_location || '-'}</p>
-                <p><strong>Notes:</strong> ${grn.notes || '-'}</p>
+                <p><strong>Created By:</strong> ${grn.created_by || 'System'}</p>
+                <p><strong>Total Items:</strong> ${grn.total_items || 0}</p>
+                <p><strong>Total Quantity:</strong> ${grn.total_quantity || 0}</p>
+                ${grn.notes ? `<p><strong>Notes:</strong> ${grn.notes}</p>` : ''}
             </div>
             <h6>Items Received</h6>
-            <table class="table table-sm">
+            <table class="table table-sm table-bordered">
                 <thead>
                     <tr>
                         <th>Product</th>
@@ -1994,7 +2001,7 @@ function viewGRN(id) {
                     <td>${item.product_name}</td>
                     <td>${item.ordered_quantity || '-'}</td>
                     <td>${item.quantity_received}</td>
-                    <td>${item.quantity_damaged || 0} ${item.damage_reason ? `<br><small class="text-muted">(${item.damage_reason})</small>` : ''}</td>
+                    <td>${item.quantity_damaged || 0}${item.damage_reason ? `<br><small class="text-muted">(${item.damage_reason})</small>` : ''}</td>
                     <td>$${parseFloat(item.cost_price).toFixed(2)}</td>
                     <td>$${lineTotal.toFixed(2)}</td>
                 </tr>
@@ -2015,6 +2022,9 @@ function viewGRN(id) {
         $('#grnViewContent').html(content);
         const modal = new bootstrap.Modal($('#grnViewModal'));
         modal.show();
+    }).fail(function(xhr) {
+        const errorMsg = xhr.responseJSON?.error || 'Failed to load GRN details.';
+        alert('Error: ' + errorMsg);
     });
 }
 
@@ -2351,9 +2361,9 @@ function viewStockHistory(productId) {
         // Load the stock history data
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
             console.log('Stock history data received:', data);
-            
+
             const productName = escapeHtml(data.product_name || 'Unknown Product');
-            
+
             let content = `
                 <div class="mb-3">
                     <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
@@ -2397,20 +2407,20 @@ function viewStockHistory(productId) {
 
                         const stockAddedVal = parseInt(item.stock_added) || 0;
                         const stockRemovedVal = parseInt(item.stock_removed) || 0;
-                        
+
                         const stockAdded = stockAddedVal > 0 
                             ? `<span class="badge bg-success">+${stockAddedVal}</span>` 
                             : '<span class="text-muted">-</span>';
-                        
+
                         const stockRemoved = stockRemovedVal > 0 
                             ? `<span class="badge bg-danger">-${stockRemovedVal}</span>` 
                             : '<span class="text-muted">-</span>';
 
                         const reference = escapeHtml(item.reference || 'Manual Entry');
                         const performedBy = escapeHtml(item.received_by || 'System');
-                        
+
                         const runningBalance = parseInt(item.running_balance) || 0;
-                        
+
                         // Determine balance color based on stock level
                         let balanceClass = 'text-primary';
                         if (runningBalance === 0) {
