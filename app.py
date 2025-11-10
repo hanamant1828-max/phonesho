@@ -1197,6 +1197,492 @@ def stock_adjustment():
             return jsonify({'success': False, 'error': 'Product not found'}), 404
         
         product_name = product_row['name']
+
+
+@app.route('/api/reports/sales', methods=['GET'])
+@login_required
+def report_sales():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    transaction_type = request.args.get('transaction_type', '')
+    
+    query = '''
+        SELECT 
+            ps.sale_number,
+            ps.sale_date,
+            ps.customer_name,
+            ps.customer_phone,
+            ps.transaction_type,
+            ps.subtotal,
+            ps.discount_amount,
+            ps.tax_amount,
+            ps.total_amount,
+            ps.payment_method,
+            ps.payment_status,
+            ps.cashier_name,
+            COUNT(psi.id) as item_count,
+            SUM(psi.quantity) as total_quantity
+        FROM pos_sales ps
+        LEFT JOIN pos_sale_items psi ON ps.id = psi.sale_id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+    
+    if transaction_type:
+        query += ' AND ps.transaction_type = ?'
+        params.append(transaction_type)
+    
+    query += ' GROUP BY ps.id ORDER BY ps.sale_date DESC'
+    
+    cursor.execute(query, params)
+    sales = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(sales)
+    if not df.empty:
+        df['sale_date'] = pd.to_datetime(df['sale_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sales Report')
+        workbook = writer.book
+        worksheet = writer.sheets['Sales Report']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'sales_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/inventory', methods=['GET'])
+@login_required
+def report_inventory():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    category_id = request.args.get('category_id', '')
+    stock_status = request.args.get('stock_status', '')
+    
+    query = '''
+        SELECT 
+            p.sku,
+            p.name,
+            c.name as category,
+            b.name as brand,
+            m.name as model,
+            p.current_stock,
+            p.min_stock_level,
+            p.cost_price,
+            p.selling_price,
+            p.mrp,
+            (p.current_stock * p.cost_price) as stock_value,
+            CASE 
+                WHEN p.current_stock = 0 THEN 'Out of Stock'
+                WHEN p.current_stock <= p.min_stock_level THEN 'Low Stock'
+                ELSE 'Good Stock'
+            END as stock_status,
+            p.storage_location,
+            p.status
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN models m ON p.model_id = m.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if category_id:
+        query += ' AND p.category_id = ?'
+        params.append(category_id)
+    
+    if stock_status == 'low':
+        query += ' AND p.current_stock <= p.min_stock_level AND p.current_stock > 0'
+    elif stock_status == 'out':
+        query += ' AND p.current_stock = 0'
+    elif stock_status == 'good':
+        query += ' AND p.current_stock > p.min_stock_level'
+    
+    query += ' ORDER BY p.name'
+    
+    cursor.execute(query, params)
+    inventory = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(inventory)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Inventory Report')
+        workbook = writer.book
+        worksheet = writer.sheets['Inventory Report']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'inventory_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/purchase-orders', methods=['GET'])
+@login_required
+def report_purchase_orders():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    status = request.args.get('status', '')
+    
+    query = '''
+        SELECT 
+            po.po_number,
+            po.supplier_name,
+            po.supplier_contact,
+            po.order_date,
+            po.expected_delivery,
+            po.status,
+            po.payment_status,
+            po.total_amount,
+            COUNT(poi.id) as total_items,
+            SUM(poi.quantity) as total_quantity,
+            SUM(poi.received_quantity) as received_quantity,
+            po.storage_location,
+            po.notes
+        FROM purchase_orders po
+        LEFT JOIN purchase_order_items poi ON po.id = poi.po_id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if from_date:
+        query += ' AND DATE(po.order_date) >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND DATE(po.order_date) <= ?'
+        params.append(to_date)
+    
+    if status:
+        query += ' AND po.status = ?'
+        params.append(status)
+    
+    query += ' GROUP BY po.id ORDER BY po.order_date DESC'
+    
+    cursor.execute(query, params)
+    pos = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(pos)
+    if not df.empty:
+        df['order_date'] = pd.to_datetime(df['order_date']).dt.strftime('%Y-%m-%d')
+        df['expected_delivery'] = pd.to_datetime(df['expected_delivery'], errors='coerce').dt.strftime('%Y-%m-%d')
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Purchase Orders')
+        workbook = writer.book
+        worksheet = writer.sheets['Purchase Orders']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'purchase_orders_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/stock-movements', methods=['GET'])
+@login_required
+def report_stock_movements():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    movement_type = request.args.get('type', '')
+    
+    query = '''
+        SELECT 
+            sm.created_at,
+            p.name as product_name,
+            p.sku,
+            sm.type as movement_type,
+            sm.quantity,
+            sm.reference_type,
+            sm.reference_id,
+            sm.notes,
+            c.name as category,
+            b.name as brand
+        FROM stock_movements sm
+        LEFT JOIN products p ON sm.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if from_date:
+        query += ' AND DATE(sm.created_at) >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND DATE(sm.created_at) <= ?'
+        params.append(to_date)
+    
+    if movement_type:
+        query += ' AND sm.type = ?'
+        params.append(movement_type)
+    
+    query += ' ORDER BY sm.created_at DESC'
+    
+    cursor.execute(query, params)
+    movements = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(movements)
+    if not df.empty:
+        df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Stock Movements')
+        workbook = writer.book
+        worksheet = writer.sheets['Stock Movements']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'stock_movements_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/grns', methods=['GET'])
+@login_required
+def report_grns():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    payment_status = request.args.get('payment_status', '')
+    
+    query = '''
+        SELECT 
+            g.grn_number,
+            g.po_number,
+            g.supplier_name,
+            g.received_date,
+            g.total_items,
+            g.total_quantity,
+            g.payment_status,
+            g.storage_location,
+            g.created_by,
+            gi.product_name,
+            gi.quantity_received,
+            gi.quantity_damaged,
+            gi.damage_reason,
+            gi.cost_price,
+            (gi.quantity_received * gi.cost_price) as line_total
+        FROM grns g
+        LEFT JOIN grn_items gi ON g.id = gi.grn_id
+        WHERE 1=1
+    '''
+    params = []
+    
+    if from_date:
+        query += ' AND DATE(g.received_date) >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND DATE(g.received_date) <= ?'
+        params.append(to_date)
+    
+    if payment_status:
+        query += ' AND g.payment_status = ?'
+        params.append(payment_status)
+    
+    query += ' ORDER BY g.received_date DESC'
+    
+    cursor.execute(query, params)
+    grns = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(grns)
+    if not df.empty:
+        df['received_date'] = pd.to_datetime(df['received_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='GRN Report')
+        workbook = writer.book
+        worksheet = writer.sheets['GRN Report']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'grn_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/profit', methods=['GET'])
+@login_required
+def report_profit():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    sort_by = request.args.get('sort_by', 'margin')
+    
+    query = '''
+        SELECT 
+            p.name as product_name,
+            p.sku,
+            c.name as category,
+            b.name as brand,
+            p.cost_price,
+            p.selling_price,
+            p.mrp,
+            ((p.selling_price - p.cost_price) / p.cost_price * 100) as profit_margin_percent,
+            (p.selling_price - p.cost_price) as profit_per_unit,
+            COALESCE(SUM(psi.quantity), 0) as quantity_sold,
+            COALESCE(SUM(psi.total_price), 0) as total_revenue,
+            COALESCE(SUM(psi.quantity * p.cost_price), 0) as total_cost,
+            COALESCE(SUM(psi.total_price) - SUM(psi.quantity * p.cost_price), 0) as total_profit
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN pos_sale_items psi ON p.id = psi.product_id
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id AND ps.transaction_type = 'sale'
+        WHERE 1=1
+    '''
+    params = []
+    
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+    
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+    
+    query += ' GROUP BY p.id'
+    
+    if sort_by == 'margin':
+        query += ' ORDER BY profit_margin_percent DESC'
+    elif sort_by == 'quantity':
+        query += ' ORDER BY quantity_sold DESC'
+    elif sort_by == 'revenue':
+        query += ' ORDER BY total_revenue DESC'
+    
+    cursor.execute(query, params)
+    profit_data = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    df = pd.DataFrame(profit_data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Profit Analysis')
+        workbook = writer.book
+        worksheet = writer.sheets['Profit Analysis']
+        
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'profit_analysis_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
         current_stock = product_row['current_stock'] or 0
         new_stock = current_stock + quantity
         

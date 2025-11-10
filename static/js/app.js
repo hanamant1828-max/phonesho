@@ -146,6 +146,9 @@ function loadPage(page) {
         case 'pos':
             loadPOS();
             break;
+        case 'reports':
+            loadReports();
+            break;
     }
 }
 
@@ -2594,6 +2597,329 @@ function loadQuickOrder() {
 
 function loadProductsForQuickOrder() {
     $.get(`${API_BASE}/products`, function(products) {
+
+
+function loadReports() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-file-earmark-bar-graph"></i> Reports</h2>
+            <p class="text-muted">Generate and export various business reports</p>
+        </div>
+        
+        <div class="row">
+            <!-- Sales Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Sales Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">View and export POS sales transactions with filters by date, payment method, and transaction type.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="salesReportFrom">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="salesReportTo">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Transaction Type</label>
+                            <select class="form-select form-select-sm" id="salesReportType">
+                                <option value="">All Types</option>
+                                <option value="sale">Sales</option>
+                                <option value="return">Returns</option>
+                                <option value="exchange">Exchanges</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-primary btn-sm w-100" onclick="generateSalesReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Inventory Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Inventory Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Current inventory levels with stock value, low stock alerts, and product details.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Category</label>
+                            <select class="form-select form-select-sm" id="inventoryReportCategory">
+                                <option value="">All Categories</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Stock Status</label>
+                            <select class="form-select form-select-sm" id="inventoryReportStatus">
+                                <option value="">All</option>
+                                <option value="low">Low Stock</option>
+                                <option value="out">Out of Stock</option>
+                                <option value="good">Good Stock</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-success btn-sm w-100" onclick="generateInventoryReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Purchase Orders Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-cart-plus"></i> Purchase Orders</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Complete purchase order history with receiving status and payment information.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="poReportFrom">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="poReportTo">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Status</label>
+                            <select class="form-select form-select-sm" id="poReportStatus">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="partial">Partial</option>
+                                <option value="completed">Completed</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-info btn-sm w-100" onclick="generatePOReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stock Movement Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Movements</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Track all stock movements including purchases, sales, adjustments, and returns.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="movementReportFrom">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="movementReportTo">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Movement Type</label>
+                            <select class="form-select form-select-sm" id="movementReportType">
+                                <option value="">All Types</option>
+                                <option value="purchase">Purchases</option>
+                                <option value="sale">Sales</option>
+                                <option value="adjustment">Adjustments</option>
+                                <option value="return">Returns</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-warning btn-sm w-100" onclick="generateMovementReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- GRN Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-receipt"></i> GRN Report</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Goods Receipt Notes with received quantities, damaged items, and payment status.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="grnReportFrom">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="grnReportTo">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Payment Status</label>
+                            <select class="form-select form-select-sm" id="grnReportPayment">
+                                <option value="">All Status</option>
+                                <option value="paid">Paid</option>
+                                <option value="partial">Partial</option>
+                                <option value="unpaid">Unpaid</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-secondary btn-sm w-100" onclick="generateGRNReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profit Analysis Report -->
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header bg-danger text-white">
+                        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Profit Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">Analyze profit margins, cost vs selling price, and identify most profitable products.</p>
+                        <div class="mb-3">
+                            <label class="form-label small">Date Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="profitReportFrom">
+                                </div>
+                                <div class="col-6">
+                                    <input type="date" class="form-control form-control-sm" id="profitReportTo">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Sort By</label>
+                            <select class="form-select form-select-sm" id="profitReportSort">
+                                <option value="margin">Profit Margin</option>
+                                <option value="quantity">Quantity Sold</option>
+                                <option value="revenue">Total Revenue</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-danger btn-sm w-100" onclick="generateProfitReport()">
+                            <i class="bi bi-file-earmark-excel"></i> Generate Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+    
+    // Load categories for inventory report filter
+    $.get(`${API_BASE}/categories`, function(categories) {
+        const select = $('#inventoryReportCategory');
+        categories.forEach(cat => {
+            select.append(`<option value="${cat.id}">${cat.name}</option>`);
+        });
+    });
+    
+    // Set default date ranges to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const todayStr = today.toISOString().split('T')[0];
+    const firstDayStr = firstDay.toISOString().split('T')[0];
+    
+    $('#salesReportFrom, #poReportFrom, #movementReportFrom, #grnReportFrom, #profitReportFrom').val(firstDayStr);
+    $('#salesReportTo, #poReportTo, #movementReportTo, #grnReportTo, #profitReportTo').val(todayStr);
+}
+
+function generateSalesReport() {
+    const fromDate = $('#salesReportFrom').val();
+    const toDate = $('#salesReportTo').val();
+    const transactionType = $('#salesReportType').val();
+    
+    let url = `${API_BASE}/reports/sales?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (transactionType) url += `&transaction_type=${transactionType}`;
+    
+    window.location.href = url;
+}
+
+function generateInventoryReport() {
+    const category = $('#inventoryReportCategory').val();
+    const status = $('#inventoryReportStatus').val();
+    
+    let url = `${API_BASE}/reports/inventory?format=excel`;
+    if (category) url += `&category_id=${category}`;
+    if (status) url += `&stock_status=${status}`;
+    
+    window.location.href = url;
+}
+
+function generatePOReport() {
+    const fromDate = $('#poReportFrom').val();
+    const toDate = $('#poReportTo').val();
+    const status = $('#poReportStatus').val();
+    
+    let url = `${API_BASE}/reports/purchase-orders?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (status) url += `&status=${status}`;
+    
+    window.location.href = url;
+}
+
+function generateMovementReport() {
+    const fromDate = $('#movementReportFrom').val();
+    const toDate = $('#movementReportTo').val();
+    const movementType = $('#movementReportType').val();
+    
+    let url = `${API_BASE}/reports/stock-movements?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (movementType) url += `&type=${movementType}`;
+    
+    window.location.href = url;
+}
+
+function generateGRNReport() {
+    const fromDate = $('#grnReportFrom').val();
+    const toDate = $('#grnReportTo').val();
+    const paymentStatus = $('#grnReportPayment').val();
+    
+    let url = `${API_BASE}/reports/grns?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (paymentStatus) url += `&payment_status=${paymentStatus}`;
+    
+    window.location.href = url;
+}
+
+function generateProfitReport() {
+    const fromDate = $('#profitReportFrom').val();
+    const toDate = $('#profitReportTo').val();
+    const sortBy = $('#profitReportSort').val();
+    
+    let url = `${API_BASE}/reports/profit?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (sortBy) url += `&sort_by=${sortBy}`;
+    
+    window.location.href = url;
+}
+
         const select = $('#quickOrderProduct');
         select.empty().append('<option value="">-- Choose a product --</option>');
         
