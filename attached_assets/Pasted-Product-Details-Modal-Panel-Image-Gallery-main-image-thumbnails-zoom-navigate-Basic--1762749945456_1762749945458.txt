@@ -1,0 +1,102 @@
+Product Details Modal/Panel
+•	• Image Gallery (main image + thumbnails, zoom, navigate)
+•	• Basic Information Card:
+  - Product name, variant
+  - SKU, Barcode (with copy/print buttons)
+  - Category, Brand, Model
+  - Status badge
+•	• Pricing Card:
+  - Purchase Price, Selling Price, MRP
+  - Profit Margin (calculated, color-coded)
+  - GST Rate
+•	• Stock Information Card:
+  - Current stock with adjust button
+  - Stock status badge
+  - Min/Max levels
+  - Reorder point
+  - Stock by location breakdown
+  - View stock history button
+•	• Supplier Information:
+  - Primary supplier details
+  - Supplier code
+  - Contact info (call/email buttons)
+  - Lead time
+•	• Sales Statistics:
+  - Total sold
+  - Revenue generated
+  - Last sold date
+  - Sales velocity
+•	• Specifications Table:
+  - Key-value pairs
+  - Add specification button
+•	• Warranty Information
+•	• Tags display
+•	• Activity History:
+  - Stock movements
+  - Price changes
+  - Sales history
+•	• Internal Notes
+•	• Floating action buttons (Edit/Delete/Print/Report)
+6.2 Low Stock Alerts & Notifications
+✓ Dedicated "Low Stock Alerts" section/tab
+✓ Priority grouping:
+  - CRITICAL (red): At or near zero
+  - WARNING (orange): Below minimum level
+  - ATTENTION (yellow): Approaching minimum
+✓ Each alert shows:
+  - Product name
+  - Current stock / Min stock
+  - Supplier info with lead time
+  - Days until stockout calculation
+  - Quick reorder button
+✓ Bulk actions: Reorder Selected, Generate PO, Export
+✓ Email/SMS notifications (configurable)
+✓ Mark as ordered to dismiss alert
+6.3 Reorder Suggestion
+✓ Triggered from low stock alert "Reorder" button
+✓ Shows:
+  - Current stock
+  - Minimum level
+  - Recommended reorder quantity (calculated)
+  - Calculation based on:
+    • Average monthly sales
+    • Lead time
+    • Safety stock
+✓ Preferred supplier pre-selected
+✓ Last purchase price shown
+✓ Expected delivery date calculated
+✓ Create PO button
+6.4 Barcode Generation & Printing
+✓ Barcode format options (CODE128/EAN13/UPC/QR Code)
+✓ Label size options (Small/Medium/Large/Custom)
+✓ Include on label:
+  - Product name
+  - Model/Variant
+  - SKU
+  - Price
+  - Barcode number
+  - Company logo (optional)
+✓ Labels per row configuration
+✓ Copies per product
+✓ Preview before printing
+✓ Paper size and orientation options
+✓ Download PDF or Print directly
+✓ Save template for future use
+6.5 Basic Inventory Reports
+Reports to implement:
+•	• Current Stock Report
+•	• Stock Valuation Report (total inventory value)
+•	• Low Stock Report
+•	• Out of Stock Report
+•	• Stock by Category breakdown
+•	• Stock by Location (if multi-location)
+•	• Fast Moving Items
+•	• Slow Moving Items
+•	• Stock Movement Report (date range)
+Each report should have:
+  - Date range filter
+  - Location filter (if applicable)
+  - Category filter
+  - Export options (Excel/PDF)
+  - Print option
+  - Visual charts/graphs where applicable
