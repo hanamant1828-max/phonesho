@@ -3071,17 +3071,6 @@ function generateProfitReport() {
     window.location.href = url;
 }
 
-        const select = $('#quickOrderProduct');
-        select.empty().append('<option value="">-- Choose a product --</option>');
-        
-        products.filter(p => p.status === 'active' && p.current_stock > 0).forEach(product => {
-            select.append(`<option value="${product.id}" data-stock="${product.current_stock}" data-price="${product.selling_price}" data-name="${product.name}">
-                ${product.name} - Stock: ${product.current_stock} - $${parseFloat(product.selling_price || 0).toFixed(2)}
-            </option>`);
-        });
-    });
-}
-
 function showProductInfo(productId) {
     $.get(`${API_BASE}/products/${productId}`, function(product) {
         const content = `
