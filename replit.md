@@ -96,6 +96,15 @@ A comprehensive web-based inventory management system designed specifically for 
 - Server-side validation for data integrity
 - Transaction safety with rollback on errors
 
+### Phase 10: Stock Adjustment ✓
+- Add stock to existing products
+- Display current stock before adjustment
+- Real-time preview of new stock level
+- Positive integer quantity validation
+- Optional notes for adjustment tracking
+- Automatic stock movement recording
+- Transaction safety with NULL handling
+
 ## Technical Details
 
 ### API Endpoints
@@ -109,6 +118,7 @@ A comprehensive web-based inventory management system designed specifically for 
 - `/api/purchase-orders/<id>/receive` - Receive PO
 - `/api/quick-orders` - Quick order management (GET list, POST create)
 - `/api/quick-orders/<id>` - Quick order details
+- `/api/stock-adjustment` - Add stock to existing products
 - `/api/grns` - GRN management
 - `/api/grns/<id>` - GRN details
 - `/api/dashboard/stats` - Dashboard statistics
@@ -147,6 +157,14 @@ A comprehensive web-based inventory management system designed specifically for 
 5. Set up regular database backups
 
 ## Recent Changes
+- **November 10, 2025**: Added Stock Adjustment feature
+  - Created POST /api/stock-adjustment endpoint for adding stock
+  - Built UI showing current stock before adjustment
+  - Added real-time preview of new stock level after addition
+  - Implemented positive integer validation and NULL handling
+  - Stock movements automatically tracked with manual reference type
+  - Transaction safety with commit/rollback handling
+  - Architect-reviewed and approved with PASS status
 - **November 10, 2025**: Added Quick Order feature
   - Created dedicated quick_orders and quick_order_items database tables
   - Implemented /api/quick-orders endpoints with full CRUD operations
