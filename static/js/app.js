@@ -2331,6 +2331,15 @@ function viewStockHistory(productId) {
         productDetailsModal.hide();
     }
 
+    // Helper function to safely escape HTML
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        const str = String(text);
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     // Wait a brief moment for the first modal to close, then show stock history modal
     setTimeout(() => {
         // Show loading state
@@ -2343,17 +2352,11 @@ function viewStockHistory(productId) {
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
             console.log('Stock history data received:', data);
             
-            // Safely escape HTML to prevent XSS
-            function escapeHtml(text) {
-                if (!text) return '';
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
-            }
-
+            const productName = escapeHtml(data.product_name || 'Unknown Product');
+            
             let content = `
                 <div class="mb-3">
-                    <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${escapeHtml(data.product_name || 'Unknown Product')}</strong></h6>
+                    <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
                     <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
                 </div>
                 <div class="table-responsive">
@@ -2379,39 +2382,45 @@ function viewStockHistory(productId) {
 
                 data.history.forEach((item, index) => {
                     try {
-                        const date = new Date(item.date_time);
-                        const formattedDate = date.toLocaleDateString('en-US', { 
+                        const dateStr = item.date_time || '';
+                        const date = new Date(dateStr);
+                        const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'short', 
                             day: 'numeric' 
-                        });
-                        const formattedTime = date.toLocaleTimeString('en-US', { 
+                        }) : 'Invalid Date';
+                        const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', { 
                             hour: '2-digit', 
                             minute: '2-digit',
                             second: '2-digit'
-                        });
+                        }) : '';
 
-                        const stockAdded = (item.stock_added || 0) > 0 
-                            ? `<span class="badge bg-success">+${item.stock_added}</span>` 
+                        const stockAddedVal = parseInt(item.stock_added) || 0;
+                        const stockRemovedVal = parseInt(item.stock_removed) || 0;
+                        
+                        const stockAdded = stockAddedVal > 0 
+                            ? `<span class="badge bg-success">+${stockAddedVal}</span>` 
                             : '<span class="text-muted">-</span>';
                         
-                        const stockRemoved = (item.stock_removed || 0) > 0 
-                            ? `<span class="badge bg-danger">-${item.stock_removed}</span>` 
+                        const stockRemoved = stockRemovedVal > 0 
+                            ? `<span class="badge bg-danger">-${stockRemovedVal}</span>` 
                             : '<span class="text-muted">-</span>';
 
-                        const reference = escapeHtml(item.reference) || 'Manual Entry';
-                        const performedBy = escapeHtml(item.received_by) || 'System';
+                        const reference = escapeHtml(item.reference || 'Manual Entry');
+                        const performedBy = escapeHtml(item.received_by || 'System');
+                        
+                        const runningBalance = parseInt(item.running_balance) || 0;
                         
                         // Determine balance color based on stock level
                         let balanceClass = 'text-primary';
-                        if (item.running_balance === 0) {
+                        if (runningBalance === 0) {
                             balanceClass = 'text-danger';
-                        } else if (item.running_balance < 10) {
+                        } else if (runningBalance < 10) {
                             balanceClass = 'text-warning';
                         }
 
-                        totalAdded += (item.stock_added || 0);
-                        totalRemoved += (item.stock_removed || 0);
+                        totalAdded += stockAddedVal;
+                        totalRemoved += stockRemovedVal;
 
                         content += `
                             <tr>
@@ -2434,7 +2443,7 @@ function viewStockHistory(productId) {
                                     </span>
                                 </td>
                                 <td class="text-center">
-                                    <strong class="${balanceClass}" style="font-size: 1.1em;">${item.running_balance || 0}</strong>
+                                    <strong class="${balanceClass}" style="font-size: 1.1em;">${runningBalance}</strong>
                                 </td>
                             </tr>
                         `;
@@ -2444,7 +2453,7 @@ function viewStockHistory(productId) {
                 });
 
                 // Add summary row
-                const currentBalance = data.history.length > 0 ? (data.history[data.history.length - 1].running_balance || 0) : 0;
+                const currentBalance = data.history.length > 0 ? (parseInt(data.history[data.history.length - 1].running_balance) || 0) : 0;
 
                 content += `
                         <tr class="table-light fw-bold">
@@ -2478,10 +2487,10 @@ function viewStockHistory(productId) {
             $('#stockHistoryContent').html(content);
         }).fail(function(xhr) {
             console.error('Stock history API error:', xhr);
-            const errorMsg = xhr.responseJSON?.error || 'Failed to load stock history. Please try again.';
+            const errorMsg = escapeHtml((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to load stock history. Please try again.');
             $('#stockHistoryContent').html(`
                 <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${escapeHtml(errorMsg)}
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
                     <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
                 </div>
             `);
