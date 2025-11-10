@@ -453,6 +453,9 @@ function loadInventoryData() {
                         <td class="${stockClass}">${product.current_stock}</td>
                         <td><span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></td>
                         <td>
+                            <button class="btn btn-sm btn-success action-btn" onclick="viewProductDetails(${product.id})" title="View Details">
+                                <i class="bi bi-eye"></i>
+                            </button>
                             <button class="btn btn-sm btn-info action-btn" onclick="viewStockHistory(${product.id})" title="Stock History">
                                 <i class="bi bi-clock-history"></i>
                             </button>
@@ -2027,6 +2030,289 @@ function printGRN() {
     printWindow.document.write('</body></html>');
     printWindow.document.close();
     printWindow.print();
+}
+
+function viewProductDetails(productId) {
+    // Show loading state
+    $('#productDetailsContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading product details...</p></div>');
+    
+    const modal = new bootstrap.Modal($('#productDetailsModal'));
+    modal.show();
+    
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const costPrice = parseFloat(product.cost_price || 0);
+        const sellingPrice = parseFloat(product.selling_price || 0);
+        const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
+        const profitColor = profitMargin > 30 ? 'success' : profitMargin > 15 ? 'warning' : 'danger';
+        
+        const stockStatus = product.current_stock === 0 ? 'Out of Stock' : 
+                           product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
+        const stockBadgeClass = product.current_stock === 0 ? 'danger' : 
+                               product.current_stock <= product.min_stock_level ? 'warning' : 'success';
+        
+        let content = `
+            <div class="row">
+                <!-- Left Column: Image Gallery -->
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-body text-center">
+                            <img src="${product.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}" 
+                                 class="img-fluid rounded mb-2" style="max-height: 300px;" alt="${product.name}">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="changeProductImage(${product.id})">
+                                    <i class="bi bi-image"></i> Change Image
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="zoomProductImage('${product.image_url || ''}')">
+                                    <i class="bi bi-zoom-in"></i> Zoom
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <strong><i class="bi bi-lightning-charge"></i> Quick Actions</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary btn-sm" onclick="editProduct(${product.id})">
+                                    <i class="bi bi-pencil"></i> Edit Product
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="adjustStock(${product.id})">
+                                    <i class="bi bi-plus-slash-minus"></i> Adjust Stock
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="generateBarcode(${product.id})">
+                                    <i class="bi bi-upc-scan"></i> Print Barcode
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="reorderProduct(${product.id})">
+                                    <i class="bi bi-cart-plus"></i> Reorder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Details -->
+                <div class="col-md-8">
+                    <!-- Basic Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-info-circle"></i> Basic Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Product Name:</strong> ${product.name}</p>
+                                    <p><strong>SKU:</strong> ${product.sku || 'N/A'} 
+                                        ${product.sku ? `<button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('${product.sku}')"><i class="bi bi-clipboard"></i></button>` : ''}
+                                    </p>
+                                    <p><strong>Category:</strong> ${product.category_name || 'N/A'}</p>
+                                    <p><strong>Brand:</strong> ${product.brand_name || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Model:</strong> ${product.model_name || 'N/A'}</p>
+                                    <p><strong>Status:</strong> <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></p>
+                                    <p><strong>IMEI:</strong> ${product.imei || 'N/A'}</p>
+                                    <p><strong>Color:</strong> ${product.color || 'N/A'}</p>
+                                </div>
+                            </div>
+                            ${product.description ? `<p class="mb-0"><strong>Description:</strong><br>${product.description}</p>` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-currency-dollar"></i> Pricing Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p><strong>Cost Price:</strong><br><span class="h5 text-primary">$${costPrice.toFixed(2)}</span></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Selling Price:</strong><br><span class="h5 text-success">$${sellingPrice.toFixed(2)}</span></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>MRP:</strong><br><span class="h5 text-info">$${parseFloat(product.mrp || 0).toFixed(2)}</span></p>
+                                </div>
+                            </div>
+                            <div class="alert alert-${profitColor} mb-0">
+                                <strong>Profit Margin:</strong> ${profitMargin}%
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stock Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-box"></i> Stock Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <p><strong>Current Stock:</strong><br>
+                                        <span class="h4 text-${stockBadgeClass}">${product.current_stock}</span>
+                                        <button class="btn btn-sm btn-link" onclick="adjustStock(${product.id})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Min Level:</strong><br><span class="h6">${product.min_stock_level}</span></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Opening Stock:</strong><br><span class="h6">${product.opening_stock || 0}</span></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Status:</strong><br><span class="badge bg-${stockBadgeClass}">${stockStatus}</span></p>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <p><strong>Storage Location:</strong> ${product.storage_location || 'Not specified'}</p>
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewStockHistory(${product.id})">
+                                    <i class="bi bi-clock-history"></i> View Stock History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Supplier Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-truck"></i> Supplier Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Supplier Name:</strong> ${product.supplier_name || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Contact:</strong> ${product.supplier_contact || 'N/A'}
+                                        ${product.supplier_contact ? `
+                                            <button class="btn btn-sm btn-outline-primary" onclick="window.location.href='tel:${product.supplier_contact}'">
+                                                <i class="bi bi-telephone"></i>
+                                            </button>
+                                        ` : ''}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Specifications -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-list-ul"></i> Specifications</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    ${product.storage_capacity ? `<tr><td><strong>Storage:</strong></td><td>${product.storage_capacity}</td></tr>` : ''}
+                                    ${product.ram ? `<tr><td><strong>RAM:</strong></td><td>${product.ram}</td></tr>` : ''}
+                                    ${product.warranty_period ? `<tr><td><strong>Warranty:</strong></td><td>${product.warranty_period}</td></tr>` : ''}
+                                    ${!product.storage_capacity && !product.ram && !product.warranty_period ? '<tr><td colspan="2" class="text-muted">No specifications available</td></tr>' : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#productDetailsContent').html(content);
+    }).fail(function(xhr) {
+        const errorMsg = xhr.responseJSON?.error || 'Failed to load product details.';
+        $('#productDetailsContent').html(`
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+            </div>
+        `);
+    });
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard: ' + text);
+    });
+}
+
+function changeProductImage(productId) {
+    const newUrl = prompt('Enter new image URL:');
+    if (newUrl) {
+        $.ajax({
+            url: `${API_BASE}/products/${productId}`,
+            method: 'GET',
+            success: function(product) {
+                product.image_url = newUrl;
+                $.ajax({
+                    url: `${API_BASE}/products/${productId}`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(product),
+                    success: function() {
+                        alert('Image updated successfully');
+                        viewProductDetails(productId);
+                    }
+                });
+            }
+        });
+    }
+}
+
+function zoomProductImage(imageUrl) {
+    if (!imageUrl || imageUrl.includes('placeholder')) {
+        alert('No image available to zoom');
+        return;
+    }
+    window.open(imageUrl, '_blank');
+}
+
+function adjustStock(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const adjustment = prompt(`Current stock: ${product.current_stock}\n\nEnter adjustment amount (use + or - prefix):`);
+        if (adjustment) {
+            const newStock = product.current_stock + parseInt(adjustment);
+            if (newStock < 0) {
+                alert('Stock cannot be negative');
+                return;
+            }
+            
+            $.ajax({
+                url: `${API_BASE}/products/${productId}`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    ...product,
+                    current_stock: newStock
+                }),
+                success: function() {
+                    alert('Stock adjusted successfully');
+                    viewProductDetails(productId);
+                    if (currentPage === 'inventory') {
+                        loadInventoryData();
+                    }
+                }
+            });
+        }
+    });
+}
+
+function generateBarcode(productId) {
+    alert('Barcode generation feature - Coming soon!\n\nThis will allow you to:\n- Generate barcodes in various formats\n- Print labels with product details\n- Customize label templates');
+}
+
+function reorderProduct(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const recommended = Math.max(product.min_stock_level * 2, 10);
+        const quantity = prompt(`Reorder ${product.name}\n\nCurrent Stock: ${product.current_stock}\nMin Level: ${product.min_stock_level}\nRecommended Quantity: ${recommended}\n\nEnter quantity to order:`, recommended);
+        
+        if (quantity && parseInt(quantity) > 0) {
+            alert('Creating purchase order...\n\nThis will create a PO for ' + quantity + ' units of ' + product.name);
+            // Future: Automatically create PO
+        }
+    });
 }
 
 function viewStockHistory(productId) {
