@@ -3069,6 +3069,10 @@ function loadPOS() {
     posCart = [];
     posCustomer = {};
     
+    // Set current date and time
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 16);
+    
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
@@ -3077,6 +3081,29 @@ function loadPOS() {
         <div class="row">
             <!-- Left Side - Product Search and Cart -->
             <div class="col-md-8">
+                <!-- Transaction Type & Date/Time -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-clock"></i> Transaction Details</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Transaction Type</label>
+                                <select class="form-select" id="posTransactionType">
+                                    <option value="sale" selected>Sale</option>
+                                    <option value="return">Return</option>
+                                    <option value="exchange">Exchange</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <label class="form-label">Date & Time</label>
+                                <input type="datetime-local" class="form-control" id="posDateTime" value="${dateStr}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Product Search -->
                 <div class="card mb-3">
                     <div class="card-header bg-primary text-white">
@@ -3378,11 +3405,16 @@ function completePOSSale() {
         return;
     }
     
+    const transactionType = $('#posTransactionType').val();
+    const transactionLabel = transactionType === 'return' ? 'Return' : transactionType === 'exchange' ? 'Exchange' : 'Sale';
+    
     const saleData = {
         items: posCart,
         customer_name: $('#customerName').val(),
         customer_phone: $('#customerPhone').val(),
         customer_email: $('#customerEmail').val(),
+        sale_date: $('#posDateTime').val().replace('T', ' ') + ':00',
+        transaction_type: transactionType,
         discount_percentage: parseFloat($('#posDiscountPercent').val()) || 0,
         tax_percentage: parseFloat($('#posTaxPercent').val()) || 0,
         payment_method: $('#posPaymentMethod').val(),
@@ -3396,12 +3428,13 @@ function completePOSSale() {
         data: JSON.stringify(saleData),
         success: function(response) {
             if (response.success) {
-                alert(`✓ Sale completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: $${response.total_amount.toFixed(2)}\n\nThank you!`);
-                loadPOS(); // Reset for new sale
+                const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
+                alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
+                loadPOS(); // Reset for new transaction
             }
         },
         error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete sale'));
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete transaction'));
         }
     });
 }

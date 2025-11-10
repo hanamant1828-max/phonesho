@@ -268,9 +268,12 @@ def init_db():
             total_amount REAL DEFAULT 0,
             payment_method TEXT,
             payment_status TEXT DEFAULT 'paid',
+            transaction_type TEXT DEFAULT 'sale',
+            original_sale_id INTEGER,
             notes TEXT,
             cashier_name TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (original_sale_id) REFERENCES pos_sales (id)
         )
     ''')
 
@@ -1874,7 +1877,9 @@ def pos_sales():
     if request.method == 'POST':
         data = request.json
         try:
-            sale_number = f"POS-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            transaction_type = data.get('transaction_type', 'sale')
+            sale_number_prefix = 'RET' if transaction_type == 'return' else 'EXC' if transaction_type == 'exchange' else 'POS'
+            sale_number = f"{sale_number_prefix}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             items = data.get('items', [])
             
             if not items:
@@ -1890,19 +1895,27 @@ def pos_sales():
             tax_amount = taxable_amount * (tax_percentage / 100)
             total_amount = taxable_amount + tax_amount
             
+            # For returns, make amount negative
+            if transaction_type == 'return':
+                total_amount = -abs(total_amount)
+                subtotal = -abs(subtotal)
+            
             # Create sale record
             cursor.execute('''
                 INSERT INTO pos_sales (
                     sale_number, customer_name, customer_phone, customer_email,
-                    subtotal, discount_amount, discount_percentage,
+                    sale_date, subtotal, discount_amount, discount_percentage,
                     tax_amount, tax_percentage, total_amount,
-                    payment_method, payment_status, notes, cashier_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    payment_method, payment_status, transaction_type, original_sale_id,
+                    notes, cashier_name
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 sale_number, data.get('customer_name'), data.get('customer_phone'),
-                data.get('customer_email'), subtotal, discount_amount, discount_percentage,
+                data.get('customer_email'), data.get('sale_date', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+                subtotal, discount_amount, discount_percentage,
                 tax_amount, tax_percentage, total_amount, data.get('payment_method', 'cash'),
-                'paid', data.get('notes'), session.get('username')
+                'paid', transaction_type, data.get('original_sale_id'),
+                data.get('notes'), session.get('username')
             ))
             
             sale_id = cursor.lastrowid
@@ -1920,7 +1933,8 @@ def pos_sales():
                 if not product:
                     raise ValueError(f'Product ID {product_id} not found')
                 
-                if product['current_stock'] < quantity:
+                # For regular sales, check stock availability
+                if transaction_type == 'sale' and product['current_stock'] < quantity:
                     raise ValueError(f'Insufficient stock for {product["name"]}')
                 
                 # Add sale item
@@ -1934,32 +1948,45 @@ def pos_sales():
                     quantity, unit_price, item_total, item.get('imei')
                 ))
                 
-                # Update stock
-                cursor.execute(
-                    'UPDATE products SET current_stock = current_stock - ? WHERE id = ?',
-                    (quantity, product_id)
-                )
+                # Update stock based on transaction type
+                if transaction_type == 'sale' or transaction_type == 'exchange':
+                    # Deduct stock for sales and exchanges
+                    cursor.execute(
+                        'UPDATE products SET current_stock = current_stock - ? WHERE id = ?',
+                        (quantity, product_id)
+                    )
+                    movement_type = 'sale'
+                    movement_qty = -quantity
+                elif transaction_type == 'return':
+                    # Add stock back for returns
+                    cursor.execute(
+                        'UPDATE products SET current_stock = current_stock + ? WHERE id = ?',
+                        (quantity, product_id)
+                    )
+                    movement_type = 'return'
+                    movement_qty = quantity
                 
                 # Record stock movement
                 cursor.execute('''
                     INSERT INTO stock_movements (
                         product_id, type, quantity, reference_type, reference_id, notes
                     ) VALUES (?, ?, ?, ?, ?, ?)
-                ''', (product_id, 'sale', -quantity, 'pos_sale', sale_id, f'POS Sale {sale_number}'))
+                ''', (product_id, movement_type, movement_qty, 'pos_sale', sale_id, f'POS {transaction_type.title()} {sale_number}'))
             
             # Record payment
             if data.get('payment_method'):
                 cursor.execute('''
                     INSERT INTO pos_payments (sale_id, payment_method, amount, reference_number)
                     VALUES (?, ?, ?, ?)
-                ''', (sale_id, data.get('payment_method'), total_amount, data.get('payment_reference')))
+                ''', (sale_id, data.get('payment_method'), abs(total_amount), data.get('payment_reference')))
             
             conn.commit()
             return jsonify({
                 'success': True,
                 'sale_id': sale_id,
                 'sale_number': sale_number,
-                'total_amount': total_amount
+                'total_amount': total_amount,
+                'transaction_type': transaction_type
             })
         
         except Exception as e:
