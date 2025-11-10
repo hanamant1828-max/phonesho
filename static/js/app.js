@@ -2316,11 +2316,20 @@ function reorderProduct(productId) {
 }
 
 function viewStockHistory(productId) {
+    // Hide the product details modal if it's open
+    const productDetailsModal = bootstrap.Modal.getInstance($('#productDetailsModal'));
+    if (productDetailsModal) {
+        productDetailsModal.hide();
+    }
+    
     // Show loading state
     $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
     
-    const modal = new bootstrap.Modal($('#stockHistoryModal'));
-    modal.show();
+    // Wait a brief moment for the first modal to close, then show stock history modal
+    setTimeout(() => {
+        const modal = new bootstrap.Modal($('#stockHistoryModal'));
+        modal.show();
+    }, 300);
     
     $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
         let content = `
