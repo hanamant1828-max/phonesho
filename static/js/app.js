@@ -1456,6 +1456,7 @@ function loadModels() {
 function showAddModel() {
     $('#modelId').val('');
     $('#modelForm')[0].reset();
+    $('#modelImagePreview').hide();
     $('#modelModalLabel').text('Add Model');
 
     $.get(`${API_BASE}/brands`, function(brands) {
@@ -1466,6 +1467,21 @@ function showAddModel() {
         });
     });
 
+    // Add image preview handler
+    $('#modelImage').off('change').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#modelImagePreviewImg').attr('src', e.target.result);
+                $('#modelImagePreview').show();
+            };
+            reader.readAsDataURL(file);
+        } else {
+            $('#modelImagePreview').hide();
+        }
+    });
+
     const modal = new bootstrap.Modal($('#modelModal'));
     modal.show();
 }
@@ -1474,8 +1490,15 @@ function editModel(id, name, brandId, description, imageUrl) {
     $('#modelId').val(id);
     $('#modelName').val(name);
     $('#modelDescription').val(description);
-    $('#modelImageUrl').val(imageUrl || '');
     $('#modelModalLabel').text('Edit Model');
+
+    // Show current image if exists
+    if (imageUrl) {
+        $('#modelImagePreviewImg').attr('src', imageUrl);
+        $('#modelImagePreview').show();
+    } else {
+        $('#modelImagePreview').hide();
+    }
 
     $.get(`${API_BASE}/brands`, function(brands) {
         const select = $('#modelBrand');
@@ -1483,6 +1506,19 @@ function editModel(id, name, brandId, description, imageUrl) {
         brands.forEach(brand => {
             select.append(`<option value="${brand.id}" ${brand.id === brandId ? 'selected' : ''}>${brand.name}</option>`);
         });
+    });
+
+    // Add image preview handler
+    $('#modelImage').off('change').on('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                $('#modelImagePreviewImg').attr('src', e.target.result);
+                $('#modelImagePreview').show();
+            };
+            reader.readAsDataURL(file);
+        }
     });
 
     const modal = new bootstrap.Modal($('#modelModal'));
@@ -1507,12 +1543,17 @@ function deleteModel(id) {
 
 function saveModel() {
     const id = $('#modelId').val();
-    const data = {
-        name: $('#modelName').val(),
-        brand_id: $('#modelBrand').val(),
-        description: $('#modelDescription').val(),
-        image_url: $('#modelImageUrl').val()
-    };
+    const formData = new FormData();
+    
+    formData.append('name', $('#modelName').val());
+    formData.append('brand_id', $('#modelBrand').val());
+    formData.append('description', $('#modelDescription').val());
+    
+    // Add image file if selected
+    const imageFile = $('#modelImage')[0].files[0];
+    if (imageFile) {
+        formData.append('image', imageFile);
+    }
 
     const url = id ? `${API_BASE}/models/${id}` : `${API_BASE}/models`;
     const method = id ? 'PUT' : 'POST';
@@ -1520,8 +1561,9 @@ function saveModel() {
     $.ajax({
         url: url,
         method: method,
-        contentType: 'application/json',
-        data: JSON.stringify(data),
+        data: formData,
+        processData: false,
+        contentType: false,
         success: function() {
             alert('Model saved');
             bootstrap.Modal.getInstance($('#modelModal')).hide();

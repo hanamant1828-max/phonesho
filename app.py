@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
 from functools import wraps
+from werkzeug.utils import secure_filename
 import sqlite3
 import json
 from datetime import datetime
@@ -14,6 +15,11 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
+app.config['UPLOAD_FOLDER'] = 'static/uploads/models'
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+# Create upload folder if it doesn't exist
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 DATABASE = 'inventory.db'
 ADMIN_USERNAME = 'admin'
@@ -26,6 +32,10 @@ def login_required(f):
             return jsonify({'error': 'Authentication required'}), 401
         return f(*args, **kwargs)
     return decorated_function
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -342,10 +352,27 @@ def models():
     cursor = conn.cursor()
 
     if request.method == 'POST':
-        data = request.json
         try:
+            # Handle file upload
+            image_url = ''
+            if 'image' in request.files:
+                file = request.files['image']
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # Add timestamp to make filename unique
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{filename}"
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    image_url = f'/static/uploads/models/{filename}'
+            
+            # Get form data
+            name = request.form.get('name')
+            brand_id = request.form.get('brand_id')
+            description = request.form.get('description', '')
+            
             cursor.execute('INSERT INTO models (name, brand_id, description, image_url) VALUES (?, ?, ?, ?)',
-                         (data['name'], data['brand_id'], data.get('description', ''), data.get('image_url', '')))
+                         (name, brand_id, description, image_url))
             conn.commit()
             return jsonify({'success': True, 'id': cursor.lastrowid})
         except sqlite3.IntegrityError:
@@ -370,10 +397,36 @@ def model_detail(id):
     cursor = conn.cursor()
 
     if request.method == 'PUT':
-        data = request.json
         try:
+            # Get current image_url
+            cursor.execute('SELECT image_url FROM models WHERE id = ?', (id,))
+            current_model = cursor.fetchone()
+            image_url = current_model['image_url'] if current_model else ''
+            
+            # Handle file upload
+            if 'image' in request.files:
+                file = request.files['image']
+                if file and file.filename and allowed_file(file.filename):
+                    # Delete old image if it exists
+                    if image_url and image_url.startswith('/static/uploads/'):
+                        old_filepath = image_url[1:]  # Remove leading '/'
+                        if os.path.exists(old_filepath):
+                            os.remove(old_filepath)
+                    
+                    filename = secure_filename(file.filename)
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{timestamp}_{filename}"
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    file.save(filepath)
+                    image_url = f'/static/uploads/models/{filename}'
+            
+            # Get form data
+            name = request.form.get('name')
+            brand_id = request.form.get('brand_id')
+            description = request.form.get('description', '')
+            
             cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_url = ? WHERE id = ?',
-                         (data['name'], data['brand_id'], data.get('description', ''), data.get('image_url', ''), id))
+                         (name, brand_id, description, image_url, id))
             conn.commit()
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
@@ -382,6 +435,14 @@ def model_detail(id):
             conn.close()
     elif request.method == 'DELETE':
         try:
+            # Get image_url before deleting
+            cursor.execute('SELECT image_url FROM models WHERE id = ?', (id,))
+            model = cursor.fetchone()
+            if model and model['image_url'] and model['image_url'].startswith('/static/uploads/'):
+                old_filepath = model['image_url'][1:]
+                if os.path.exists(old_filepath):
+                    os.remove(old_filepath)
+            
             cursor.execute('DELETE FROM models WHERE id = ?', (id,))
             conn.commit()
             return jsonify({'success': True})
