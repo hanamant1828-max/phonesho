@@ -78,12 +78,15 @@ def init_db():
     ''')
     
     # Add image_data column if it doesn't exist (migration)
-    try:
-        cursor.execute('ALTER TABLE models ADD COLUMN image_data TEXT')
-        conn.commit()
-    except sqlite3.OperationalError:
-        # Column already exists, ignore
-        pass
+    cursor.execute("PRAGMA table_info(models)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'image_data' not in columns:
+        try:
+            cursor.execute('ALTER TABLE models ADD COLUMN image_data TEXT')
+            conn.commit()
+        except sqlite3.OperationalError as e:
+            print(f"Migration warning: {e}")
+            pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS products (
