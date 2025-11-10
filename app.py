@@ -945,7 +945,7 @@ def get_stock_history(id):
 
     product_name = product_row['name']
     opening_stock = product_row['opening_stock'] or 0
-
+    
     # Get stock movements with running balance
     cursor.execute('''
         SELECT 
@@ -971,9 +971,10 @@ def get_stock_history(id):
     ''', (id,))
     
     movements = [dict(row) for row in cursor.fetchall()]
+    conn.close()
     
-    # Calculate running balance starting from 0
-    running_balance = 0
+    # Calculate running balance starting from opening stock
+    running_balance = opening_stock
     history = []
     
     for movement in movements:
@@ -984,6 +985,41 @@ def get_stock_history(id):
             if movement['quantity'] >= 0:
                 stock_added = quantity
                 stock_removed = 0
+                running_balance += quantity
+            else:
+                stock_added = 0
+                stock_removed = quantity
+                running_balance -= quantity
+        elif movement['type'] in ['sale', 'return', 'damage']:
+            stock_added = 0
+            stock_removed = quantity
+            running_balance -= quantity
+        else:
+            # Default handling
+            if movement['quantity'] >= 0:
+                stock_added = quantity
+                stock_removed = 0
+                running_balance += quantity
+            else:
+                stock_added = 0
+                stock_removed = quantity
+                running_balance -= quantity
+        
+        history.append({
+            'date_time': movement['created_at'],
+            'stock_added': stock_added,
+            'stock_removed': stock_removed,
+            'reference': movement['reference_number'],
+            'received_by': movement['received_by'],
+            'running_balance': max(0, running_balance)  # Ensure balance doesn't go negative
+        })
+    
+    return jsonify({
+        'product_name': product_name,
+        'history': history
+    })
+
+    
                 running_balance += quantity
             else:
                 stock_added = 0
