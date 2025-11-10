@@ -2322,16 +2322,16 @@ function viewStockHistory(productId) {
         productDetailsModal.hide();
     }
     
-    // Show loading state
-    $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
-    
     // Wait a brief moment for the first modal to close, then show stock history modal
     setTimeout(() => {
+        // Show loading state
+        $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
+        
         const modal = new bootstrap.Modal($('#stockHistoryModal'));
         modal.show();
-    }, 300);
-    
-    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
+        
+        // Load the stock history data
+        $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
         let content = `
             <div class="mb-3">
                 <h6><i class="bi bi-box-seam"></i> Stock History for: ${data.product_name}</h6>
@@ -2380,14 +2380,15 @@ function viewStockHistory(productId) {
             </div>
         `;
 
-        $('#stockHistoryContent').html(content);
-    }).fail(function(xhr) {
-        const errorMsg = xhr.responseJSON?.error || 'Failed to load stock history. Please try again.';
-        $('#stockHistoryContent').html(`
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
-            </div>
-        `);
-        console.error('Stock history error:', xhr);
-    });
+            $('#stockHistoryContent').html(content);
+        }).fail(function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'Failed to load stock history. Please try again.';
+            $('#stockHistoryContent').html(`
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                </div>
+            `);
+            console.error('Stock history error:', xhr);
+        });
+    }, 300);
 }
