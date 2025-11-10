@@ -1559,12 +1559,25 @@ function deleteModel(id) {
 function saveModel() {
     const id = $('#modelId').val();
     const imageFile = $('#modelImage')[0].files[0];
+    const modelName = $('#modelName').val();
+    const brandId = $('#modelBrand').val();
+    
+    // Validate required fields
+    if (!modelName || !modelName.trim()) {
+        alert('Please enter a model name');
+        return;
+    }
+    
+    if (!brandId) {
+        alert('Please select a brand');
+        return;
+    }
     
     // Function to send data
     const sendData = (imageData) => {
         const data = {
-            name: $('#modelName').val(),
-            brand_id: $('#modelBrand').val(),
+            name: modelName.trim(),
+            brand_id: brandId,
             description: $('#modelDescription').val(),
             image_data: imageData
         };
@@ -1578,24 +1591,32 @@ function saveModel() {
             contentType: 'application/json',
             data: JSON.stringify(data),
             success: function() {
-                alert('Model saved');
+                alert('Model saved successfully');
                 bootstrap.Modal.getInstance($('#modelModal')).hide();
                 loadModels();
             },
             error: function(xhr) {
-                alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save'));
+                const errorMsg = xhr.responseJSON?.error || 'Failed to save model. Please try again.';
+                alert('Error: ' + errorMsg);
+                console.error('Save model error:', xhr);
             }
         });
     };
     
     // If new image file is selected, convert to base64
     if (imageFile) {
+        // Validate file size (max 5MB)
+        if (imageFile.size > 5 * 1024 * 1024) {
+            alert('Image size must be less than 5MB');
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = function(e) {
             sendData(e.target.result);
         };
         reader.onerror = function() {
-            alert('Error reading image file');
+            alert('Error reading image file. Please try again.');
         };
         reader.readAsDataURL(imageFile);
     } else {

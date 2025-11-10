@@ -359,12 +359,18 @@ def models():
             description = data.get('description', '')
             image_data = data.get('image_data', '')
             
+            # Validate that name and brand_id are provided
+            if not name or not brand_id:
+                return jsonify({'success': False, 'error': 'Name and brand are required'}), 400
+            
             cursor.execute('INSERT INTO models (name, brand_id, description, image_data) VALUES (?, ?, ?, ?)',
                          (name, brand_id, description, image_data))
             conn.commit()
             return jsonify({'success': True, 'id': cursor.lastrowid})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Model already exists for this brand'}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
     else:
@@ -392,12 +398,18 @@ def model_detail(id):
             description = data.get('description', '')
             image_data = data.get('image_data', '')
             
+            # Validate that name and brand_id are provided
+            if not name or not brand_id:
+                return jsonify({'success': False, 'error': 'Name and brand are required'}), 400
+            
             cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_data = ? WHERE id = ?',
                          (name, brand_id, description, image_data, id))
             conn.commit()
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Model already exists for this brand'}), 400
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
     elif request.method == 'DELETE':
