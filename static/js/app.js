@@ -2030,17 +2030,24 @@ function printGRN() {
 }
 
 function viewStockHistory(productId) {
+    // Show loading state
+    $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
+    
+    const modal = new bootstrap.Modal($('#stockHistoryModal'));
+    modal.show();
+    
     $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
         let content = `
             <div class="mb-3">
-                <h6>Stock History for: ${data.product_name}</h6>
+                <h6><i class="bi bi-box-seam"></i> Stock History for: ${data.product_name}</h6>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead>
+                <table class="table table-sm table-striped table-hover">
+                    <thead class="table-light">
                         <tr>
                             <th>Date & Time</th>
-                            <th>Stock Change</th>
+                            <th>Stock Added</th>
+                            <th>Stock Removed</th>
                             <th>Reference</th>
                             <th>User</th>
                             <th>Running Balance</th>
@@ -2050,24 +2057,21 @@ function viewStockHistory(productId) {
         `;
 
         if (!data.history || data.history.length === 0) {
-            content += '<tr><td colspan="5" class="text-center text-muted">No stock movements found</td></tr>';
+            content += '<tr><td colspan="6" class="text-center text-muted py-4">No stock movements found for this product</td></tr>';
         } else {
             data.history.forEach(item => {
                 const date = new Date(item.date_time);
                 const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 
-                let stockChange = '-';
-                if (item.stock_added > 0) {
-                    stockChange = `<span class="text-success fw-bold">+${item.stock_added}</span>`;
-                } else if (item.stock_removed > 0) {
-                    stockChange = `<span class="text-danger fw-bold">-${item.stock_removed}</span>`;
-                }
+                const stockAdded = item.stock_added > 0 ? `<span class="text-success fw-bold">+${item.stock_added}</span>` : '-';
+                const stockRemoved = item.stock_removed > 0 ? `<span class="text-danger fw-bold">-${item.stock_removed}</span>` : '-';
 
                 content += `
                     <tr>
                         <td><small>${formattedDate}</small></td>
-                        <td>${stockChange}</td>
-                        <td><small>${item.reference || 'N/A'}</small></td>
+                        <td>${stockAdded}</td>
+                        <td>${stockRemoved}</td>
+                        <td><small>${item.reference || 'Manual Entry'}</small></td>
                         <td><small>${item.received_by || 'System'}</small></td>
                         <td><strong class="text-primary">${item.running_balance}</strong></td>
                     </tr>
@@ -2082,9 +2086,13 @@ function viewStockHistory(productId) {
         `;
 
         $('#stockHistoryContent').html(content);
-        const modal = new bootstrap.Modal($('#stockHistoryModal'));
-        modal.show();
     }).fail(function(xhr) {
-        alert('Error loading stock history: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        const errorMsg = xhr.responseJSON?.error || 'Failed to load stock history. Please try again.';
+        $('#stockHistoryContent').html(`
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+            </div>
+        `);
+        console.error('Stock history error:', xhr);
     });
 }
