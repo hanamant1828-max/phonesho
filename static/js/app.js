@@ -1427,7 +1427,12 @@ function loadModels() {
             const escapedImageUrl = model.image_url ? model.image_url.replace(/'/g, "\\'") : '';
             tbody.append(`
                 <tr>
-                    <td><img src="${imageUrl}" alt="${model.name}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"></td>
+                    <td>
+                        <img src="${imageUrl}" 
+                             alt="${model.name}" 
+                             style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"
+                             onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'; this.title='Image failed to load';">
+                    </td>
                     <td>${model.name}</td>
                     <td>${model.brand_name || '-'}</td>
                     <td>${model.description || '-'}</td>
