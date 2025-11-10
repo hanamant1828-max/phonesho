@@ -1423,8 +1423,8 @@ function loadModels() {
 
         models.forEach(model => {
             const date = new Date(model.created_at);
-            const imageUrl = model.image_url || 'https://via.placeholder.com/50x50?text=No+Image';
-            const escapedImageUrl = model.image_url ? model.image_url.replace(/'/g, "\\'") : '';
+            const imageUrl = model.image_data || 'https://via.placeholder.com/50x50?text=No+Image';
+            const escapedImageData = model.image_data ? model.image_data.replace(/'/g, "\\'") : '';
             tbody.append(`
                 <tr>
                     <td>
@@ -1438,7 +1438,7 @@ function loadModels() {
                     <td>${model.description || '-'}</td>
                     <td>${date.toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary action-btn" onclick='editModel(${model.id}, "${model.name}", ${model.brand_id}, "${(model.description || '').replace(/"/g, '&quot;')}", "${escapedImageUrl}")'>
+                        <button class="btn btn-sm btn-primary action-btn" onclick='editModel(${model.id}, "${model.name}", ${model.brand_id}, "${(model.description || '').replace(/"/g, '&quot;')}", "${escapedImageData}")'>
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteModel(${model.id})">
@@ -1471,6 +1471,14 @@ function showAddModel() {
     $('#modelImage').off('change').on('change', function(e) {
         const file = e.target.files[0];
         if (file) {
+            // Validate file size (max 5MB for base64)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB');
+                $(this).val('');
+                $('#modelImagePreview').hide();
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 $('#modelImagePreviewImg').attr('src', e.target.result);
@@ -1486,15 +1494,15 @@ function showAddModel() {
     modal.show();
 }
 
-function editModel(id, name, brandId, description, imageUrl) {
+function editModel(id, name, brandId, description, imageData) {
     $('#modelId').val(id);
     $('#modelName').val(name);
     $('#modelDescription').val(description);
     $('#modelModalLabel').text('Edit Model');
 
     // Show current image if exists
-    if (imageUrl) {
-        $('#modelImagePreviewImg').attr('src', imageUrl);
+    if (imageData) {
+        $('#modelImagePreviewImg').attr('src', imageData);
         $('#modelImagePreview').show();
     } else {
         $('#modelImagePreview').hide();
@@ -1512,6 +1520,13 @@ function editModel(id, name, brandId, description, imageUrl) {
     $('#modelImage').off('change').on('change', function(e) {
         const file = e.target.files[0];
         if (file) {
+            // Validate file size (max 5MB for base64)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB');
+                $(this).val('');
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 $('#modelImagePreviewImg').attr('src', e.target.result);
@@ -1543,36 +1558,52 @@ function deleteModel(id) {
 
 function saveModel() {
     const id = $('#modelId').val();
-    const formData = new FormData();
-    
-    formData.append('name', $('#modelName').val());
-    formData.append('brand_id', $('#modelBrand').val());
-    formData.append('description', $('#modelDescription').val());
-    
-    // Add image file if selected
     const imageFile = $('#modelImage')[0].files[0];
+    
+    // Function to send data
+    const sendData = (imageData) => {
+        const data = {
+            name: $('#modelName').val(),
+            brand_id: $('#modelBrand').val(),
+            description: $('#modelDescription').val(),
+            image_data: imageData
+        };
+
+        const url = id ? `${API_BASE}/models/${id}` : `${API_BASE}/models`;
+        const method = id ? 'PUT' : 'POST';
+
+        $.ajax({
+            url: url,
+            method: method,
+            contentType: 'application/json',
+            data: JSON.stringify(data),
+            success: function() {
+                alert('Model saved');
+                bootstrap.Modal.getInstance($('#modelModal')).hide();
+                loadModels();
+            },
+            error: function(xhr) {
+                alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save'));
+            }
+        });
+    };
+    
+    // If new image file is selected, convert to base64
     if (imageFile) {
-        formData.append('image', imageFile);
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            sendData(e.target.result);
+        };
+        reader.onerror = function() {
+            alert('Error reading image file');
+        };
+        reader.readAsDataURL(imageFile);
+    } else {
+        // No new image, use existing preview image or empty
+        const existingImage = $('#modelImagePreviewImg').attr('src');
+        const imageData = existingImage && !existingImage.includes('placeholder') ? existingImage : '';
+        sendData(imageData);
     }
-
-    const url = id ? `${API_BASE}/models/${id}` : `${API_BASE}/models`;
-    const method = id ? 'PUT' : 'POST';
-
-    $.ajax({
-        url: url,
-        method: method,
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function() {
-            alert('Model saved');
-            bootstrap.Modal.getInstance($('#modelModal')).hide();
-            loadModels();
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save'));
-        }
-    });
 }
 
 function loadPurchaseOrders() {

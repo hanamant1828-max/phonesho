@@ -70,7 +70,7 @@ def init_db():
             name TEXT NOT NULL,
             brand_id INTEGER NOT NULL,
             description TEXT,
-            image_url TEXT,
+            image_data TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (brand_id) REFERENCES brands (id),
             UNIQUE(name, brand_id)
@@ -353,26 +353,14 @@ def models():
 
     if request.method == 'POST':
         try:
-            # Handle file upload
-            image_url = ''
-            if 'image' in request.files:
-                file = request.files['image']
-                if file and file.filename and allowed_file(file.filename):
-                    filename = secure_filename(file.filename)
-                    # Add timestamp to make filename unique
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f"{timestamp}_{filename}"
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(filepath)
-                    image_url = f'/static/uploads/models/{filename}'
+            data = request.json
+            name = data.get('name')
+            brand_id = data.get('brand_id')
+            description = data.get('description', '')
+            image_data = data.get('image_data', '')
             
-            # Get form data
-            name = request.form.get('name')
-            brand_id = request.form.get('brand_id')
-            description = request.form.get('description', '')
-            
-            cursor.execute('INSERT INTO models (name, brand_id, description, image_url) VALUES (?, ?, ?, ?)',
-                         (name, brand_id, description, image_url))
+            cursor.execute('INSERT INTO models (name, brand_id, description, image_data) VALUES (?, ?, ?, ?)',
+                         (name, brand_id, description, image_data))
             conn.commit()
             return jsonify({'success': True, 'id': cursor.lastrowid})
         except sqlite3.IntegrityError:
@@ -398,35 +386,14 @@ def model_detail(id):
 
     if request.method == 'PUT':
         try:
-            # Get current image_url
-            cursor.execute('SELECT image_url FROM models WHERE id = ?', (id,))
-            current_model = cursor.fetchone()
-            image_url = current_model['image_url'] if current_model else ''
+            data = request.json
+            name = data.get('name')
+            brand_id = data.get('brand_id')
+            description = data.get('description', '')
+            image_data = data.get('image_data', '')
             
-            # Handle file upload
-            if 'image' in request.files:
-                file = request.files['image']
-                if file and file.filename and allowed_file(file.filename):
-                    # Delete old image if it exists
-                    if image_url and image_url.startswith('/static/uploads/'):
-                        old_filepath = image_url[1:]  # Remove leading '/'
-                        if os.path.exists(old_filepath):
-                            os.remove(old_filepath)
-                    
-                    filename = secure_filename(file.filename)
-                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                    filename = f"{timestamp}_{filename}"
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    file.save(filepath)
-                    image_url = f'/static/uploads/models/{filename}'
-            
-            # Get form data
-            name = request.form.get('name')
-            brand_id = request.form.get('brand_id')
-            description = request.form.get('description', '')
-            
-            cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_url = ? WHERE id = ?',
-                         (name, brand_id, description, image_url, id))
+            cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_data = ? WHERE id = ?',
+                         (name, brand_id, description, image_data, id))
             conn.commit()
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
@@ -435,14 +402,6 @@ def model_detail(id):
             conn.close()
     elif request.method == 'DELETE':
         try:
-            # Get image_url before deleting
-            cursor.execute('SELECT image_url FROM models WHERE id = ?', (id,))
-            model = cursor.fetchone()
-            if model and model['image_url'] and model['image_url'].startswith('/static/uploads/'):
-                old_filepath = model['image_url'][1:]
-                if os.path.exists(old_filepath):
-                    os.remove(old_filepath)
-            
             cursor.execute('DELETE FROM models WHERE id = ?', (id,))
             conn.commit()
             return jsonify({'success': True})
