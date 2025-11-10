@@ -1323,8 +1323,10 @@ def import_products():
         errors = []
         created_categories = 0
         created_brands = 0
+        created_models = 0
         category_cache = {}
         brand_cache = {}
+        model_cache = {}
 
         for index, row in df.iterrows():
             try:
@@ -1336,10 +1338,11 @@ def import_products():
                     else:
                         raise ValueError("Product name is required")
 
-                # Auto-create category if needed
+                # Auto-create category if needed (support both 'category' and 'category_name' columns)
                 category_id = None
-                if auto_create and not pd.isna(row.get('category_name')):
-                    category_name = str(row.get('category_name')).strip()
+                category_name = row.get('category') or row.get('category_name')
+                if auto_create and not pd.isna(category_name):
+                    category_name = str(category_name).strip()
                     if category_name:
                         if category_name in category_cache:
                             category_id = category_cache[category_name]
@@ -1354,10 +1357,11 @@ def import_products():
                                 created_categories += 1
                             category_cache[category_name] = category_id
 
-                # Auto-create brand if needed
+                # Auto-create brand if needed (support both 'brand' and 'brand_name' columns)
                 brand_id = None
-                if auto_create and not pd.isna(row.get('brand_name')):
-                    brand_name = str(row.get('brand_name')).strip()
+                brand_name = row.get('brand') or row.get('brand_name')
+                if auto_create and not pd.isna(brand_name):
+                    brand_name = str(brand_name).strip()
                     if brand_name:
                         if brand_name in brand_cache:
                             brand_id = brand_cache[brand_name]
@@ -1372,6 +1376,26 @@ def import_products():
                                 created_brands += 1
                             brand_cache[brand_name] = brand_id
 
+                # Auto-create model if needed (support both 'model' and 'model_name' columns)
+                model_id = None
+                model_name = row.get('model') or row.get('model_name')
+                if auto_create and not pd.isna(model_name) and brand_id:
+                    model_name = str(model_name).strip()
+                    if model_name:
+                        cache_key = f"{brand_id}_{model_name}"
+                        if cache_key in model_cache:
+                            model_id = model_cache[cache_key]
+                        else:
+                            cursor.execute('SELECT id FROM models WHERE name = ? AND brand_id = ?', (model_name, brand_id))
+                            existing = cursor.fetchone()
+                            if existing:
+                                model_id = existing['id']
+                            else:
+                                cursor.execute('INSERT INTO models (name, brand_id) VALUES (?, ?)', (model_name, brand_id))
+                                model_id = cursor.lastrowid
+                                created_models += 1
+                            model_cache[cache_key] = model_id
+
                 # Check if product exists by SKU
                 existing_product = None
                 if update_existing and not pd.isna(row.get('sku')):
@@ -1382,13 +1406,13 @@ def import_products():
                     # Update existing product
                     cursor.execute('''
                         UPDATE products SET
-                            name = ?, category_id = ?, brand_id = ?, description = ?,
+                            name = ?, category_id = ?, brand_id = ?, model_id = ?, description = ?,
                             cost_price = ?, selling_price = ?, mrp = ?,
                             current_stock = ?, min_stock_level = ?, status = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
                     ''', (
-                        row.get('name'), category_id, brand_id,
+                        row.get('name'), category_id, brand_id, model_id,
                         row.get('description', ''),
                         float(row.get('cost_price', 0) or 0),
                         float(row.get('selling_price', 0) or 0),
@@ -1403,14 +1427,14 @@ def import_products():
                     # Insert new product
                     cursor.execute('''
                         INSERT INTO products (
-                            sku, name, category_id, brand_id, description,
+                            sku, name, category_id, brand_id, model_id, description,
                             cost_price, selling_price, mrp, current_stock, opening_stock,
                             min_stock_level, storage_location, imei, color,
                             storage_capacity, ram, warranty_period, supplier_name,
                             supplier_contact, status
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
-                        row.get('sku'), row.get('name'), category_id, brand_id,
+                        row.get('sku'), row.get('name'), category_id, brand_id, model_id,
                         row.get('description', ''),
                         float(row.get('cost_price', 0) or 0),
                         float(row.get('selling_price', 0) or 0),
@@ -1448,6 +1472,7 @@ def import_products():
             'updated': updated,
             'created_categories': created_categories,
             'created_brands': created_brands,
+            'created_models': created_models,
             'errors': errors
         })
     except Exception as e:
