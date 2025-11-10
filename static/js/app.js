@@ -428,6 +428,7 @@ function loadInventoryData() {
     $.get(`${API_BASE}/products?${params.toString()}`, function(data) {
         if (inventoryTable) {
             inventoryTable.destroy();
+            inventoryTable = null;
         }
 
         const tbody = $('#inventoryTable tbody');
@@ -435,6 +436,7 @@ function loadInventoryData() {
 
         if (data.length === 0) {
             tbody.append('<tr><td colspan="11" class="text-center text-muted">No products found</td></tr>');
+            // Don't initialize DataTable for empty results
         } else {
             data.forEach(product => {
                 const stockClass = product.current_stock === 0 ? 'stock-out' : 
@@ -468,17 +470,18 @@ function loadInventoryData() {
                         </td>
                     </tr>`)
             });
+
+            // Initialize DataTable only when there's data
+            inventoryTable = $('#inventoryTable').DataTable({
+                order: [[2, 'asc']],
+                pageLength: 25,
+                columnDefs: [
+                    { orderable: false, targets: [0, 10] }
+                ]
+            });
+
+            $('input[name="productCheck"]').on('change', updateBulkActions);
         }
-
-        inventoryTable = $('#inventoryTable').DataTable({
-            order: [[2, 'asc']],
-            pageLength: 25,
-            columnDefs: [
-                { orderable: false, targets: [0, 10] }
-            ]
-        });
-
-        $('input[name="productCheck"]').on('change', updateBulkActions);
     }).fail(function(xhr) {
         console.error('Error loading products:', xhr);
         alert('Error loading products. Please try again.');
