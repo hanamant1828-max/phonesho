@@ -2042,6 +2042,13 @@ function viewProductDetails(productId) {
     modal.show();
 
     $.get(`${API_BASE}/products/${productId}`, function(product) {
+        // Helper function to safely escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
         const costPrice = parseFloat(product.cost_price || 0);
         const sellingPrice = parseFloat(product.selling_price || 0);
         const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
@@ -2105,21 +2112,21 @@ function viewProductDetails(productId) {
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p><strong>Product Name:</strong> ${product.name}</p>
-                                    <p><strong>SKU:</strong> ${product.sku || 'N/A'} 
-                                        ${product.sku ? `<button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('${product.sku}')"><i class="bi bi-clipboard"></i></button>` : ''}
+                                    <p><strong>Product Name:</strong> ${escapeHtml(product.name)}</p>
+                                    <p><strong>SKU:</strong> ${escapeHtml(product.sku) || 'N/A'} 
+                                        ${product.sku ? `<button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('${escapeHtml(product.sku)}')"><i class="bi bi-clipboard"></i></button>` : ''}
                                     </p>
-                                    <p><strong>Category:</strong> ${product.category_name || 'N/A'}</p>
-                                    <p><strong>Brand:</strong> ${product.brand_name || 'N/A'}</p>
+                                    <p><strong>Category:</strong> ${escapeHtml(product.category_name) || 'N/A'}</p>
+                                    <p><strong>Brand:</strong> ${escapeHtml(product.brand_name) || 'N/A'}</p>
                                 </div>
                                 <div class="col-md-6">
-                                    <p><strong>Model:</strong> ${product.model_name || 'N/A'}</p>
-                                    <p><strong>Status:</strong> <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></p>
-                                    <p><strong>IMEI:</strong> ${product.imei || 'N/A'}</p>
-                                    <p><strong>Color:</strong> ${product.color || 'N/A'}</p>
+                                    <p><strong>Model:</strong> ${escapeHtml(product.model_name) || 'N/A'}</p>
+                                    <p><strong>Status:</strong> <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${escapeHtml(product.status)}</span></p>
+                                    <p><strong>IMEI:</strong> ${escapeHtml(product.imei) || 'N/A'}</p>
+                                    <p><strong>Color:</strong> ${escapeHtml(product.color) || 'N/A'}</p>
                                 </div>
                             </div>
-                            ${product.description ? `<p class="mb-0"><strong>Description:</strong><br>${product.description}</p>` : ''}
+                            ${product.description ? `<p class="mb-0"><strong>Description:</strong><br>${escapeHtml(product.description)}</p>` : ''}
                         </div>
                     </div>
 
@@ -2334,53 +2341,53 @@ function viewStockHistory(productId) {
 
         // Load the stock history data
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
-        let content = `
-            <div class="mb-3">
-                <h6><i class="bi bi-box-seam"></i> Stock History for: ${data.product_name}</h6>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover">
-                    <thead class="table-light">
+            let content = `
+                <div class="mb-3">
+                    <h6><i class="bi bi-box-seam"></i> Stock History for: ${data.product_name}</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Stock Added</th>
+                                <th>Stock Removed</th>
+                                <th>Reference</th>
+                                <th>User</th>
+                                <th>Running Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            if (!data.history || data.history.length === 0) {
+                content += '<tr><td colspan="6" class="text-center text-muted py-4">No stock movements found for this product</td></tr>';
+            } else {
+                data.history.forEach(item => {
+                    const date = new Date(item.date_time);
+                    const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+
+                    const stockAdded = item.stock_added > 0 ? `<span class="text-success fw-bold">+${item.stock_added}</span>` : '-';
+                    const stockRemoved = item.stock_removed > 0 ? `<span class="text-danger fw-bold">-${item.stock_removed}</span>` : '-';
+
+                    content += `
                         <tr>
-                            <th>Date & Time</th>
-                            <th>Stock Added</th>
-                            <th>Stock Removed</th>
-                            <th>Reference</th>
-                            <th>User</th>
-                            <th>Running Balance</th>
+                            <td><small>${formattedDate}</small></td>
+                            <td>${stockAdded}</td>
+                            <td>${stockRemoved}</td>
+                            <td><small>${item.reference || 'Manual Entry'}</small></td>
+                            <td><small>${item.received_by || 'System'}</small></td>
+                            <td><strong class="text-primary">${item.running_balance}</strong></td>
                         </tr>
-                    </thead>
-                    <tbody>
-        `;
+                    `;
+                });
+            }
 
-        if (!data.history || data.history.length === 0) {
-            content += '<tr><td colspan="6" class="text-center text-muted py-4">No stock movements found for this product</td></tr>';
-        } else {
-            data.history.forEach(item => {
-                const date = new Date(item.date_time);
-                const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-
-                const stockAdded = item.stock_added > 0 ? `<span class="text-success fw-bold">+${item.stock_added}</span>` : '-';
-                const stockRemoved = item.stock_removed > 0 ? `<span class="text-danger fw-bold">-${item.stock_removed}</span>` : '-';
-
-                content += `
-                    <tr>
-                        <td><small>${formattedDate}</small></td>
-                        <td>${stockAdded}</td>
-                        <td>${stockRemoved}</td>
-                        <td><small>${item.reference || 'Manual Entry'}</small></td>
-                        <td><small>${item.received_by || 'System'}</small></td>
-                        <td><strong class="text-primary">${item.running_balance}</strong></td>
-                    </tr>
-                `;
-            });
-        }
-
-        content += `
-                    </tbody>
-                </table>
-            </div>
-        `;
+            content += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
 
             $('#stockHistoryContent').html(content);
         }).fail(function(xhr) {
