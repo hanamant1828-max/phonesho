@@ -936,14 +936,15 @@ def get_stock_history(id):
     conn = get_db()
     cursor = conn.cursor()
 
-    # Get product name
-    cursor.execute('SELECT name FROM products WHERE id = ?', (id,))
+    # Get product name and opening stock
+    cursor.execute('SELECT name, opening_stock FROM products WHERE id = ?', (id,))
     product_row = cursor.fetchone()
     if not product_row:
         conn.close()
         return jsonify({'error': 'Product not found'}), 404
 
     product_name = product_row['name']
+    opening_stock = product_row['opening_stock'] or 0
 
     # Get stock movements with running balance
     cursor.execute('''
@@ -956,9 +957,10 @@ def get_stock_history(id):
             sm.notes,
             sm.created_at,
             CASE 
-                WHEN sm.reference_type = 'purchase_order' THEN po.po_number
-                WHEN sm.reference_type = 'grn' THEN g.grn_number
-                ELSE sm.reference_type
+                WHEN sm.reference_type = 'purchase_order' THEN 'PO-' || COALESCE(po.po_number, sm.reference_id)
+                WHEN sm.reference_type = 'grn' THEN COALESCE(g.grn_number, 'GRN-' || sm.reference_id)
+                WHEN sm.reference_type = 'manual' THEN 'Manual Entry'
+                ELSE COALESCE(sm.reference_type, 'System')
             END as reference_number,
             COALESCE(g.created_by, 'System') as received_by
         FROM stock_movements sm
@@ -970,26 +972,43 @@ def get_stock_history(id):
     
     movements = [dict(row) for row in cursor.fetchall()]
     
-    # Calculate running balance
+    # Calculate running balance starting from 0
     running_balance = 0
     history = []
     
     for movement in movements:
-        # Calculate stock change
-        if movement['type'] in ['purchase', 'adjustment_in']:
-            stock_added = movement['quantity']
-            stock_removed = 0
-            running_balance += movement['quantity']
-        else:
+        quantity = abs(movement['quantity'])
+        
+        # Determine if stock is added or removed based on movement type
+        if movement['type'] in ['purchase', 'opening_stock', 'adjustment']:
+            if movement['quantity'] >= 0:
+                stock_added = quantity
+                stock_removed = 0
+                running_balance += quantity
+            else:
+                stock_added = 0
+                stock_removed = quantity
+                running_balance -= quantity
+        elif movement['type'] in ['sale', 'return', 'adjustment_out']:
             stock_added = 0
-            stock_removed = movement['quantity']
-            running_balance -= movement['quantity']
+            stock_removed = quantity
+            running_balance -= quantity
+        else:
+            # Default behavior
+            if movement['quantity'] >= 0:
+                stock_added = quantity
+                stock_removed = 0
+                running_balance += quantity
+            else:
+                stock_added = 0
+                stock_removed = quantity
+                running_balance -= quantity
         
         history.append({
             'date_time': movement['created_at'],
             'stock_added': stock_added,
             'stock_removed': stock_removed,
-            'reference': movement['reference_number'] or 'N/A',
+            'reference': movement['reference_number'] or movement.get('notes', 'N/A'),
             'received_by': movement['received_by'],
             'running_balance': running_balance
         })
