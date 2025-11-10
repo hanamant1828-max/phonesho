@@ -3150,6 +3150,16 @@ function loadPOS() {
                         <h6 class="mb-0"><i class="bi bi-receipt"></i> Bill Summary</h6>
                     </div>
                     <div class="card-body">
+                        <div class="mb-3 pb-2 border-bottom">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small"><i class="bi bi-calendar3"></i> Transaction Date:</span>
+                                <strong class="small" id="posTransactionDate"></strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted small"><i class="bi bi-clock"></i> Transaction Time:</span>
+                                <strong class="small" id="posTransactionTime"></strong>
+                            </div>
+                        </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span>Subtotal:</span>
                             <strong id="posSubtotal">$0.00</strong>
@@ -3350,6 +3360,13 @@ function updatePOSCart() {
             `);
         });
     }
+    
+    // Update transaction date and time
+    const now = new Date();
+    const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    $('#posTransactionDate').text(now.toLocaleDateString('en-US', dateOptions));
+    $('#posTransactionTime').text(now.toLocaleTimeString('en-US', timeOptions));
     
     // Calculate totals
     const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
