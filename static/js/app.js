@@ -2045,11 +2045,17 @@ function printGRN() {
 }
 
 function viewProductDetails(productId) {
-    // Show loading state
-    $('#productDetailsContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading product details...</p></div>');
+    try {
+        // Show loading state
+        $('#productDetailsContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading product details...</p></div>');
 
-    const modal = new bootstrap.Modal($('#productDetailsModal'));
-    modal.show();
+        const modal = new bootstrap.Modal($('#productDetailsModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error showing product details modal:', error);
+        alert('Error opening product details. Please refresh the page and try again.');
+        return;
+    }
 
     $.get(`${API_BASE}/products/${productId}`, function(product) {
         // Helper function to safely escape HTML
@@ -2335,10 +2341,14 @@ function reorderProduct(productId) {
 }
 
 function viewStockHistory(productId) {
-    // Hide the product details modal if it's open
-    const productDetailsModal = bootstrap.Modal.getInstance($('#productDetailsModal'));
-    if (productDetailsModal) {
-        productDetailsModal.hide();
+    try {
+        // Hide the product details modal if it's open
+        const productDetailsModal = bootstrap.Modal.getInstance($('#productDetailsModal'));
+        if (productDetailsModal) {
+            productDetailsModal.hide();
+        }
+    } catch (error) {
+        console.error('Error hiding product details modal:', error);
     }
 
     // Helper function to safely escape HTML
@@ -2352,11 +2362,17 @@ function viewStockHistory(productId) {
 
     // Wait a brief moment for the first modal to close, then show stock history modal
     setTimeout(() => {
-        // Show loading state
-        $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
+        try {
+            // Show loading state
+            $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
 
-        const modal = new bootstrap.Modal($('#stockHistoryModal'));
-        modal.show();
+            const modal = new bootstrap.Modal($('#stockHistoryModal'));
+            modal.show();
+        } catch (error) {
+            console.error('Error showing stock history modal:', error);
+            alert('Error opening stock history. Please refresh the page and try again.');
+            return;
+        }
 
         // Load the stock history data
         $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
