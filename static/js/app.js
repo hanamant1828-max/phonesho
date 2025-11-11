@@ -104,13 +104,18 @@ function performLogout() {
 }
 
 function initNavigation() {
-    $('a[data-page]').on('click', function(e) {
+    $('.nav-link[data-page]').on('click', function(e) {
         e.preventDefault();
         const page = $(this).data('page');
-        loadPage(page);
 
-        $('a[data-page]').removeClass('active');
+        // Skip POS as it opens in a separate window
+        if (page === 'pos') {
+            return;
+        }
+
+        $('.nav-link').removeClass('active');
         $(this).addClass('active');
+        loadPage(page);
     });
 }
 
@@ -3164,7 +3169,7 @@ function submitQuickOrder() {
 
 function loadPOS() {
     posCart = [];
-    
+
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
@@ -3346,7 +3351,7 @@ function loadPOS() {
     // Event handlers
     $('#posProductSearch').on('input', debounce(searchPOSProducts, 300));
     $('#posDiscountPercent, #posTaxPercent').on('input', updatePOSCart);
-    
+
     // Update time every second
     setInterval(() => {
         $('#posTransactionTime').text(new Date().toLocaleTimeString());
@@ -3367,26 +3372,26 @@ function debounce(func, wait) {
 
 function searchPOSProducts() {
     const query = $('#posProductSearch').val();
-    
+
     if (!query || query.length < 2) {
         $('#posSearchResults').empty();
         return;
     }
-    
+
     $.get(`${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`, function(products) {
         const resultsDiv = $('#posSearchResults');
         resultsDiv.empty();
-        
+
         if (products.length === 0) {
             resultsDiv.html('<div class="alert alert-info">No products found</div>');
             return;
         }
-        
+
         products.forEach(product => {
             const stockBadge = product.current_stock > 0 ? 
                 `<span class="badge bg-success">${product.current_stock} in stock</span>` :
                 `<span class="badge bg-danger">Out of stock</span>`;
-            
+
             const card = $(`
                 <div class="card mb-2 product-search-result">
                     <div class="card-body p-2">
@@ -3420,10 +3425,10 @@ function addToPOSCart(product) {
         alert('Product is out of stock');
         return;
     }
-    
+
     // Check if product already in cart
     const existingIndex = posCart.findIndex(item => item.product_id === product.id);
-    
+
     if (existingIndex >= 0) {
         if (posCart[existingIndex].quantity < product.current_stock) {
             posCart[existingIndex].quantity++;
@@ -3442,7 +3447,7 @@ function addToPOSCart(product) {
             imei_ids: []
         });
     }
-    
+
     updatePOSCart();
     $('#posProductSearch').val('').focus();
     $('#posSearchResults').empty();
@@ -3451,20 +3456,20 @@ function addToPOSCart(product) {
 function updatePOSCart() {
     const tbody = $('#posCartBody');
     tbody.empty();
-    
+
     if (posCart.length === 0) {
         tbody.html('<tr><td colspan="6" class="text-center text-muted">Cart is empty</td></tr>');
         $('#cartItemCount').text(0);
         updatePOSTotals();
         return;
     }
-    
+
     posCart.forEach((item, index) => {
         const total = item.quantity * item.unit_price;
         const imeiInfo = item.imei_ids.length > 0 ? 
             `<span class="badge bg-success">${item.imei_ids.length} selected</span>` :
             '<span class="badge bg-warning">Not selected</span>';
-        
+
         tbody.append(`
             <tr>
                 <td>
@@ -3495,7 +3500,7 @@ function updatePOSCart() {
             </tr>
         `);
     });
-    
+
     $('#cartItemCount').text(posCart.length);
     updatePOSTotals();
 }
@@ -3503,31 +3508,31 @@ function updatePOSCart() {
 function updateCartQty(index, change) {
     const item = posCart[index];
     const newQty = item.quantity + change;
-    
+
     if (newQty < 1) {
         removeFromPOSCart(index);
         return;
     }
-    
+
     if (newQty > item.max_stock) {
         alert('Cannot exceed available stock');
         return;
     }
-    
+
     item.quantity = newQty;
-    
+
     // Reset IMEI selection if quantity changed
     if (item.imei_ids.length !== newQty) {
         item.imei_ids = [];
     }
-    
+
     updatePOSCart();
 }
 
 function setCartQty(index, value) {
     const qty = parseInt(value);
     const item = posCart[index];
-    
+
     if (isNaN(qty) || qty < 1) {
         item.quantity = 1;
     } else if (qty > item.max_stock) {
@@ -3536,12 +3541,12 @@ function setCartQty(index, value) {
     } else {
         item.quantity = qty;
     }
-    
+
     // Reset IMEI selection if quantity changed
     if (item.imei_ids.length !== item.quantity) {
         item.imei_ids = [];
     }
-    
+
     updatePOSCart();
 }
 
@@ -3552,7 +3557,7 @@ function removeFromPOSCart(index) {
 
 function clearPOSCart() {
     if (posCart.length === 0) return;
-    
+
     if (confirm('Clear all items from cart?')) {
         posCart = [];
         updatePOSCart();
@@ -3563,36 +3568,36 @@ function updatePOSTotals() {
     const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
     const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
-    
+
     const discountAmount = subtotal * (discountPercent / 100);
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = taxableAmount * (taxPercent / 100);
     const total = taxableAmount + taxAmount;
-    
+
     $('#posSubtotal').text('$' + subtotal.toFixed(2));
     $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
     $('#posTaxAmount').text('+$' + taxAmount.toFixed(2));
     $('#posTotal').text('$' + total.toFixed(2));
 }
 
-function showIMEISelectionModal(cartIndex) {
-    const item = posCart[cartIndex];
-    currentPOSCartIndex = cartIndex;
-    
+function showIMEISelectionModal(index) {
+    const item = posCart[index];
+    currentPOSCartIndex = index;
+
     // Fetch available IMEIs for this product
     $.get(`${API_BASE}/products/${item.product_id}/imeis?status=available`, function(imeis) {
         $('#imeiProductName').text(item.product_name);
         $('#imeiQuantityRequired').text(item.quantity);
-        
+
         const tbody = $('#imeiSelectionList');
         tbody.empty();
-        
+
         if (imeis.length === 0) {
             tbody.html('<tr><td colspan="3" class="text-center text-muted">No IMEI numbers available for this product</td></tr>');
             $('#confirmImeiSelectionBtn').prop('disabled', true);
         } else {
             $('#confirmImeiSelectionBtn').prop('disabled', false);
-            
+
             imeis.forEach(imei => {
                 const checked = item.imei_ids.includes(imei.id) ? 'checked' : '';
                 tbody.append(`
@@ -3607,7 +3612,7 @@ function showIMEISelectionModal(cartIndex) {
                 `);
             });
         }
-        
+
         $('#imeiSelectionError').hide();
         const modal = new bootstrap.Modal($('#imeiSelectionModal'));
         modal.show();
@@ -3621,12 +3626,12 @@ function confirmIMEISelection() {
     const selectedIMEIs = $('.imei-checkbox:checked').map(function() {
         return parseInt($(this).val());
     }).get();
-    
+
     if (selectedIMEIs.length !== item.quantity) {
         $('#imeiSelectionError').text(`Please select exactly ${item.quantity} IMEI number(s)`).show();
         return;
     }
-    
+
     item.imei_ids = selectedIMEIs;
     bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
     updatePOSCart();
@@ -3637,9 +3642,9 @@ function completePOSSale() {
         alert('Cart is empty');
         return;
     }
-    
+
     const transactionType = $('input[name="transactionType"]:checked').val();
-    
+
     // Validate IMEI selection for all items
     for (let item of posCart) {
         if (item.imei_ids.length > 0 && item.imei_ids.length !== item.quantity) {
@@ -3647,11 +3652,11 @@ function completePOSSale() {
             return;
         }
     }
-    
+
     const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
     const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
-    
+
     const saleData = {
         transaction_type: transactionType,
         customer_name: $('#posCustomerName').val(),
@@ -3663,11 +3668,11 @@ function completePOSSale() {
         payment_method: $('#posPaymentMethod').val(),
         payment_reference: $('#posPaymentReference').val()
     };
-    
+
     if (!confirm(`Complete ${transactionType} transaction for $${$('#posTotal').text().replace('$', '')}?`)) {
         return;
     }
-    
+
     $.ajax({
         url: `${API_BASE}/pos/sales`,
         method: 'POST',
@@ -3675,7 +3680,7 @@ function completePOSSale() {
         data: JSON.stringify(saleData),
         success: function(response) {
             alert(`${transactionType.toUpperCase()} completed successfully!\nSale Number: ${response.sale_number}\nTotal: $${Math.abs(response.total_amount).toFixed(2)}`);
-            
+
             // Reset form
             posCart = [];
             updatePOSCart();
