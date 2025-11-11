@@ -871,16 +871,8 @@ function editProduct(id) {
             $('#productMRP').val(product.mrp);
             $('#productOpeningStock').val(product.opening_stock);
             $('#productCurrentStock').val(product.current_stock);
-            $('#productMinStock').val(product.min_stock_level);
-            $('#productLocation').val(product.storage_location);
-            $('#productIMEI').val(product.imei);
-            $('#productColor').val(product.color);
-            $('#productStorage').val(product.storage_capacity);
-            $('#productRAM').val(product.ram);
-            $('#productWarranty').val(product.warranty_period);
-            $('#productSupplierName').val(product.supplier_name);
-            $('#productSupplierContact').val(product.supplier_contact);
-            $('#productImage').val(product.image_url);
+            $('#productMinStockLevel').val(product.min_stock_level);
+            $('#productStorageLocation').val(product.storage_location);
             $('#productStatus').val(product.status);
             $('#productModalLabel').text('Edit Product');
 
@@ -920,16 +912,8 @@ function saveProduct() {
         mrp: parseFloat($('#productMRP').val()) || 0,
         opening_stock: parseInt($('#productOpeningStock').val()) || 0,
         current_stock: parseInt($('#productCurrentStock').val()) || 0,
-        min_stock_level: parseInt($('#productMinStock').val()) || 10,
-        storage_location: $('#productLocation').val(),
-        imei: $('#productIMEI').val(),
-        color: $('#productColor').val(),
-        storage_capacity: $('#productStorage').val(),
-        ram: $('#productRAM').val(),
-        warranty_period: $('#productWarranty').val(),
-        supplier_name: $('#productSupplierName').val(),
-        supplier_contact: $('#productSupplierContact').val(),
-        image_url: $('#productImage').val(),
+        min_stock_level: parseInt($('#productMinStockLevel').val()) || 10,
+        storage_location: $('#productStorageLocation').val(),
         status: $('#productStatus').val()
     };
 
@@ -2808,7 +2792,7 @@ function viewAdjustmentDetail(id) {
     $.get(`${API_BASE}/stock-adjustments/${id}`, function(adj) {
         const date = new Date(adj.created_at);
         const formattedDate = date.toLocaleString();
-        
+
         let imeiList = '';
         if (adj.imei_numbers && adj.imei_numbers.length > 0) {
             imeiList = '<div class="mt-3"><h6>IMEI Numbers:</h6><ul class="list-group">';
@@ -2823,7 +2807,7 @@ function viewAdjustmentDetail(id) {
             });
             imeiList += '</ul></div>';
         }
-        
+
         const content = `
             <div class="row">
                 <div class="col-md-6">
@@ -2839,7 +2823,7 @@ function viewAdjustmentDetail(id) {
             </div>
             ${imeiList}
         `;
-        
+
         $('#adjustmentDetailContent').html(content);
         const modal = new bootstrap.Modal($('#adjustmentDetailModal'));
         modal.show();
@@ -2852,7 +2836,7 @@ function deleteAdjustment(id, productName) {
     if (!confirm(`Are you sure you want to delete this stock adjustment for ${productName}?\n\nThis will reverse the stock change. This action cannot be undone.`)) {
         return;
     }
-    
+
     $.ajax({
         url: `${API_BASE}/stock-adjustments/${id}`,
         method: 'DELETE',
@@ -3572,148 +3556,6 @@ function generateProfitReport() {
     window.location.href = url;
 }
 
-function showProductInfo(productId) {
-    $.get(`${API_BASE}/products/${productId}`, function(product) {
-        const content = `
-            <div class="row">
-                <div class="col-6"><strong>Available Stock:</strong></div>
-                <div class="col-6">${product.current_stock} units</div>
-            </div>
-            <div class="row">
-                <div class="col-6"><strong>Price:</strong></div>
-                <div class="col-6">$${parseFloat(product.selling_price || 0).toFixed(2)}</div>
-            </div>
-            <div class="row">
-                <div class="col-6"><strong>SKU:</strong></div>
-                <div class="col-6">${product.sku || 'N/A'}</div>
-            </div>
-        `;
-        $('#productInfoContent').html(content);
-        $('#productInfo').removeClass('d-none');
-    });
-}
-
-function addQuickOrderItem() {
-    const select = $('#quickOrderProduct');
-    const productId = select.val();
-    const quantity = parseInt($('#quickOrderQuantity').val()) || 1;
-
-    if (!productId) {
-        alert('Please select a product');
-        return;
-    }
-
-    if (quantity <= 0) {
-        alert('Please enter a valid quantity');
-        return;
-    }
-
-    const option = select.find('option:selected');
-    const productName = option.data('name');
-    const stock = parseInt(option.data('stock'));
-    const price = parseFloat(option.data('price'));
-
-    const existingItem = quickOrderItems.find(item => item.product_id === parseInt(productId));
-    const currentQty = existingItem ? existingItem.quantity : 0;
-
-    if (currentQty + quantity > stock) {
-        alert(`Insufficient stock! Available: ${stock}, Already in order: ${currentQty}, Requested: ${quantity}`);
-        return;
-    }
-
-    if (existingItem) {
-        existingItem.quantity += quantity;
-    } else {
-        quickOrderItems.push({
-            product_id: parseInt(productId),
-            product_name: productName,
-            quantity: quantity,
-            price: price
-        });
-    }
-
-    $('#quickOrderQuantity').val(1);
-    select.val('');
-    $('#productInfo').addClass('d-none');
-    updateQuickOrderTable();
-}
-
-function removeQuickOrderItem(index) {
-    quickOrderItems.splice(index, 1);
-    updateQuickOrderTable();
-}
-
-function updateQuickOrderTable() {
-    const tbody = $('#quickOrderItemsTable tbody');
-    tbody.empty();
-
-    if (quickOrderItems.length === 0) {
-        $('#emptyOrderMessage').show();
-        $('#quickOrderItemsTable').hide();
-        return;
-    }
-
-    $('#emptyOrderMessage').hide();
-    $('#quickOrderItemsTable').show();
-
-    let totalAmount = 0;
-
-    quickOrderItems.forEach((item, index) => {
-        const itemTotal = item.quantity * item.price;
-        totalAmount += itemTotal;
-
-        tbody.append(`
-            <tr>
-                <td>${item.product_name}</td>
-                <td>${item.quantity}</td>
-                <td>$${item.price.toFixed(2)}</td>
-                <td>$${itemTotal.toFixed(2)}</td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="removeQuickOrderItem(${index})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `);
-    });
-
-    $('#orderTotalAmount').text('$' + totalAmount.toFixed(2));
-}
-
-function submitQuickOrder() {
-    if (quickOrderItems.length === 0) {
-        alert('Please add at least one item to the order');
-        return;
-    }
-
-    if (!confirm(`Submit order with ${quickOrderItems.length} item(s)?`)) {
-        return;
-    }
-
-    const orderData = {
-        items: quickOrderItems,
-        notes: $('#quickOrderNotes').val()
-    };
-
-    $.ajax({
-        url: `${API_BASE}/quick-orders`,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(orderData),
-        success: function(response) {
-            if (response.success) {
-                alert(`Order ${response.order_number} created successfully!`);
-                loadQuickOrder();
-            } else {
-                alert('Error: ' + (response.error || 'Failed to create order'));
-            }
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to create order'));
-        }
-    });
-}
-
 function viewIMEITracking(productId) {
     $.get(`${API_BASE}/products/${productId}/imei-tracking`, function(data) {
         let content = `
@@ -3762,7 +3604,7 @@ function viewIMEITracking(productId) {
                         hour: '2-digit', 
                         minute: '2-digit' 
                     }) : '';
-                    
+
                     saleDetails = `
                         <div class="small">
                             <div><strong class="text-primary"><i class="bi bi-receipt"></i> ${record.sale_number}</strong></div>
@@ -3776,7 +3618,7 @@ function viewIMEITracking(productId) {
                 // Action buttons - store record id in a variable to avoid scope issues
                 const recordId = record.id;
                 const saleId = record.sale_id;
-                
+
                 let actionButtons = '<span class="text-muted">-</span>';
                 if (record.status === 'available') {
                     actionButtons = `
