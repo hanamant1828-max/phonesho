@@ -3162,6 +3162,538 @@ function submitQuickOrder() {
     });
 }
 
+let posCart = [];
+let currentPOSProductForIMEI = null;
+let currentPOSCartIndex = null;
+
+function loadPOS() {
+    posCart = [];
+    
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
+        </div>
+
+        <div class="row">
+            <!-- Left Panel - Product Search & Cart -->
+            <div class="col-md-8">
+                <!-- Transaction Type -->
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-cart"></i> Transaction Type
+                    </div>
+                    <div class="card-body">
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="transactionType" id="typeSale" value="sale" checked>
+                            <label class="btn btn-outline-success" for="typeSale">
+                                <i class="bi bi-cart-check"></i> Sale
+                            </label>
+
+                            <input type="radio" class="btn-check" name="transactionType" id="typeReturn" value="return">
+                            <label class="btn btn-outline-warning" for="typeReturn">
+                                <i class="bi bi-arrow-counterclockwise"></i> Return
+                            </label>
+
+                            <input type="radio" class="btn-check" name="transactionType" id="typeExchange" value="exchange">
+                            <label class="btn btn-outline-info" for="typeExchange">
+                                <i class="bi bi-arrow-left-right"></i> Exchange
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Search -->
+                <div class="card mb-3">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-search"></i> Product Search
+                    </div>
+                    <div class="card-body">
+                        <input type="text" class="form-control form-control-lg" id="posProductSearch" placeholder="Search by product name, SKU, or IMEI...">
+                        <div id="posSearchResults" class="mt-3"></div>
+                    </div>
+                </div>
+
+                <!-- Shopping Cart -->
+                <div class="card">
+                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-cart"></i> Shopping Cart (<span id="cartItemCount">0</span> items)</span>
+                        <button class="btn btn-sm btn-light" onclick="clearPOSCart()">
+                            <i class="bi bi-trash"></i> Clear Cart
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="posCartTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Price</th>
+                                        <th>Qty</th>
+                                        <th>IMEI</th>
+                                        <th>Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="posCartBody">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">Cart is empty</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Bill Summary -->
+            <div class="col-md-4">
+                <!-- Customer Information -->
+                <div class="card mb-3">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-person"></i> Customer Information (Optional)
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" id="posCustomerName" placeholder="Customer name">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" id="posCustomerPhone" placeholder="Phone number">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="posCustomerEmail" placeholder="Email">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bill Summary -->
+                <div class="card mb-3">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-receipt"></i> Bill Summary
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Transaction Date:</span>
+                            <strong>${new Date().toLocaleDateString()}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Transaction Time:</span>
+                            <strong id="posTransactionTime">${new Date().toLocaleTimeString()}</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <strong id="posSubtotal">$0.00</strong>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-7">
+                                <label class="form-label">Discount (%):</label>
+                            </div>
+                            <div class="col-5">
+                                <input type="number" class="form-control form-control-sm" id="posDiscountPercent" value="0" min="0" max="100" step="0.1">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 text-danger">
+                            <span>Discount Amount:</span>
+                            <strong id="posDiscountAmount">-$0.00</strong>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-7">
+                                <label class="form-label">Tax (%):</label>
+                            </div>
+                            <div class="col-5">
+                                <input type="number" class="form-control form-control-sm" id="posTaxPercent" value="0" min="0" max="100" step="0.1">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Tax Amount:</span>
+                            <strong id="posTaxAmount">+$0.00</strong>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5>Total:</h5>
+                            <h5 class="text-success" id="posTotal">$0.00</h5>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="card mb-3">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-credit-card"></i> Payment Method
+                    </div>
+                    <div class="card-body">
+                        <select class="form-select" id="posPaymentMethod">
+                            <option value="cash">Cash</option>
+                            <option value="card">Credit/Debit Card</option>
+                            <option value="upi">UPI</option>
+                            <option value="wallet">Mobile Wallet</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                        <div class="mt-2">
+                            <label class="form-label">Reference Number (Optional)</label>
+                            <input type="text" class="form-control" id="posPaymentReference" placeholder="Transaction reference">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Complete Sale Button -->
+                <button class="btn btn-success btn-lg w-100" onclick="completePOSSale()">
+                    <i class="bi bi-check-circle"></i> Complete Sale
+                </button>
+            </div>
+        </div>
+    `);
+
+    // Event handlers
+    $('#posProductSearch').on('input', debounce(searchPOSProducts, 300));
+    $('#posDiscountPercent, #posTaxPercent').on('input', updatePOSCart);
+    
+    // Update time every second
+    setInterval(() => {
+        $('#posTransactionTime').text(new Date().toLocaleTimeString());
+    }, 1000);
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function searchPOSProducts() {
+    const query = $('#posProductSearch').val();
+    
+    if (!query || query.length < 2) {
+        $('#posSearchResults').empty();
+        return;
+    }
+    
+    $.get(`${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`, function(products) {
+        const resultsDiv = $('#posSearchResults');
+        resultsDiv.empty();
+        
+        if (products.length === 0) {
+            resultsDiv.html('<div class="alert alert-info">No products found</div>');
+            return;
+        }
+        
+        products.forEach(product => {
+            const stockBadge = product.current_stock > 0 ? 
+                `<span class="badge bg-success">${product.current_stock} in stock</span>` :
+                `<span class="badge bg-danger">Out of stock</span>`;
+            
+            const card = $(`
+                <div class="card mb-2 product-search-result">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${product.name}</strong>
+                                <br>
+                                <small class="text-muted">${product.brand_name || ''} ${product.model_name || ''}</small>
+                                <br>
+                                <small class="text-muted">SKU: ${product.sku || 'N/A'}</small>
+                            </div>
+                            <div class="text-end">
+                                <div class="h5 mb-1 text-success">$${parseFloat(product.selling_price).toFixed(2)}</div>
+                                ${stockBadge}
+                                <br>
+                                <button class="btn btn-sm btn-primary mt-1" onclick='addToPOSCart(${JSON.stringify(product)})'>
+                                    <i class="bi bi-plus-circle"></i> Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `);
+            resultsDiv.append(card);
+        });
+    });
+}
+
+function addToPOSCart(product) {
+    if (product.current_stock <= 0) {
+        alert('Product is out of stock');
+        return;
+    }
+    
+    // Check if product already in cart
+    const existingIndex = posCart.findIndex(item => item.product_id === product.id);
+    
+    if (existingIndex >= 0) {
+        if (posCart[existingIndex].quantity < product.current_stock) {
+            posCart[existingIndex].quantity++;
+        } else {
+            alert('Cannot add more than available stock');
+            return;
+        }
+    } else {
+        posCart.push({
+            product_id: product.id,
+            product_name: product.name,
+            sku: product.sku,
+            unit_price: parseFloat(product.selling_price),
+            quantity: 1,
+            max_stock: product.current_stock,
+            imei_ids: []
+        });
+    }
+    
+    updatePOSCart();
+    $('#posProductSearch').val('').focus();
+    $('#posSearchResults').empty();
+}
+
+function updatePOSCart() {
+    const tbody = $('#posCartBody');
+    tbody.empty();
+    
+    if (posCart.length === 0) {
+        tbody.html('<tr><td colspan="6" class="text-center text-muted">Cart is empty</td></tr>');
+        $('#cartItemCount').text(0);
+        updatePOSTotals();
+        return;
+    }
+    
+    posCart.forEach((item, index) => {
+        const total = item.quantity * item.unit_price;
+        const imeiInfo = item.imei_ids.length > 0 ? 
+            `<span class="badge bg-success">${item.imei_ids.length} selected</span>` :
+            '<span class="badge bg-warning">Not selected</span>';
+        
+        tbody.append(`
+            <tr>
+                <td>
+                    <strong>${item.product_name}</strong>
+                    <br><small class="text-muted">${item.sku || ''}</small>
+                </td>
+                <td>$${item.unit_price.toFixed(2)}</td>
+                <td>
+                    <div class="input-group input-group-sm" style="width: 120px;">
+                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, -1)">-</button>
+                        <input type="number" class="form-control text-center" value="${item.quantity}" 
+                               onchange="setCartQty(${index}, this.value)" min="1" max="${item.max_stock}">
+                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="showIMEISelectionModal(${index})">
+                        <i class="bi bi-upc-scan"></i> Select
+                    </button>
+                    <br>${imeiInfo}
+                </td>
+                <td><strong>$${total.toFixed(2)}</strong></td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+    
+    $('#cartItemCount').text(posCart.length);
+    updatePOSTotals();
+}
+
+function updateCartQty(index, change) {
+    const item = posCart[index];
+    const newQty = item.quantity + change;
+    
+    if (newQty < 1) {
+        removeFromPOSCart(index);
+        return;
+    }
+    
+    if (newQty > item.max_stock) {
+        alert('Cannot exceed available stock');
+        return;
+    }
+    
+    item.quantity = newQty;
+    
+    // Reset IMEI selection if quantity changed
+    if (item.imei_ids.length !== newQty) {
+        item.imei_ids = [];
+    }
+    
+    updatePOSCart();
+}
+
+function setCartQty(index, value) {
+    const qty = parseInt(value);
+    const item = posCart[index];
+    
+    if (isNaN(qty) || qty < 1) {
+        item.quantity = 1;
+    } else if (qty > item.max_stock) {
+        item.quantity = item.max_stock;
+        alert('Cannot exceed available stock');
+    } else {
+        item.quantity = qty;
+    }
+    
+    // Reset IMEI selection if quantity changed
+    if (item.imei_ids.length !== item.quantity) {
+        item.imei_ids = [];
+    }
+    
+    updatePOSCart();
+}
+
+function removeFromPOSCart(index) {
+    posCart.splice(index, 1);
+    updatePOSCart();
+}
+
+function clearPOSCart() {
+    if (posCart.length === 0) return;
+    
+    if (confirm('Clear all items from cart?')) {
+        posCart = [];
+        updatePOSCart();
+    }
+}
+
+function updatePOSTotals() {
+    const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
+    const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
+    
+    const discountAmount = subtotal * (discountPercent / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (taxPercent / 100);
+    const total = taxableAmount + taxAmount;
+    
+    $('#posSubtotal').text('$' + subtotal.toFixed(2));
+    $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
+    $('#posTaxAmount').text('+$' + taxAmount.toFixed(2));
+    $('#posTotal').text('$' + total.toFixed(2));
+}
+
+function showIMEISelectionModal(cartIndex) {
+    const item = posCart[cartIndex];
+    currentPOSCartIndex = cartIndex;
+    
+    // Fetch available IMEIs for this product
+    $.get(`${API_BASE}/products/${item.product_id}/imeis?status=available`, function(imeis) {
+        $('#imeiProductName').text(item.product_name);
+        $('#imeiQuantityRequired').text(item.quantity);
+        
+        const tbody = $('#imeiSelectionList');
+        tbody.empty();
+        
+        if (imeis.length === 0) {
+            tbody.html('<tr><td colspan="3" class="text-center text-muted">No IMEI numbers available for this product</td></tr>');
+            $('#confirmImeiSelectionBtn').prop('disabled', true);
+        } else {
+            $('#confirmImeiSelectionBtn').prop('disabled', false);
+            
+            imeis.forEach(imei => {
+                const checked = item.imei_ids.includes(imei.id) ? 'checked' : '';
+                tbody.append(`
+                    <tr>
+                        <td>
+                            <input type="checkbox" class="form-check-input imei-checkbox" 
+                                   value="${imei.id}" ${checked}>
+                        </td>
+                        <td><code>${imei.imei}</code></td>
+                        <td><span class="badge bg-success">${imei.status}</span></td>
+                    </tr>
+                `);
+            });
+        }
+        
+        $('#imeiSelectionError').hide();
+        const modal = new bootstrap.Modal($('#imeiSelectionModal'));
+        modal.show();
+    }).fail(function() {
+        alert('Failed to load IMEI numbers');
+    });
+}
+
+function confirmIMEISelection() {
+    const item = posCart[currentPOSCartIndex];
+    const selectedIMEIs = $('.imei-checkbox:checked').map(function() {
+        return parseInt($(this).val());
+    }).get();
+    
+    if (selectedIMEIs.length !== item.quantity) {
+        $('#imeiSelectionError').text(`Please select exactly ${item.quantity} IMEI number(s)`).show();
+        return;
+    }
+    
+    item.imei_ids = selectedIMEIs;
+    bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
+    updatePOSCart();
+}
+
+function completePOSSale() {
+    if (posCart.length === 0) {
+        alert('Cart is empty');
+        return;
+    }
+    
+    const transactionType = $('input[name="transactionType"]:checked').val();
+    
+    // Validate IMEI selection for all items
+    for (let item of posCart) {
+        if (item.imei_ids.length > 0 && item.imei_ids.length !== item.quantity) {
+            alert(`Please select ${item.quantity} IMEI number(s) for ${item.product_name}`);
+            return;
+        }
+    }
+    
+    const subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
+    const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
+    
+    const saleData = {
+        transaction_type: transactionType,
+        customer_name: $('#posCustomerName').val(),
+        customer_phone: $('#posCustomerPhone').val(),
+        customer_email: $('#posCustomerEmail').val(),
+        items: posCart,
+        discount_percentage: discountPercent,
+        tax_percentage: taxPercent,
+        payment_method: $('#posPaymentMethod').val(),
+        payment_reference: $('#posPaymentReference').val()
+    };
+    
+    if (!confirm(`Complete ${transactionType} transaction for $${$('#posTotal').text().replace('$', '')}?`)) {
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_BASE}/pos/sales`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(saleData),
+        success: function(response) {
+            alert(`${transactionType.toUpperCase()} completed successfully!\nSale Number: ${response.sale_number}\nTotal: $${Math.abs(response.total_amount).toFixed(2)}`);
+            
+            // Reset form
+            posCart = [];
+            updatePOSCart();
+            $('#posCustomerName, #posCustomerPhone, #posCustomerEmail, #posPaymentReference').val('');
+            $('#posDiscountPercent, #posTaxPercent').val(0);
+            $('#posPaymentMethod').val('cash');
+            $('input[name="transactionType"][value="sale"]').prop('checked', true);
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete sale'));
+        }
+    });
+}
+
 function loadReports() {
     $('#content-area').html(`
         <div class="page-header">
