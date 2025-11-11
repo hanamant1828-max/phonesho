@@ -2793,35 +2793,72 @@ function viewAdjustmentDetail(id) {
         const date = new Date(adj.created_at);
         const formattedDate = date.toLocaleString();
 
-        let imeiList = '';
+        let imeiSection = '';
         if (adj.imei_numbers && adj.imei_numbers.length > 0) {
-            imeiList = '<div class="mt-3"><h6>IMEI Numbers:</h6><ul class="list-group">';
-            adj.imei_numbers.forEach(imei => {
+            imeiSection = `
+                <div class="mt-4">
+                    <h6><i class="bi bi-upc-scan"></i> IMEI Numbers Recorded (${adj.imei_numbers.length})</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>IMEI Number</th>
+                                    <th>Status</th>
+                                    <th>Added On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+            
+            adj.imei_numbers.forEach((imei, index) => {
                 const statusBadge = imei.status === 'available' || imei.status === 'in_stock' 
                     ? '<span class="badge bg-success">Available</span>' 
-                    : '<span class="badge bg-warning">Sold</span>';
-                imeiList += `<li class="list-group-item d-flex justify-content-between align-items-center">
-                    ${imei.imei}
-                    ${statusBadge}
-                </li>`;
+                    : '<span class="badge bg-danger">Sold</span>';
+                const imeiDate = imei.created_at ? new Date(imei.created_at).toLocaleDateString() : 'N/A';
+                
+                imeiSection += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td><code>${imei.imei}</code></td>
+                        <td>${statusBadge}</td>
+                        <td>${imeiDate}</td>
+                    </tr>
+                `;
             });
-            imeiList += '</ul></div>';
+            
+            imeiSection += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        } else {
+            imeiSection = `
+                <div class="mt-4">
+                    <h6><i class="bi bi-upc-scan"></i> IMEI Numbers</h6>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> No IMEI numbers were recorded for this stock adjustment.
+                    </div>
+                </div>
+            `;
         }
 
         const content = `
             <div class="row">
                 <div class="col-md-6">
-                    <p><strong>Product:</strong> ${adj.product_name}</p>
-                    <p><strong>SKU:</strong> ${adj.sku || 'N/A'}</p>
-                    <p><strong>Current Stock:</strong> ${adj.current_stock}</p>
+                    <p><strong><i class="bi bi-box"></i> Product:</strong> ${adj.product_name}</p>
+                    <p><strong><i class="bi bi-tag"></i> SKU:</strong> ${adj.sku || 'N/A'}</p>
+                    <p><strong><i class="bi bi-stack"></i> Current Stock:</strong> <span class="badge bg-primary">${adj.current_stock}</span></p>
                 </div>
                 <div class="col-md-6">
-                    <p><strong>Date:</strong> ${formattedDate}</p>
-                    <p><strong>Quantity Added:</strong> <span class="badge bg-success">+${adj.quantity}</span></p>
-                    <p><strong>Notes:</strong> ${adj.notes || 'None'}</p>
+                    <p><strong><i class="bi bi-calendar"></i> Date:</strong> ${formattedDate}</p>
+                    <p><strong><i class="bi bi-plus-circle"></i> Quantity Added:</strong> <span class="badge bg-success">+${adj.quantity}</span></p>
+                    <p><strong><i class="bi bi-pencil"></i> Notes:</strong> ${adj.notes || '<em class="text-muted">None</em>'}</p>
                 </div>
             </div>
-            ${imeiList}
+            <hr>
+            ${imeiSection}
         `;
 
         $('#adjustmentDetailContent').html(content);
