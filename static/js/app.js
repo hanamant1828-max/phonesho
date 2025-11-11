@@ -159,7 +159,7 @@ function loadDashboard() {
         <div class="page-header">
             <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
         </div>
-        
+
         <!-- Stats Cards -->
         <div class="row mb-4" id="statsCards">
             <div class="col-md-3">
@@ -201,7 +201,7 @@ function loadDashboard() {
                         <div class="btn-group btn-group-sm" role="group">
                             <input type="radio" class="btn-check" name="salesPeriod" id="period7d" value="7" checked>
                             <label class="btn btn-outline-primary" for="period7d">7 Days</label>
-                            
+
                             <input type="radio" class="btn-check" name="salesPeriod" id="period30d" value="30">
                             <label class="btn btn-outline-primary" for="period30d">30 Days</label>
                         </div>
@@ -211,7 +211,7 @@ function loadDashboard() {
                     </div>
                 </div>
             </div>
-            
+
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
@@ -259,7 +259,7 @@ function loadDashboard() {
                     </div>
                 </div>
             </div>
-            
+
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
@@ -315,7 +315,7 @@ function loadDashboard() {
 
     // Load dashboard data
     loadDashboardData();
-    
+
     // Period change handler
     $('input[name="salesPeriod"]').on('change', function() {
         loadSalesChart($(this).val());
@@ -334,7 +334,7 @@ function loadDashboardData() {
         $('#totalRevenue').text('$' + data.profit_summary.revenue.toFixed(2));
         $('#totalCost').text('$' + data.profit_summary.cost.toFixed(2));
         $('#netProfit').text('$' + data.profit_summary.profit.toFixed(2));
-        
+
         const marginPercent = data.profit_summary.margin_percent || 0;
         $('#profitMarginPercent').text(marginPercent.toFixed(2) + '%');
         $('#profitProgressBar').css('width', Math.min(marginPercent, 100) + '%');
@@ -1703,7 +1703,7 @@ function showAddModel() {
                 $('#modelImagePreview').hide();
                 return;
             }
-            
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 $('#modelImagePreviewImg').attr('src', e.target.result);
@@ -1751,7 +1751,7 @@ function editModel(id, name, brandId, description, imageData) {
                 $(this).val('');
                 return;
             }
-            
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 $('#modelImagePreviewImg').attr('src', e.target.result);
@@ -1786,18 +1786,18 @@ function saveModel() {
     const imageFile = $('#modelImage')[0].files[0];
     const modelName = $('#modelName').val();
     const brandId = $('#modelBrand').val();
-    
+
     // Validate required fields
     if (!modelName || !modelName.trim()) {
         alert('Please enter a model name');
         return;
     }
-    
+
     if (!brandId) {
         alert('Please select a brand');
         return;
     }
-    
+
     // Function to send data
     const sendData = (imageData) => {
         const data = {
@@ -1827,7 +1827,7 @@ function saveModel() {
             }
         });
     };
-    
+
     // If new image file is selected, convert to base64
     if (imageFile) {
         // Validate file size (max 5MB)
@@ -1835,7 +1835,7 @@ function saveModel() {
             alert('Image size must be less than 5MB');
             return;
         }
-        
+
         const reader = new FileReader();
         reader.onload = function(e) {
             sendData(e.target.result);
@@ -2380,7 +2380,7 @@ function loadStockAdjustment() {
             <h2><i class="bi bi-box-arrow-in-down"></i> Stock Adjustment</h2>
             <p class="text-muted">Add stock to existing products with optional IMEI tracking</p>
         </div>
-        
+
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card">
@@ -2394,7 +2394,7 @@ function loadStockAdjustment() {
                                 <option value="">-- Choose a product --</option>
                             </select>
                         </div>
-                        
+
                         <div id="currentStockInfo" class="alert alert-info d-none mb-4">
                             <h6 class="alert-heading">Current Stock Information</h6>
                             <div class="row">
@@ -2412,7 +2412,7 @@ function loadStockAdjustment() {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div id="adjustmentForm" class="d-none">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
@@ -2426,7 +2426,7 @@ function loadStockAdjustment() {
                                     <small class="text-muted">This will be the new stock level</small>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <div class="form-check form-switch">
                                     <input class="form-check-input" type="checkbox" id="trackIMEI">
@@ -2436,7 +2436,7 @@ function loadStockAdjustment() {
                                 </div>
                                 <small class="text-muted">Enable this to enter individual IMEI numbers for mobile devices</small>
                             </div>
-                            
+
                             <div id="imeiFieldsContainer" class="d-none mb-3">
                                 <div class="card">
                                     <div class="card-header bg-light">
@@ -2452,12 +2452,12 @@ function loadStockAdjustment() {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Notes (Optional)</label>
                                 <textarea class="form-control" id="adjustmentNotes" rows="3" placeholder="Add any notes about this adjustment (e.g., 'Received from supplier', 'Return from customer')"></textarea>
                             </div>
-                            
+
                             <div class="d-grid gap-2">
                                 <button class="btn btn-success btn-lg" onclick="submitStockAdjustment()">
                                     <i class="bi bi-check-circle"></i> Update Stock
@@ -2469,9 +2469,9 @@ function loadStockAdjustment() {
             </div>
         </div>
     `);
-    
+
     loadProductsForAdjustment();
-    
+
     $('#adjustmentProduct').on('change', function() {
         const productId = $(this).val();
         if (productId) {
@@ -2481,14 +2481,14 @@ function loadStockAdjustment() {
             $('#adjustmentForm').addClass('d-none');
         }
     });
-    
+
     $('#adjustmentQuantity').on('input', function() {
         updateStockPreview();
         if ($('#trackIMEI').is(':checked')) {
             generateIMEIFields();
         }
     });
-    
+
     $('#trackIMEI').on('change', function() {
         if ($(this).is(':checked')) {
             const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
@@ -2509,7 +2509,7 @@ function loadProductsForAdjustment() {
     $.get(`${API_BASE}/products`, function(products) {
         const select = $('#adjustmentProduct');
         select.empty().append('<option value="">-- Choose a product --</option>');
-        
+
         products.filter(p => p.status === 'active').forEach(product => {
             select.append(`<option value="${product.id}" data-stock="${product.current_stock}" data-name="${product.name}" data-sku="${product.sku || 'N/A'}">
                 ${product.name} - Current Stock: ${product.current_stock}
@@ -2543,13 +2543,13 @@ function generateIMEIFields() {
     const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
     const container = $('#imeiFields');
     container.empty();
-    
+
     if (quantity <= 0) {
         return;
     }
-    
+
     $('#imeiTotal').text(quantity);
-    
+
     for (let i = 1; i <= quantity; i++) {
         container.append(`
             <div class="col-md-6 col-lg-4 mb-2">
@@ -2560,14 +2560,14 @@ function generateIMEIFields() {
             </div>
         `);
     }
-    
+
     // Add input event to count filled IMEIs
     $('.imei-input').on('input', function() {
         const filled = $('.imei-input').filter(function() {
             return $(this).val().trim() !== '';
         }).length;
         $('#imeiCount').text(filled);
-        
+
         // Validate IMEI format (15 digits)
         const value = $(this).val().replace(/\D/g, '');
         if (value.length > 15) {
@@ -2581,11 +2581,11 @@ function generateIMEIFields() {
 function autoFillIMEI() {
     const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
     if (quantity <= 0) return;
-    
+
     if (!confirm('This will generate test IMEI numbers. Use this only for testing purposes.\n\nDo you want to continue?')) {
         return;
     }
-    
+
     // Generate random but valid-looking IMEI numbers for testing
     for (let i = 1; i <= quantity; i++) {
         const timestamp = Date.now().toString().substring(3);
@@ -2593,14 +2593,14 @@ function autoFillIMEI() {
         const testIMEI = (timestamp + random + i.toString().padStart(2, '0')).substring(0, 15);
         $(`#imei_${i}`).val(testIMEI);
     }
-    
+
     $('#imeiCount').text(quantity);
 }
 
 function collectIMEINumbers() {
     const imeiList = [];
     const quantity = parseInt($('#adjustmentQuantity').val()) || 0;
-    
+
     for (let i = 1; i <= quantity; i++) {
         const imei = $(`#imei_${i}`).val().trim();
         if (imei) {
@@ -2613,7 +2613,7 @@ function collectIMEINumbers() {
             imeiList.push(imei);
         }
     }
-    
+
     return imeiList;
 }
 
@@ -2622,22 +2622,22 @@ function submitStockAdjustment() {
     const quantity = parseInt($('#adjustmentQuantity').val());
     const notes = $('#adjustmentNotes').val();
     const trackIMEI = $('#trackIMEI').is(':checked');
-    
+
     if (!productId) {
         alert('Please select a product');
         return;
     }
-    
+
     if (!quantity || quantity <= 0) {
         alert('Please enter a valid quantity to add');
         return;
     }
-    
+
     let imeiNumbers = [];
     if (trackIMEI) {
         try {
             imeiNumbers = collectIMEINumbers();
-            
+
             if (imeiNumbers.length < quantity) {
                 if (!confirm(`You've only entered ${imeiNumbers.length} out of ${quantity} IMEI numbers.\n\nDo you want to continue without all IMEI numbers?`)) {
                     return;
@@ -2648,30 +2648,30 @@ function submitStockAdjustment() {
             return;
         }
     }
-    
+
     const productName = $('#adjustmentProduct option:selected').data('name');
     const currentStock = parseInt($('#adjustmentProduct option:selected').data('stock'));
     const newStock = currentStock + quantity;
-    
+
     let confirmMessage = `Add ${quantity} units to ${productName}?\n\nCurrent Stock: ${currentStock}\nNew Stock: ${newStock}`;
     if (trackIMEI && imeiNumbers.length > 0) {
         confirmMessage += `\n\nIMEI Numbers: ${imeiNumbers.length} recorded`;
     }
-    
+
     if (!confirm(confirmMessage)) {
         return;
     }
-    
+
     const requestData = {
         product_id: productId,
         quantity: quantity,
         notes: notes
     };
-    
+
     if (trackIMEI && imeiNumbers.length > 0) {
         requestData.imei_numbers = imeiNumbers;
     }
-    
+
     $.ajax({
         url: `${API_BASE}/stock-adjustment`,
         method: 'POST',
@@ -2699,13 +2699,13 @@ let quickOrderItems = [];
 
 function loadQuickOrder() {
     quickOrderItems = [];
-    
+
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-bag-plus"></i> Quick Order</h2>
             <p class="text-muted">Simple order entry - Select products and quantities</p>
         </div>
-        
+
         <div class="row">
             <div class="col-md-8">
                 <div class="card mb-3">
@@ -2737,7 +2737,7 @@ function loadQuickOrder() {
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="card">
                     <div class="card-header">
                         <h5 class="mb-0">Order Items</h5>
@@ -2770,7 +2770,7 @@ function loadQuickOrder() {
                     </div>
                 </div>
             </div>
-            
+
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-success text-white">
@@ -2794,10 +2794,10 @@ function loadQuickOrder() {
             </div>
         </div>
     `);
-    
+
     loadProductsForQuickOrder();
     updateQuickOrderTable();
-    
+
     $('#quickOrderProduct').on('change', function() {
         const productId = $(this).val();
         if (productId) {
@@ -2812,7 +2812,7 @@ function loadProductsForQuickOrder() {
     $.get(`${API_BASE}/products`, function(products) {
         const select = $('#quickOrderProduct');
         select.empty().append('<option value="">-- Choose a product --</option>');
-        
+
         products.filter(p => p.status === 'active' && p.current_stock > 0).forEach(product => {
             select.append(`<option value="${product.id}" data-stock="${product.current_stock}" data-price="${product.selling_price}" data-name="${product.name}">
                 ${product.name} - Stock: ${product.current_stock} - $${parseFloat(product.selling_price || 0).toFixed(2)}
@@ -2846,30 +2846,30 @@ function addQuickOrderItem() {
     const select = $('#quickOrderProduct');
     const productId = select.val();
     const quantity = parseInt($('#quickOrderQuantity').val()) || 1;
-    
+
     if (!productId) {
         alert('Please select a product');
         return;
     }
-    
+
     if (quantity <= 0) {
         alert('Please enter a valid quantity');
         return;
     }
-    
+
     const option = select.find('option:selected');
     const productName = option.data('name');
     const stock = parseInt(option.data('stock'));
     const price = parseFloat(option.data('price'));
-    
+
     const existingItem = quickOrderItems.find(item => item.product_id === parseInt(productId));
     const currentQty = existingItem ? existingItem.quantity : 0;
-    
+
     if (currentQty + quantity > stock) {
         alert(`Insufficient stock! Available: ${stock}, Already in order: ${currentQty}, Requested: ${quantity}`);
         return;
     }
-    
+
     if (existingItem) {
         existingItem.quantity += quantity;
     } else {
@@ -2880,7 +2880,7 @@ function addQuickOrderItem() {
             price: price
         });
     }
-    
+
     $('#quickOrderQuantity').val(1);
     select.val('');
     $('#productInfo').addClass('d-none');
@@ -2895,22 +2895,22 @@ function removeQuickOrderItem(index) {
 function updateQuickOrderTable() {
     const tbody = $('#quickOrderItemsTable tbody');
     tbody.empty();
-    
+
     if (quickOrderItems.length === 0) {
         $('#emptyOrderMessage').show();
         $('#quickOrderItemsTable').hide();
         return;
     }
-    
+
     $('#emptyOrderMessage').hide();
     $('#quickOrderItemsTable').show();
-    
+
     let totalAmount = 0;
-    
+
     quickOrderItems.forEach((item, index) => {
         const itemTotal = item.quantity * item.price;
         totalAmount += itemTotal;
-        
+
         tbody.append(`
             <tr>
                 <td>${item.product_name}</td>
@@ -2925,7 +2925,7 @@ function updateQuickOrderTable() {
             </tr>
         `);
     });
-    
+
     $('#orderTotalAmount').text('$' + totalAmount.toFixed(2));
 }
 
@@ -2934,16 +2934,16 @@ function submitQuickOrder() {
         alert('Please add at least one item to the order');
         return;
     }
-    
+
     if (!confirm(`Submit order with ${quickOrderItems.length} item(s)?`)) {
         return;
     }
-    
+
     const orderData = {
         items: quickOrderItems,
         notes: $('#quickOrderNotes').val()
     };
-    
+
     $.ajax({
         url: `${API_BASE}/quick-orders`,
         method: 'POST',
@@ -3301,7 +3301,7 @@ function loadReports() {
             </div>
         </div>
     `);
-    
+
     // Load categories for inventory report filter
     $.get(`${API_BASE}/categories`, function(categories) {
         const select = $('#inventoryReportCategory');
@@ -3309,13 +3309,13 @@ function loadReports() {
             select.append(`<option value="${cat.id}">${cat.name}</option>`);
         });
     });
-    
+
     // Set default date ranges to current month
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
     const todayStr = today.toISOString().split('T')[0];
     const firstDayStr = firstDay.toISOString().split('T')[0];
-    
+
     $('#salesReportFrom, #poReportFrom, #movementReportFrom, #grnReportFrom, #profitReportFrom').val(firstDayStr);
     $('#salesReportTo, #poReportTo, #movementReportTo, #grnReportTo, #profitReportTo').val(todayStr);
 }
@@ -3324,23 +3324,23 @@ function generateSalesReport() {
     const fromDate = $('#salesReportFrom').val();
     const toDate = $('#salesReportTo').val();
     const transactionType = $('#salesReportType').val();
-    
+
     let url = `${API_BASE}/reports/sales?format=excel`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
     if (transactionType) url += `&transaction_type=${transactionType}`;
-    
+
     window.location.href = url;
 }
 
 function generateInventoryReport() {
     const category = $('#inventoryReportCategory').val();
     const status = $('#inventoryReportStatus').val();
-    
+
     let url = `${API_BASE}/reports/inventory?format=excel`;
     if (category) url += `&category_id=${category}`;
     if (status) url += `&stock_status=${status}`;
-    
+
     window.location.href = url;
 }
 
@@ -3348,12 +3348,12 @@ function generatePOReport() {
     const fromDate = $('#poReportFrom').val();
     const toDate = $('#poReportTo').val();
     const status = $('#poReportStatus').val();
-    
+
     let url = `${API_BASE}/reports/purchase-orders?format=excel`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
     if (status) url += `&status=${status}`;
-    
+
     window.location.href = url;
 }
 
@@ -3361,12 +3361,12 @@ function generateMovementReport() {
     const fromDate = $('#movementReportFrom').val();
     const toDate = $('#movementReportTo').val();
     const movementType = $('#movementReportType').val();
-    
+
     let url = `${API_BASE}/reports/stock-movements?format=excel`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
     if (movementType) url += `&type=${movementType}`;
-    
+
     window.location.href = url;
 }
 
@@ -3374,12 +3374,12 @@ function generateGRNReport() {
     const fromDate = $('#grnReportFrom').val();
     const toDate = $('#grnReportTo').val();
     const paymentStatus = $('#grnReportPayment').val();
-    
+
     let url = `${API_BASE}/reports/grns?format=excel`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
     if (paymentStatus) url += `&payment_status=${paymentStatus}`;
-    
+
     window.location.href = url;
 }
 
@@ -3387,12 +3387,12 @@ function generateProfitReport() {
     const fromDate = $('#profitReportFrom').val();
     const toDate = $('#profitReportTo').val();
     const sortBy = $('#profitReportSort').val();
-    
+
     let url = `${API_BASE}/reports/profit?format=excel`;
     if (fromDate) url += `&from_date=${fromDate}`;
     if (toDate) url += `&to_date=${toDate}`;
     if (sortBy) url += `&sort_by=${sortBy}`;
-    
+
     window.location.href = url;
 }
 
@@ -3421,30 +3421,30 @@ function addQuickOrderItem() {
     const select = $('#quickOrderProduct');
     const productId = select.val();
     const quantity = parseInt($('#quickOrderQuantity').val()) || 1;
-    
+
     if (!productId) {
         alert('Please select a product');
         return;
     }
-    
+
     if (quantity <= 0) {
         alert('Please enter a valid quantity');
         return;
     }
-    
+
     const option = select.find('option:selected');
     const productName = option.data('name');
     const stock = parseInt(option.data('stock'));
     const price = parseFloat(option.data('price'));
-    
+
     const existingItem = quickOrderItems.find(item => item.product_id === parseInt(productId));
     const currentQty = existingItem ? existingItem.quantity : 0;
-    
+
     if (currentQty + quantity > stock) {
         alert(`Insufficient stock! Available: ${stock}, Already in order: ${currentQty}, Requested: ${quantity}`);
         return;
     }
-    
+
     if (existingItem) {
         existingItem.quantity += quantity;
     } else {
@@ -3455,7 +3455,7 @@ function addQuickOrderItem() {
             price: price
         });
     }
-    
+
     $('#quickOrderQuantity').val(1);
     select.val('');
     $('#productInfo').addClass('d-none');
@@ -3470,22 +3470,22 @@ function removeQuickOrderItem(index) {
 function updateQuickOrderTable() {
     const tbody = $('#quickOrderItemsTable tbody');
     tbody.empty();
-    
+
     if (quickOrderItems.length === 0) {
         $('#emptyOrderMessage').show();
         $('#quickOrderItemsTable').hide();
         return;
     }
-    
+
     $('#emptyOrderMessage').hide();
     $('#quickOrderItemsTable').show();
-    
+
     let totalAmount = 0;
-    
+
     quickOrderItems.forEach((item, index) => {
         const itemTotal = item.quantity * item.price;
         totalAmount += itemTotal;
-        
+
         tbody.append(`
             <tr>
                 <td>${item.product_name}</td>
@@ -3500,7 +3500,7 @@ function updateQuickOrderTable() {
             </tr>
         `);
     });
-    
+
     $('#orderTotalAmount').text('$' + totalAmount.toFixed(2));
 }
 
@@ -3509,16 +3509,16 @@ function submitQuickOrder() {
         alert('Please add at least one item to the order');
         return;
     }
-    
+
     if (!confirm(`Submit order with ${quickOrderItems.length} item(s)?`)) {
         return;
     }
-    
+
     const orderData = {
         items: quickOrderItems,
         notes: $('#quickOrderNotes').val()
     };
-    
+
     $.ajax({
         url: `${API_BASE}/quick-orders`,
         method: 'POST',
@@ -3569,7 +3569,7 @@ function viewIMEITracking(productId) {
                             </thead>
                             <tbody>
         `;
-        
+
         if (data.imei_records.length === 0) {
             content += '<tr><td colspan="6" class="text-center text-muted">No IMEI records found</td></tr>';
         } else {
@@ -3577,7 +3577,7 @@ function viewIMEITracking(productId) {
                 const statusBadge = record.status === 'available' ? 'success' : 
                                    record.status === 'sold' ? 'danger' : 'warning';
                 const addedDate = new Date(record.created_at).toLocaleString();
-                
+
                 // Sale details for sold items
                 let saleDetails = '<span class="text-muted">-</span>';
                 if (record.status === 'sold' && record.sale_number) {
@@ -3590,7 +3590,7 @@ function viewIMEITracking(productId) {
                         </div>
                     `;
                 }
-                
+
                 // Action buttons
                 let actionButtons = '<span class="text-muted">-</span>';
                 if (record.status === 'available') {
@@ -3606,7 +3606,7 @@ function viewIMEITracking(productId) {
                         </button>
                     `;
                 }
-                
+
                 content += `
                     <tr class="${record.status === 'sold' ? 'table-light' : ''}">
                         <td><strong>${record.imei}</strong></td>
@@ -3619,7 +3619,7 @@ function viewIMEITracking(productId) {
                 `;
             });
         }
-        
+
         content += `
                             </tbody>
                         </table>
@@ -3627,9 +3627,9 @@ function viewIMEITracking(productId) {
                 </div>
             </div>
         `;
-        
+
         $('#imeiTrackingContent').html(content);
-        $('#imeiTrackingModal').data('product-id', id);
+        $('#imeiTrackingModal').data('product-id', productId);
         const modal = new bootstrap.Modal($('#imeiTrackingModal'));
         modal.show();
     }).fail(function(xhr) {
@@ -3639,7 +3639,7 @@ function viewIMEITracking(productId) {
 
 function markIMEISold(imeiId, imeiNumber) {
     if (!confirm(`Mark IMEI ${imeiNumber} as sold?`)) return;
-    
+
     $.ajax({
         url: `${API_BASE}/imei/${imeiId}/mark-sold`,
         method: 'POST',
@@ -3655,7 +3655,7 @@ function markIMEISold(imeiId, imeiNumber) {
 
 function deleteIMEI(imeiId, imeiNumber) {
     if (!confirm(`Are you sure you want to delete IMEI ${imeiNumber}?\n\nThis action cannot be undone.`)) return;
-    
+
     $.ajax({
         url: `${API_BASE}/imeis/${imeiId}`,
         method: 'DELETE',
@@ -3680,10 +3680,10 @@ function viewSaleDetails(saleId) {
         alert('Sale information not available');
         return;
     }
-    
+
     $.get(`${API_BASE}/pos/sales/${saleId}`, function(sale) {
         const saleDate = new Date(sale.sale_date).toLocaleString();
-        
+
         let content = `
             <div class="card">
                 <div class="card-header bg-primary text-white">
@@ -3702,7 +3702,7 @@ function viewSaleDetails(saleId) {
                             <p><strong>Payment Method:</strong> ${sale.payment_method || 'N/A'}</p>
                         </div>
                     </div>
-                    
+
                     <h6>Items</h6>
                     <table class="table table-sm table-bordered">
                         <thead>
@@ -3716,7 +3716,7 @@ function viewSaleDetails(saleId) {
                         </thead>
                         <tbody>
         `;
-        
+
         sale.items.forEach(item => {
             content += `
                 <tr>
@@ -3728,11 +3728,11 @@ function viewSaleDetails(saleId) {
                 </tr>
             `;
         });
-        
+
         content += `
                         </tbody>
                     </table>
-                    
+
                     <div class="row mt-3">
                         <div class="col-md-6 offset-md-6">
                             <table class="table table-sm">
@@ -3759,12 +3759,12 @@ function viewSaleDetails(saleId) {
                             </table>
                         </div>
                     </div>
-                    
+
                     ${sale.notes ? `<p class="mt-3"><strong>Notes:</strong> ${sale.notes}</p>` : ''}
                 </div>
             </div>
         `;
-        
+
         // Create a new modal for sale details
         const modal = $(`
             <div class="modal fade" id="saleDetailsModal" tabindex="-1">
@@ -3782,11 +3782,11 @@ function viewSaleDetails(saleId) {
                 </div>
             </div>
         `);
-        
+
         $('body').append(modal);
         const modalInstance = new bootstrap.Modal($('#saleDetailsModal'));
         modalInstance.show();
-        
+
         $('#saleDetailsModal').on('hidden.bs.modal', function() {
             $(this).remove();
         });
@@ -3820,7 +3820,7 @@ function viewProductDetails(productId) {
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         const costPrice = parseFloat(product.cost_price || 0);
         const sellingPrice = parseFloat(product.selling_price || 0);
         const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
@@ -3830,7 +3830,7 @@ function viewProductDetails(productId) {
                            product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
         const stockBadgeClass = product.current_stock === 0 ? 'danger' : 
                                product.current_stock <= product.min_stock_level ? 'warning' : 'success';
-        
+
         // Find the model image from models array
         let modelImage = 'https://via.placeholder.com/300x300?text=No+Image';
         if (product.model_id) {
@@ -3839,7 +3839,7 @@ function viewProductDetails(productId) {
                 modelImage = model.image_data;
             }
         }
-        
+
         // Use model image if available, otherwise fall back to product image_url
         const displayImage = modelImage !== 'https://via.placeholder.com/300x300?text=No+Image' ? modelImage : (product.image_url || 'https://via.placeholder.com/300x300?text=No+Image');
 
@@ -4119,16 +4119,16 @@ let posCustomer = {};
 function loadPOS() {
     posCart = [];
     posCustomer = {};
-    
+
     // Set current date and time
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 16);
-    
+
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
         </div>
-        
+
         <div class="row">
             <!-- Left Side - Product Search and Cart -->
             <div class="col-md-8">
@@ -4143,12 +4143,12 @@ function loadPOS() {
                             <label class="btn btn-outline-success" for="typeSale">
                                 <i class="bi bi-cart-check"></i> Sale
                             </label>
-                            
+
                             <input type="radio" class="btn-check" name="transactionType" id="typeReturn" value="return">
                             <label class="btn btn-outline-danger" for="typeReturn">
                                 <i class="bi bi-arrow-counterclockwise"></i> Return
                             </label>
-                            
+
                             <input type="radio" class="btn-check" name="transactionType" id="typeExchange" value="exchange">
                             <label class="btn btn-outline-warning" for="typeExchange">
                                 <i class="bi bi-arrow-repeat"></i> Exchange
@@ -4161,7 +4161,7 @@ function loadPOS() {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Product Search -->
                 <div class="card mb-3">
                     <div class="card-header bg-primary text-white">
@@ -4176,7 +4176,7 @@ function loadPOS() {
                         <div id="posSearchResults" class="mt-3"></div>
                     </div>
                 </div>
-                
+
                 <!-- Shopping Cart -->
                 <div class="card">
                     <div class="card-header text-white" id="cartHeader" style="background-color: #198754;">
@@ -4207,7 +4207,7 @@ function loadPOS() {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Right Side - Customer and Payment -->
             <div class="col-md-4">
                 <!-- Customer Information -->
@@ -4227,7 +4227,7 @@ function loadPOS() {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Bill Summary -->
                 <div class="card mb-3">
                     <div class="card-header bg-dark text-white">
@@ -4277,7 +4277,7 @@ function loadPOS() {
                         </div>
                     </div>
                 </div>
-                
+
                 <!-- Payment Method -->
                 <div class="card mb-3">
                     <div class="card-header bg-warning">
@@ -4294,7 +4294,7 @@ function loadPOS() {
                         <input type="text" class="form-control form-control-sm" id="posPaymentReference" placeholder="Reference Number (Optional)">
                     </div>
                 </div>
-                
+
                 <!-- Actions -->
                 <div class="d-grid gap-2">
                     <button class="btn btn-lg" id="completeTransactionBtn" onclick="completePOSSale()" style="background-color: #198754; color: white;">
@@ -4310,14 +4310,14 @@ function loadPOS() {
             </div>
         </div>
     `);
-    
+
     updatePOSCart();
-    
+
     // Transaction type change handler
     $('input[name="transactionType"]').on('change', function() {
         const transactionType = $(this).val();
         let buttonColor, buttonLabel;
-        
+
         if (transactionType === 'return') {
             $('#returnExchangeInfo').show();
             $('#transactionTypeNote').text('Returns will add stock back and refund the customer. Amount will show as negative.');
@@ -4333,25 +4333,25 @@ function loadPOS() {
             buttonColor = '#198754';
             buttonLabel = 'Complete Sale';
         }
-        
+
         $('#completeTransactionBtn').css('background-color', buttonColor);
         $('#completeButtonLabel').text(buttonLabel);
         updatePOSCart();
     });
-    
+
     // Product search with debounce
     let searchTimeout;
     $('#posProductSearch').on('input', function() {
         clearTimeout(searchTimeout);
         const query = $(this).val();
-        
+
         if (query.length >= 2) {
             searchTimeout = setTimeout(() => searchPOSProducts(query), 300);
         } else {
             $('#posSearchResults').empty();
         }
     });
-    
+
     // Calculate totals on discount/tax change
     $('#posDiscountPercent, #posTaxPercent').on('input', updatePOSCart);
 }
@@ -4360,12 +4360,12 @@ function searchPOSProducts(query) {
     $.get(`${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`, function(products) {
         const resultsDiv = $('#posSearchResults');
         resultsDiv.empty();
-        
+
         if (products.length === 0) {
             resultsDiv.html('<div class="alert alert-info">No products found</div>');
             return;
         }
-        
+
         const html = products.map(p => `
             <div class="product-search-item" onclick='addToPOSCart(${JSON.stringify(p)})' style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
                 <div class="d-flex justify-content-between align-items-center">
@@ -4385,14 +4385,14 @@ function searchPOSProducts(query) {
                 </div>
             </div>
         `).join('');
-        
+
         resultsDiv.html(html);
     });
 }
 
 function addToPOSCart(product) {
     const existingItem = posCart.find(item => item.product_id === product.id);
-    
+
     if (existingItem) {
         if (existingItem.quantity >= product.current_stock) {
             alert(`Maximum stock reached for ${product.name}. Available: ${product.current_stock}`);
@@ -4409,7 +4409,7 @@ function addToPOSCart(product) {
             max_stock: product.current_stock
         });
     }
-    
+
     $('#posProductSearch').val('').focus();
     $('#posSearchResults').empty();
     updatePOSCart();
@@ -4435,10 +4435,10 @@ function removeFromPOSCart(index) {
 function updatePOSCart() {
     const tbody = $('#posCartBody');
     tbody.empty();
-    
+
     // Get transaction type
     const transactionType = $('input[name="transactionType"]:checked').val();
-    
+
     // Update cart header based on transaction type
     let headerColor, headerIcon, headerLabel;
     if (transactionType === 'return') {
@@ -4456,14 +4456,14 @@ function updatePOSCart() {
     }
     $('#cartHeader').css('background-color', headerColor);
     $('#cartTypeLabel').html(`<i class="bi bi-${headerIcon}"></i> ${headerLabel}`);
-    
+
     if (posCart.length === 0) {
         $('#emptyCart').show();
         $('#posCartTable').hide();
     } else {
         $('#emptyCart').hide();
         $('#posCartTable').show();
-        
+
         posCart.forEach((item, index) => {
             const itemTotal = item.quantity * item.unit_price;
             tbody.append(`
@@ -4491,29 +4491,29 @@ function updatePOSCart() {
             `);
         });
     }
-    
+
     // Update transaction date and time
     const now = new Date();
     const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
     const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
     $('#posTransactionDate').text(now.toLocaleDateString('en-US', dateOptions));
     $('#posTransactionTime').text(now.toLocaleTimeString('en-US', timeOptions));
-    
+
     // Calculate totals
     let subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
     const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
-    
+
     // For returns, make values negative
     if (transactionType === 'return') {
         subtotal = -Math.abs(subtotal);
     }
-    
+
     const discountAmount = Math.abs(subtotal) * (discountPercent / 100);
     const taxableAmount = subtotal - (transactionType === 'return' ? -discountAmount : discountAmount);
     const taxAmount = Math.abs(taxableAmount) * (taxPercent / 100);
     const total = taxableAmount + (transactionType === 'return' ? -taxAmount : taxAmount);
-    
+
     $('#cartItemCount').text(posCart.length);
     $('#posSubtotal').text((transactionType === 'return' ? '-' : '') + '$' + Math.abs(subtotal).toFixed(2));
     $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
@@ -4534,19 +4534,19 @@ function completePOSSale() {
         alert('Please add items to cart');
         return;
     }
-    
+
     const transactionType = $('input[name="transactionType"]:checked').val();
     const transactionLabel = transactionType === 'return' ? 'Return' : 
                             transactionType === 'exchange' ? 'Exchange' : 'Sale';
-    
+
     // Confirm transaction
     if (!confirm(`Complete this ${transactionLabel}?`)) {
         return;
     }
-    
+
     const now = new Date();
     const saleDate = now.toISOString().slice(0, 19).replace('T', ' ');
-    
+
     const saleData = {
         items: posCart,
         customer_name: $('#customerName').val(),
@@ -4559,7 +4559,7 @@ function completePOSSale() {
         payment_method: $('#posPaymentMethod').val(),
         payment_reference: $('#posPaymentReference').val()
     };
-    
+
     $.ajax({
         url: `${API_BASE}/pos/sales`,
         method: 'POST',
@@ -4580,184 +4580,160 @@ function completePOSSale() {
 
 function viewStockHistory(productId) {
     try {
-        // Hide the product details modal if it's open
-        const productDetailsModal = bootstrap.Modal.getInstance($('#productDetailsModal'));
-        if (productDetailsModal) {
-            productDetailsModal.hide();
-        }
+        // Show loading state
+        $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
+
+        const modal = new bootstrap.Modal($('#stockHistoryModal'));
+        modal.show();
     } catch (error) {
-        console.error('Error hiding product details modal:', error);
+        console.error('Error showing stock history modal:', error);
+        alert('Error opening stock history. Please refresh the page and try again.');
+        return;
     }
 
-    // Helper function to safely escape HTML
-    function escapeHtml(text) {
-        if (text === null || text === undefined) return '';
-        const str = String(text);
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
-    }
+    // Load the stock history data
+    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
+        const productName = escapeHtml(data.product_name || 'Unknown Product');
 
-    // Wait a brief moment for the first modal to close, then show stock history modal
-    setTimeout(() => {
-        try {
-            // Show loading state
-            $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
-
-            const modal = new bootstrap.Modal($('#stockHistoryModal'));
-            modal.show();
-        } catch (error) {
-            console.error('Error showing stock history modal:', error);
-            alert('Error opening stock history. Please refresh the page and try again.');
-            return;
-        }
-
-        // Load the stock history data
-        $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
-            console.log('Stock history data received:', data);
-
-            const productName = escapeHtml(data.product_name || 'Unknown Product');
-
-            let content = `
-                <div class="mb-3">
-                    <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
-                    <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-sm table-striped table-hover table-bordered">
-                        <thead class="table-dark">
-                            <tr>
-                                <th style="min-width: 150px;"><i class="bi bi-calendar-event"></i> Date & Time</th>
-                                <th style="min-width: 100px;" class="text-center"><i class="bi bi-plus-circle text-success"></i> Stock Added</th>
-                                <th style="min-width: 100px;" class="text-center"><i class="bi bi-dash-circle text-danger"></i> Stock Removed</th>
-                                <th style="min-width: 150px;"><i class="bi bi-receipt"></i> Reference Number</th>
-                                <th style="min-width: 120px;"><i class="bi bi-person"></i> Performed By</th>
-                                <th style="min-width: 120px;" class="text-center"><i class="bi bi-bar-chart"></i> Running Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            if (!data.history || data.history.length === 0) {
-                content += '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
-            } else {
-                let totalAdded = 0;
-                let totalRemoved = 0;
-
-                data.history.forEach((item, index) => {
-                    try {
-                        const dateStr = item.date_time || '';
-                        const date = new Date(dateStr);
-                        const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'short', 
-                            day: 'numeric' 
-                        }) : 'Invalid Date';
-                        const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit',
-                            second: '2-digit'
-                        }) : '';
-
-                        const stockAddedVal = parseInt(item.stock_added) || 0;
-                        const stockRemovedVal = parseInt(item.stock_removed) || 0;
-
-                        const stockAdded = stockAddedVal > 0 
-                            ? `<span class="badge bg-success">+${stockAddedVal}</span>` 
-                            : '<span class="text-muted">-</span>';
-
-                        const stockRemoved = stockRemovedVal > 0 
-                            ? `<span class="badge bg-danger">-${stockRemovedVal}</span>` 
-                            : '<span class="text-muted">-</span>';
-
-                        const reference = escapeHtml(item.reference || 'Manual Entry');
-                        const performedBy = escapeHtml(item.received_by || 'System');
-
-                        const runningBalance = parseInt(item.running_balance) || 0;
-
-                        // Determine balance color based on stock level
-                        let balanceClass = 'text-primary';
-                        if (runningBalance === 0) {
-                            balanceClass = 'text-danger';
-                        } else if (runningBalance < 10) {
-                            balanceClass = 'text-warning';
-                        }
-
-                        totalAdded += stockAddedVal;
-                        totalRemoved += stockRemovedVal;
-
-                        content += `
-                            <tr>
-                                <td>
-                                    <div class="d-flex flex-column">
-                                        <span class="fw-bold">${formattedDate}</span>
-                                        <small class="text-muted">${formattedTime}</small>
-                                    </div>
-                                </td>
-                                <td class="text-center">${stockAdded}</td>
-                                <td class="text-center">${stockRemoved}</td>
-                                <td>
-                                    <span class="badge bg-info bg-opacity-10 text-dark">
-                                        <i class="bi bi-link-45deg"></i> ${reference}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge bg-secondary bg-opacity-10 text-dark">
-                                        <i class="bi bi-person-circle"></i> ${performedBy}
-                                    </span>
-                                </td>
-                                <td class="text-center">
-                                    <strong class="${balanceClass}" style="font-size: 1.1em;">${runningBalance}</strong>
-                                </td>
-                            </tr>
-                        `;
-                    } catch (err) {
-                        console.error('Error rendering row:', err, item);
-                    }
-                });
-
-                // Add summary row
-                const currentBalance = data.history.length > 0 ? (parseInt(data.history[data.history.length - 1].running_balance) || 0) : 0;
-
-                content += `
-                        <tr class="table-light fw-bold">
-                            <td class="text-end">SUMMARY:</td>
-                            <td class="text-center text-success">+${totalAdded}</td>
-                            <td class="text-center text-danger">-${totalRemoved}</td>
-                            <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
-                            <td class="text-center text-primary" style="font-size: 1.2em;">${currentBalance}</td>
+        let content = `
+            <div class="mb-3">
+                <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
+                <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="min-width: 150px;"><i class="bi bi-calendar-event"></i> Date & Time</th>
+                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-plus-circle text-success"></i> Stock Added</th>
+                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-dash-circle text-danger"></i> Stock Removed</th>
+                            <th style="min-width: 150px;"><i class="bi bi-receipt"></i> Reference Number</th>
+                            <th style="min-width: 120px;"><i class="bi bi-person"></i> Performed By</th>
+                            <th style="min-width: 120px;" class="text-center"><i class="bi bi-bar-chart"></i> Running Balance</th>
                         </tr>
-                `;
-            }
+                    </thead>
+                    <tbody>
+        `;
+
+        if (!data.history || data.history.length === 0) {
+            content += '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
+        } else {
+            let totalAdded = 0;
+            let totalRemoved = 0;
+
+            data.history.forEach((item, index) => {
+                try {
+                    const dateStr = item.date_time || '';
+                    const date = new Date(dateStr);
+                    const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    }) : 'Invalid Date';
+                    const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }) : '';
+
+                    const stockAddedVal = parseInt(item.stock_added) || 0;
+                    const stockRemovedVal = parseInt(item.stock_removed) || 0;
+
+                    const stockAdded = stockAddedVal > 0 
+                        ? `<span class="badge bg-success">+${stockAddedVal}</span>` 
+                        : '<span class="text-muted">-</span>';
+
+                    const stockRemoved = stockRemovedVal > 0 
+                        ? `<span class="badge bg-danger">-${stockRemovedVal}</span>` 
+                        : '<span class="text-muted">-</span>';
+
+                    const reference = escapeHtml(item.reference || 'Manual Entry');
+                    const performedBy = escapeHtml(item.received_by || 'System');
+
+                    const runningBalance = parseInt(item.running_balance) || 0;
+
+                    // Determine balance color based on stock level
+                    let balanceClass = 'text-primary';
+                    if (runningBalance === 0) {
+                        balanceClass = 'text-danger';
+                    } else if (runningBalance < 10) {
+                        balanceClass = 'text-warning';
+                    }
+
+                    totalAdded += stockAddedVal;
+                    totalRemoved += stockRemovedVal;
+
+                    content += `
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">${formattedDate}</span>
+                                    <small class="text-muted">${formattedTime}</small>
+                                </div>
+                            </td>
+                            <td class="text-center">${stockAdded}</td>
+                            <td class="text-center">${stockRemoved}</td>
+                            <td>
+                                <span class="badge bg-info bg-opacity-10 text-dark">
+                                    <i class="bi bi-link-45deg"></i> ${reference}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-10 text-dark">
+                                    <i class="bi bi-person-circle"></i> ${performedBy}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <strong class="${balanceClass}" style="font-size: 1.1em;">${runningBalance}</strong>
+                            </td>
+                        </tr>
+                    `;
+                } catch (err) {
+                    console.error('Error rendering row:', err, item);
+                }
+            });
+
+            // Add summary row
+            const currentBalance = data.history.length > 0 ? (parseInt(data.history[data.history.length - 1].running_balance) || 0) : 0;
 
             content += `
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3">
-                    <div class="alert alert-info mb-0">
-                        <i class="bi bi-info-circle"></i> <strong>Legend:</strong>
-                        <ul class="mb-0 mt-2">
-                            <li><strong>Stock Added:</strong> Incoming stock from purchases, returns, or manual adjustments</li>
-                            <li><strong>Stock Removed:</strong> Outgoing stock from sales or manual adjustments</li>
-                            <li><strong>Reference Number:</strong> Associated PO number, GRN number, or transaction identifier</li>
-                            <li><strong>Performed By:</strong> User who performed the transaction</li>
-                            <li><strong>Running Balance:</strong> Current stock level after each transaction</li>
-                        </ul>
-                    </div>
-                </div>
+                    <tr class="table-light fw-bold">
+                        <td class="text-end">SUMMARY:</td>
+                        <td class="text-center text-success">+${totalAdded}</td>
+                        <td class="text-center text-danger">-${totalRemoved}</td>
+                        <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
+                        <td class="text-center text-primary" style="font-size: 1.2em;">${currentBalance}</td>
+                    </tr>
             `;
+        }
 
-            $('#stockHistoryContent').html(content);
-        }).fail(function(xhr) {
-            console.error('Stock history API error:', xhr);
-            const errorMsg = escapeHtml((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to load stock history. Please try again.');
-            $('#stockHistoryContent').html(`
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
-                    <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
+        content += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i> <strong>Legend:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Stock Added:</strong> Incoming stock from purchases, returns, or manual adjustments</li>
+                        <li><strong>Stock Removed:</strong> Outgoing stock from sales or manual adjustments</li>
+                        <li><strong>Reference Number:</strong> Associated PO number, GRN number, or transaction identifier</li>
+                        <li><strong>Performed By:</strong> User who performed the transaction</li>
+                        <li><strong>Running Balance:</strong> Current stock level after each transaction</li>
+                    </ul>
                 </div>
-            `);
-        });
-    }, 300);
+            </div>
+        `;
+
+        $('#stockHistoryContent').html(content);
+    }).fail(function(xhr) {
+        console.error('Stock history API error:', xhr);
+        const errorMsg = escapeHtml((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to load stock history. Please try again.');
+        $('#stockHistoryContent').html(`
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
+            </div>
+        `);
+    });
 }
