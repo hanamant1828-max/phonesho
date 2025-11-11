@@ -353,6 +353,10 @@ def init_db():
 def index():
     return render_template('index.html')
 
+@app.route('/pos')
+def pos_page():
+    return render_template('pos.html')
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json

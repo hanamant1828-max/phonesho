@@ -3162,10 +3162,6 @@ function submitQuickOrder() {
     });
 }
 
-let posCart = [];
-let currentPOSProductForIMEI = null;
-let currentPOSCartIndex = null;
-
 function loadPOS() {
     posCart = [];
     
