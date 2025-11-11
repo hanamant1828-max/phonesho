@@ -567,19 +567,20 @@ def products():
         stock_status = request.args.get('stock_status', '')
 
         query = '''
-            SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
+            SELECT DISTINCT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
             LEFT JOIN brands b ON p.brand_id = b.id
             LEFT JOIN models m ON p.model_id = m.id
+            LEFT JOIN product_imei pi ON p.id = pi.product_id
             WHERE 1=1
         '''
         params = []
 
         if search:
-            query += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.description LIKE ?)'
+            query += ' AND (p.name LIKE ? OR p.sku LIKE ? OR p.description LIKE ? OR pi.imei LIKE ?)'
             search_param = f'%{search}%'
-            params.extend([search_param, search_param, search_param])
+            params.extend([search_param, search_param, search_param, search_param])
 
         if category_id:
             query += ' AND p.category_id = ?'
@@ -1660,6 +1661,106 @@ def report_grns():
         as_attachment=True,
         download_name=f'grn_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
+
+@app.route('/api/products/<int:id>/imei-tracking', methods=['GET'])
+@login_required
+def get_imei_tracking(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get product name
+    cursor.execute('SELECT name FROM products WHERE id = ?', (id,))
+    product_row = cursor.fetchone()
+    if not product_row:
+        conn.close()
+        return jsonify({'error': 'Product not found'}), 404
+    
+    product_name = product_row['name']
+    
+    # Get IMEI records
+    cursor.execute('''
+        SELECT 
+            pi.id,
+            pi.imei,
+            pi.status,
+            pi.created_at,
+            CASE 
+                WHEN sm.reference_type = 'purchase_order' THEN 'PO #' || sm.reference_id
+                WHEN sm.reference_type = 'manual' THEN 'Stock Adjustment'
+                ELSE sm.reference_type
+            END as reference
+        FROM product_imei pi
+        LEFT JOIN stock_movements sm ON pi.stock_movement_id = sm.id
+        WHERE pi.product_id = ?
+        ORDER BY pi.created_at DESC
+    ''', (id,))
+    
+    imei_records = [dict(row) for row in cursor.fetchall()]
+    
+    # Get total count
+    cursor.execute('SELECT COUNT(*) as count FROM product_imei WHERE product_id = ?', (id,))
+    total_count = cursor.fetchone()['count']
+    
+    conn.close()
+    
+    return jsonify({
+        'product_name': product_name,
+        'total_count': total_count,
+        'imei_records': imei_records
+    })
+
+@app.route('/api/imei/<int:id>/mark-sold', methods=['POST'])
+@login_required
+def mark_imei_sold(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('UPDATE product_imei SET status = ? WHERE id = ?', ('sold', id))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/products/search-by-imei', methods=['GET'])
+@login_required
+def search_by_imei():
+    imei = request.args.get('imei', '')
+    
+    if not imei:
+        return jsonify({'error': 'IMEI parameter required'}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Search in product_imei table
+    cursor.execute('''
+        SELECT 
+            pi.imei,
+            pi.status,
+            pi.created_at,
+            p.id as product_id,
+            p.name as product_name,
+            p.sku,
+            p.current_stock,
+            p.selling_price,
+            b.name as brand_name,
+            m.name as model_name
+        FROM product_imei pi
+        LEFT JOIN products p ON pi.product_id = p.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN models m ON p.model_id = m.id
+        WHERE pi.imei LIKE ?
+        LIMIT 20
+    ''', (f'%{imei}%',))
+    
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify(results)
 
 @app.route('/api/reports/profit', methods=['GET'])
 @login_required

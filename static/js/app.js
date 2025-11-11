@@ -504,7 +504,7 @@ function loadInventory() {
             <div class="row">
                 <div class="col-md-3">
                     <label class="form-label">Search</label>
-                    <input type="text" class="form-control" id="searchProduct" placeholder="Search products...">
+                    <input type="text" class="form-control" id="searchProduct" placeholder="Search by name, SKU, or IMEI...">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Category</label>
@@ -679,6 +679,9 @@ function loadInventoryData() {
                         <td>
                             <button class="btn btn-sm btn-success action-btn" onclick="viewProductDetails(${product.id})" title="View Details">
                                 <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary action-btn" onclick="viewIMEITracking(${product.id})" title="IMEI Tracking">
+                                <i class="bi bi-list-ul"></i>
                             </button>
                             <button class="btn btn-sm btn-info action-btn" onclick="viewStockHistory(${product.id})" title="Stock History">
                                 <i class="bi bi-clock-history"></i>
@@ -3535,6 +3538,89 @@ function submitQuickOrder() {
     });
 }
 
+function viewIMEITracking(productId) {
+    $.get(`${API_BASE}/products/${productId}/imei-tracking`, function(data) {
+        let content = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-upc-scan"></i> IMEI Tracking - ${data.product_name}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Total IMEI Records:</strong> ${data.total_count}
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>IMEI Number</th>
+                                    <th>Status</th>
+                                    <th>Added Date</th>
+                                    <th>Reference</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+        
+        if (data.imei_records.length === 0) {
+            content += '<tr><td colspan="5" class="text-center text-muted">No IMEI records found</td></tr>';
+        } else {
+            data.imei_records.forEach(record => {
+                const statusBadge = record.status === 'in_stock' ? 'success' : 
+                                   record.status === 'sold' ? 'danger' : 'warning';
+                const date = new Date(record.created_at).toLocaleString();
+                
+                content += `
+                    <tr>
+                        <td><strong>${record.imei}</strong></td>
+                        <td><span class="badge bg-${statusBadge}">${record.status.replace('_', ' ').toUpperCase()}</span></td>
+                        <td>${date}</td>
+                        <td>${record.reference || 'Manual Entry'}</td>
+                        <td>
+                            ${record.status === 'in_stock' ? `
+                                <button class="btn btn-sm btn-warning" onclick="markIMEISold(${record.id}, '${record.imei}')">
+                                    <i class="bi bi-cart"></i> Mark Sold
+                                </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+        
+        content += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        $('#imeiTrackingContent').html(content);
+        const modal = new bootstrap.Modal($('#imeiTrackingModal'));
+        modal.show();
+    }).fail(function(xhr) {
+        alert('Error loading IMEI tracking: ' + (xhr.responseJSON?.error || 'Unknown error'));
+    });
+}
+
+function markIMEISold(imeiId, imeiNumber) {
+    if (!confirm(`Mark IMEI ${imeiNumber} as sold?`)) return;
+    
+    $.ajax({
+        url: `${API_BASE}/imei/${imeiId}/mark-sold`,
+        method: 'POST',
+        success: function() {
+            alert('IMEI marked as sold');
+            $('#imeiTrackingModal').modal('hide');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update IMEI status'));
+        }
+    });
+}
+
 function viewProductDetails(productId) {
     try {
         // Show loading state
@@ -3615,6 +3701,9 @@ function viewProductDetails(productId) {
                                 </button>
                                 <button class="btn btn-info btn-sm" onclick="adjustStock(${product.id})">
                                     <i class="bi bi-plus-slash-minus"></i> Adjust Stock
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="viewIMEITracking(${product.id})">
+                                    <i class="bi bi-list-ul"></i> IMEI Tracking
                                 </button>
                                 <button class="btn btn-warning btn-sm" onclick="generateBarcode(${product.id})">
                                     <i class="bi bi-upc-scan"></i> Print Barcode
