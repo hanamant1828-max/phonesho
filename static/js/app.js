@@ -661,7 +661,7 @@ function loadInventoryData() {
             // Don't initialize DataTable for empty results
         } else {
             data.forEach(product => {
-                const stockClass = product.current_stock === 0 ? 'stock-out' : 
+                const stockClass = product.current_stock === 0 ? 'stock-out' :
                                  (product.current_stock <= product.min_stock_level ? 'stock-low' : 'stock-ok');
 
                 tbody.append(`
@@ -1157,7 +1157,7 @@ function showImportModal() {
         </div>
         <div id="importProgress" style="display:none;">
             <div class="progress mb-3">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" id="importProgressBar" 
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="importProgressBar"
                      role="progressbar" style="width: 0%"></div>
             </div>
             <p id="importProgressText" class="text-center"></p>
@@ -1637,8 +1637,8 @@ function loadModels() {
             tbody.append(`
                 <tr>
                     <td>
-                        <img src="${imageUrl}" 
-                             alt="${model.name}" 
+                        <img src="${imageUrl}"
+                             alt="${model.name}"
                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"
                              onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'; this.title='Image failed to load';">
                     </td>
@@ -2116,15 +2116,15 @@ function receivePO(id) {
                     <td>${item.quantity}</td>
                     <td>${item.received_quantity}</td>
                     <td>
-                        <input type="number" class="form-control form-control-sm receive-qty" 
+                        <input type="number" class="form-control form-control-sm receive-qty"
                                data-item-id="${item.id}" value="${remaining}" min="0" max="${remaining}">
                     </td>
                     <td>
-                        <input type="number" class="form-control form-control-sm receive-damaged" 
+                        <input type="number" class="form-control form-control-sm receive-damaged"
                                data-item-id="${item.id}" value="0" min="0" max="${remaining}">
                     </td>
                     <td>
-                        <input type="text" class="form-control form-control-sm receive-damage-reason" 
+                        <input type="text" class="form-control form-control-sm receive-damage-reason"
                                data-item-id="${item.id}" placeholder="Enter reason if damaged">
                     </td>
                 </tr>
@@ -2173,7 +2173,7 @@ function confirmReceivePO() {
         url: `${API_BASE}/purchase-orders/${poId}/receive`,
         method: 'POST',
         contentType: 'application/json',
-        data: JSON.stringify({ 
+        data: JSON.stringify({
             items: items,
             payment_status: paymentStatus,
             storage_location: storageLocation
@@ -2594,8 +2594,8 @@ function generateIMEIFields() {
         container.append(`
             <div class="col-md-6 col-lg-4 mb-2">
                 <label class="form-label small mb-1">Item #${i}</label>
-                <input type="text" class="form-control imei-input" id="imei_${i}" 
-                       placeholder="Enter IMEI" maxlength="15" 
+                <input type="text" class="form-control imei-input" id="imei_${i}"
+                       placeholder="Enter IMEI" maxlength="15"
                        data-index="${i}" pattern="[0-9]{15}">
             </div>
         `);
@@ -2810,13 +2810,13 @@ function viewAdjustmentDetail(id) {
                             </thead>
                             <tbody>
             `;
-            
+
             adj.imei_numbers.forEach((imei, index) => {
-                const statusBadge = imei.status === 'available' || imei.status === 'in_stock' 
-                    ? '<span class="badge bg-success">Available</span>' 
+                const statusBadge = imei.status === 'available' || imei.status === 'in_stock'
+                    ? '<span class="badge bg-success">Available</span>'
                     : '<span class="badge bg-danger">Sold</span>';
                 const imeiDate = imei.created_at ? new Date(imei.created_at).toLocaleDateString() : 'N/A';
-                
+
                 imeiSection += `
                     <tr>
                         <td>${index + 1}</td>
@@ -2826,7 +2826,7 @@ function viewAdjustmentDetail(id) {
                     </tr>
                 `;
             });
-            
+
             imeiSection += `
                             </tbody>
                         </table>
@@ -3629,7 +3629,7 @@ function viewIMEITracking(productId) {
             content += '<tr><td colspan="6" class="text-center text-muted">No IMEI records found</td></tr>';
         } else {
             data.imei_records.forEach(record => {
-                const statusBadge = record.status === 'available' ? 'success' : 
+                const statusBadge = record.status === 'available' ? 'success' :
                                    record.status === 'sold' ? 'danger' : 'warning';
                 const addedDate = new Date(record.created_at).toLocaleString();
 
@@ -3637,9 +3637,9 @@ function viewIMEITracking(productId) {
                 let saleDetails = '<span class="text-muted">-</span>';
                 if (record.status === 'sold' && record.sale_number) {
                     const soldDate = record.sold_date ? new Date(record.sold_date).toLocaleDateString() : 'N/A';
-                    const soldTime = record.sold_date ? new Date(record.sold_date).toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
+                    const soldTime = record.sold_date ? new Date(record.sold_date).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
                     }) : '';
 
                     saleDetails = `
@@ -3890,9 +3890,9 @@ function viewProductDetails(productId) {
         const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
         const profitColor = profitMargin > 30 ? 'success' : profitMargin > 15 ? 'warning' : 'danger';
 
-        const stockStatus = product.current_stock === 0 ? 'Out of Stock' : 
+        const stockStatus = product.current_stock === 0 ? 'Out of Stock' :
                            product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
-        const stockBadgeClass = product.current_stock === 0 ? 'danger' : 
+        const stockBadgeClass = product.current_stock === 0 ? 'danger' :
                                product.current_stock <= product.min_stock_level ? 'warning' : 'success';
 
         // Find the model image from models array
@@ -3913,7 +3913,7 @@ function viewProductDetails(productId) {
                 <div class="col-md-4">
                     <div class="card mb-3">
                         <div class="card-body text-center">
-                            <img src="${displayImage}" 
+                            <img src="${displayImage}"
                                  class="img-fluid rounded mb-2" style="max-height: 300px;" alt="${escapeHtml(product.name)}"
                                  onerror="this.src='https://via.placeholder.com/300x300?text=No+Image';">
                             <div class="d-flex justify-content-center gap-2">
@@ -3965,7 +3965,7 @@ function viewProductDetails(productId) {
                             <div class="row">
                                 <div class="col-md-6">
                                     <p><strong>Product Name:</strong> ${escapeHtml(product.name)}</p>
-                                    <p><strong>SKU:</strong> ${escapeHtml(product.sku) || 'N/A'} 
+                                    <p><strong>SKU:</strong> ${escapeHtml(product.sku) || 'N/A'}
                                         ${product.sku ? `<button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('${escapeHtml(product.sku)}')"><i class="bi bi-clipboard"></i></button>` : ''}
                                     </p>
                                     <p><strong>Category:</strong> ${escapeHtml(product.category_name) || 'N/A'}</p>
@@ -4234,7 +4234,7 @@ function loadPOS() {
                     <div class="card-body">
                         <div class="input-group input-group-lg">
                             <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                            <input type="text" class="form-control" id="posProductSearch" 
+                            <input type="text" class="form-control" id="posProductSearch"
                                    placeholder="Search by product name, SKU, or IMEI..." autofocus>
                         </div>
                         <div id="posSearchResults" class="mt-3"></div>
@@ -4245,7 +4245,7 @@ function loadPOS() {
                 <div class="card">
                     <div class="card-header text-white" id="cartHeader" style="background-color: #198754;">
                         <h5 class="mb-0">
-                            <i class="bi bi-cart"></i> <span id="cartTypeLabel">Shopping Cart</span> 
+                            <i class="bi bi-cart"></i> <span id="cartTypeLabel">Shopping Cart</span>
                             (<span id="cartItemCount">0</span> items)
                         </h5>
                     </div>
@@ -4257,6 +4257,7 @@ function loadPOS() {
                                         <th>Product</th>
                                         <th>Price</th>
                                         <th style="width: 120px;">Qty</th>
+                                        <th>IMEI</th>
                                         <th>Total</th>
                                         <th>Action</th>
                                     </tr>
@@ -4431,7 +4432,7 @@ function searchPOSProducts(query) {
         }
 
         const html = products.map(p => `
-            <div class="product-search-item" onclick='addToPOSCart(${JSON.stringify(p)})' style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
+            <div class="product-search-item" onclick='addToCart(${JSON.stringify(p)})' style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <strong>${p.name}</strong>
@@ -4454,29 +4455,35 @@ function searchPOSProducts(query) {
     });
 }
 
-function addToPOSCart(product) {
-    const existingItem = posCart.find(item => item.product_id === product.id);
+function addToCart(product) {
+    // Check if product has available IMEI numbers
+    $.get(`${API_BASE}/products/${product.id}/imeis?status=available`, function(imeis) {
+        const hasIMEI = imeis && imeis.length > 0;
 
-    if (existingItem) {
-        if (existingItem.quantity >= product.current_stock) {
-            alert(`Maximum stock reached for ${product.name}. Available: ${product.current_stock}`);
-            return;
+        const existingIndex = posCart.findIndex(item => item.product_id === product.id);
+
+        if (existingIndex >= 0) {
+            posCart[existingIndex].quantity += 1;
+            if (hasIMEI) {
+                posCart[existingIndex].imei_available = imeis;
+            }
+        } else {
+            posCart.push({
+                product_id: product.id,
+                product_name: product.name,
+                sku: product.sku,
+                unit_price: parseFloat(product.selling_price),
+                quantity: 1,
+                available_stock: product.current_stock,
+                imei_available: hasIMEI ? imeis : [],
+                imei_ids: []
+            });
         }
-        existingItem.quantity++;
-    } else {
-        posCart.push({
-            product_id: product.id,
-            product_name: product.name,
-            sku: product.sku,
-            unit_price: parseFloat(product.selling_price),
-            quantity: 1,
-            max_stock: product.current_stock
-        });
-    }
 
-    $('#posProductSearch').val('').focus();
-    $('#posSearchResults').empty();
-    updatePOSCart();
+        updatePOSCart();
+        $('#posProductSearch').val('').focus();
+        $('#posSearchResults').empty(); // Clear search results after adding to cart
+    });
 }
 
 function updatePOSCartQuantity(index, quantity) {
@@ -4530,6 +4537,18 @@ function updatePOSCart() {
 
         posCart.forEach((item, index) => {
             const itemTotal = item.quantity * item.unit_price;
+            const hasIMEI = item.imei_available && item.imei_available.length > 0;
+
+            let imeiDisplay = '-';
+            if (hasIMEI) {
+                const selectedCount = item.imei_ids ? item.imei_ids.length : 0;
+                imeiDisplay = `
+                    <button class="btn btn-sm btn-outline-primary" onclick="selectIMEI(${index})">
+                        <i class="bi bi-upc-scan"></i> Select (${selectedCount}/${item.quantity})
+                    </button>
+                `;
+            }
+
             tbody.append(`
                 <tr>
                     <td>
@@ -4538,13 +4557,15 @@ function updatePOSCart() {
                     </td>
                     <td>$${item.unit_price.toFixed(2)}</td>
                     <td>
-                        <div class="input-group input-group-sm">
+                        <div class="input-group input-group-sm" style="width: 120px;">
                             <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity - 1})">-</button>
-                            <input type="number" class="form-control text-center" value="${item.quantity}" 
+                            <input type="number" class="form-control text-center" value="${item.quantity}"
                                    onchange="updatePOSCartQuantity(${index}, parseInt(this.value))" min="1" max="${item.max_stock}">
                             <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity + 1})">+</button>
                         </div>
+                        <small class="text-muted">Stock: ${item.max_stock}</small>
                     </td>
+                    <td>${imeiDisplay}</td>
                     <td><strong>$${itemTotal.toFixed(2)}</strong></td>
                     <td>
                         <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
@@ -4593,14 +4614,88 @@ function clearPOSCart() {
     updatePOSCart();
 }
 
+function selectIMEI(cartIndex) {
+    const item = posCart[cartIndex];
+
+    if (!item.imei_available || item.imei_available.length === 0) {
+        alert('No IMEI numbers available for this product');
+        return;
+    }
+
+    $('#imeiProductName').text(item.product_name);
+    $('#imeiQuantityRequired').text(item.quantity);
+
+    const tbody = $('#imeiSelectionList');
+    tbody.empty();
+
+    item.imei_available.forEach(imei => {
+        const isSelected = item.imei_ids && item.imei_ids.includes(imei.id);
+        tbody.append(`
+            <tr>
+                <td>
+                    <input type="checkbox" class="form-check-input imei-checkbox"
+                           value="${imei.id}" data-imei="${imei.imei}"
+                           ${isSelected ? 'checked' : ''}>
+                </td>
+                <td><code>${imei.imei}</code></td>
+                <td><span class="badge bg-success">Available</span></td>
+            </tr>
+        `);
+    });
+
+    $('#imeiSelectionError').hide();
+    $('#confirmImeiSelectionBtn').data('cart-index', cartIndex);
+
+    const modal = new bootstrap.Modal($('#imeiSelectionModal'));
+    modal.show();
+}
+
+function confirmImeiSelection() {
+    const cartIndex = $('#confirmImeiSelectionBtn').data('cart-index');
+    const item = posCart[cartIndex];
+
+    const selectedIMEIs = [];
+    $('.imei-checkbox:checked').each(function() {
+        selectedIMEIs.push({
+            id: parseInt($(this).val()),
+            imei: $(this).data('imei')
+        });
+    });
+
+    if (selectedIMEIs.length !== item.quantity) {
+        $('#imeiSelectionError').text(
+            `Please select exactly ${item.quantity} IMEI number(s). Currently selected: ${selectedIMEIs.length}`
+        ).show();
+        return;
+    }
+
+    posCart[cartIndex].imei_ids = selectedIMEIs.map(i => i.id);
+    posCart[cartIndex].imei_numbers = selectedIMEIs.map(i => i.imei);
+
+    bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
+    updatePOSCart();
+}
+
 function completePOSSale() {
     if (posCart.length === 0) {
         alert('Please add items to cart');
         return;
     }
 
+    // Check if all items with available IMEIs have the required number selected
+    for (let item of posCart) {
+        if (item.imei_available && item.imei_available.length > 0) {
+            const selectedCount = item.imei_ids ? item.imei_ids.length : 0;
+            if (selectedCount !== item.quantity) {
+                alert(`Please select ${item.quantity} IMEI number(s) for ${item.product_name}`);
+                return;
+            }
+        }
+    }
+
+
     const transactionType = $('input[name="transactionType"]:checked').val();
-    const transactionLabel = transactionType === 'return' ? 'Return' : 
+    const transactionLabel = transactionType === 'return' ? 'Return' :
                             transactionType === 'exchange' ? 'Exchange' : 'Sale';
 
     // Confirm transaction
@@ -4689,13 +4784,13 @@ function viewStockHistory(productId) {
                 try {
                     const dateStr = item.date_time || '';
                     const date = new Date(dateStr);
-                    const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', { 
-                        year: 'numeric', 
-                        month: 'short', 
-                        day: 'numeric' 
+                    const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
                     }) : 'Invalid Date';
-                    const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', { 
-                        hour: '2-digit', 
+                    const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
                         minute: '2-digit',
                         second: '2-digit'
                     }) : '';
@@ -4703,12 +4798,12 @@ function viewStockHistory(productId) {
                     const stockAddedVal = parseInt(item.stock_added) || 0;
                     const stockRemovedVal = parseInt(item.stock_removed) || 0;
 
-                    const stockAdded = stockAddedVal > 0 
-                        ? `<span class="badge bg-success">+${stockAddedVal}</span>` 
+                    const stockAdded = stockAddedVal > 0
+                        ? `<span class="badge bg-success">+${stockAddedVal}</span>`
                         : '<span class="text-muted">-</span>';
 
-                    const stockRemoved = stockRemovedVal > 0 
-                        ? `<span class="badge bg-danger">-${stockRemovedVal}</span>` 
+                    const stockRemoved = stockRemovedVal > 0
+                        ? `<span class="badge bg-danger">-${stockRemovedVal}</span>`
                         : '<span class="text-muted">-</span>';
 
                     const reference = escapeHtml(item.reference || 'Manual Entry');
