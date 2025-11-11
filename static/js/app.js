@@ -2381,13 +2381,28 @@ function loadStockAdjustment() {
             <p class="text-muted">Add stock to existing products with optional IMEI tracking</p>
         </div>
 
-        <div class="row justify-content-center">
-            <div class="col-md-10">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Adjust Stock</h5>
-                    </div>
-                    <div class="card-body">
+        <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="adjust-tab" data-bs-toggle="tab" data-bs-target="#adjust-panel" type="button">
+                    <i class="bi bi-box-arrow-in-down"></i> Adjust Stock
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history-panel" type="button">
+                    <i class="bi bi-clock-history"></i> Adjustment History
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="adjust-panel" role="tabpanel">
+                <div class="row justify-content-center">
+                    <div class="col-md-10">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Adjust Stock</h5>
+                            </div>
+                            <div class="card-body">
                         <div class="mb-4">
                             <label class="form-label fw-bold">Select Product</label>
                             <select class="form-select form-select-lg" id="adjustmentProduct">
@@ -2468,9 +2483,50 @@ function loadStockAdjustment() {
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="tab-pane fade" id="history-panel" role="tabpanel">
+        <div class="card">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Stock Adjustment History</h5>
+                <button class="btn btn-sm btn-light" onclick="loadAdjustmentHistory()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="adjustmentHistoryTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Date & Time</th>
+                                <th>Product</th>
+                                <th>SKU</th>
+                                <th>Quantity Added</th>
+                                <th>IMEI Count</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adjustmentHistoryBody">
+                            <tr>
+                                <td colspan="8" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
     `);
 
     loadProductsForAdjustment();
+    loadAdjustmentHistory();
 
     $('#adjustmentProduct').on('change', function() {
         const productId = $(this).val();
@@ -2691,6 +2747,126 @@ function submitStockAdjustment() {
         },
         error: function(xhr) {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update stock'));
+        }
+    });
+}
+
+function loadAdjustmentHistory() {
+    $.get(`${API_BASE}/stock-adjustments`, function(adjustments) {
+        const tbody = $('#adjustmentHistoryBody');
+        tbody.empty();
+
+        if (adjustments.length === 0) {
+            tbody.append(`
+                <tr>
+                    <td colspan="8" class="text-center text-muted">
+                        <i class="bi bi-inbox"></i> No stock adjustments found
+                    </td>
+                </tr>
+            `);
+            return;
+        }
+
+        adjustments.forEach((adj, index) => {
+            const date = new Date(adj.created_at);
+            const formattedDate = date.toLocaleString();
+            const imeiText = adj.imei_count > 0 ? `<span class="badge bg-info">${adj.imei_count} IMEI</span>` : '-';
+            const notes = adj.notes || '-';
+
+            tbody.append(`
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${formattedDate}</td>
+                    <td>${adj.product_name || 'N/A'}</td>
+                    <td>${adj.sku || 'N/A'}</td>
+                    <td><span class="badge bg-success">+${adj.quantity}</span></td>
+                    <td>${imeiText}</td>
+                    <td>${notes}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewAdjustmentDetail(${adj.id})" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteAdjustment(${adj.id}, '${adj.product_name}')" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    }).fail(function(xhr) {
+        $('#adjustmentHistoryBody').html(`
+            <tr>
+                <td colspan="8" class="text-center text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load adjustment history
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function viewAdjustmentDetail(id) {
+    $.get(`${API_BASE}/stock-adjustments/${id}`, function(adj) {
+        const date = new Date(adj.created_at);
+        const formattedDate = date.toLocaleString();
+        
+        let imeiList = '';
+        if (adj.imei_numbers && adj.imei_numbers.length > 0) {
+            imeiList = '<div class="mt-3"><h6>IMEI Numbers:</h6><ul class="list-group">';
+            adj.imei_numbers.forEach(imei => {
+                const statusBadge = imei.status === 'available' || imei.status === 'in_stock' 
+                    ? '<span class="badge bg-success">Available</span>' 
+                    : '<span class="badge bg-warning">Sold</span>';
+                imeiList += `<li class="list-group-item d-flex justify-content-between align-items-center">
+                    ${imei.imei}
+                    ${statusBadge}
+                </li>`;
+            });
+            imeiList += '</ul></div>';
+        }
+        
+        const content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Product:</strong> ${adj.product_name}</p>
+                    <p><strong>SKU:</strong> ${adj.sku || 'N/A'}</p>
+                    <p><strong>Current Stock:</strong> ${adj.current_stock}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Date:</strong> ${formattedDate}</p>
+                    <p><strong>Quantity Added:</strong> <span class="badge bg-success">+${adj.quantity}</span></p>
+                    <p><strong>Notes:</strong> ${adj.notes || 'None'}</p>
+                </div>
+            </div>
+            ${imeiList}
+        `;
+        
+        $('#adjustmentDetailContent').html(content);
+        const modal = new bootstrap.Modal($('#adjustmentDetailModal'));
+        modal.show();
+    }).fail(function(xhr) {
+        alert('Error: Failed to load adjustment details');
+    });
+}
+
+function deleteAdjustment(id, productName) {
+    if (!confirm(`Are you sure you want to delete this stock adjustment for ${productName}?\n\nThis will reverse the stock change. This action cannot be undone.`)) {
+        return;
+    }
+    
+    $.ajax({
+        url: `${API_BASE}/stock-adjustments/${id}`,
+        method: 'DELETE',
+        success: function(response) {
+            if (response.success) {
+                alert('Stock adjustment deleted successfully. Stock has been reversed.');
+                loadAdjustmentHistory();
+            } else {
+                alert('Error: ' + (response.error || 'Failed to delete adjustment'));
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'Failed to delete adjustment';
+            alert('Error: ' + errorMsg);
         }
     });
 }

@@ -1419,6 +1419,141 @@ def stock_adjustment():
     finally:
         conn.close()
 
+@app.route('/api/stock-adjustments', methods=['GET'])
+@login_required
+def get_stock_adjustments():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT 
+            sm.id,
+            sm.product_id,
+            p.name as product_name,
+            p.sku,
+            sm.quantity,
+            sm.notes,
+            sm.created_at,
+            COUNT(pi.id) as imei_count
+        FROM stock_movements sm
+        LEFT JOIN products p ON sm.product_id = p.id
+        LEFT JOIN product_imei pi ON sm.id = pi.stock_movement_id
+        WHERE sm.type = 'adjustment'
+        GROUP BY sm.id
+        ORDER BY sm.created_at DESC
+    ''')
+    
+    adjustments = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify(adjustments)
+
+@app.route('/api/stock-adjustments/<int:id>', methods=['GET', 'DELETE'])
+@login_required
+def stock_adjustment_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'GET':
+        cursor.execute('''
+            SELECT 
+                sm.id,
+                sm.product_id,
+                p.name as product_name,
+                p.sku,
+                p.current_stock,
+                sm.quantity,
+                sm.notes,
+                sm.created_at
+            FROM stock_movements sm
+            LEFT JOIN products p ON sm.product_id = p.id
+            WHERE sm.id = ? AND sm.type = 'adjustment'
+        ''', (id,))
+        
+        adjustment = cursor.fetchone()
+        if not adjustment:
+            conn.close()
+            return jsonify({'error': 'Stock adjustment not found'}), 404
+        
+        adjustment_dict = dict(adjustment)
+        
+        cursor.execute('''
+            SELECT imei, status, created_at
+            FROM product_imei
+            WHERE stock_movement_id = ?
+            ORDER BY created_at
+        ''', (id,))
+        
+        adjustment_dict['imei_numbers'] = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return jsonify(adjustment_dict)
+    
+    elif request.method == 'DELETE':
+        try:
+            cursor.execute('''
+                SELECT product_id, quantity
+                FROM stock_movements
+                WHERE id = ? AND type = 'adjustment'
+            ''', (id,))
+            
+            movement = cursor.fetchone()
+            if not movement:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Adjustment not found'}), 404
+            
+            product_id = movement['product_id']
+            quantity = movement['quantity']
+            
+            cursor.execute('SELECT current_stock FROM products WHERE id = ?', (product_id,))
+            product = cursor.fetchone()
+            
+            if not product:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Product not found'}), 404
+            
+            current_stock = product['current_stock'] or 0
+            
+            if current_stock < quantity:
+                conn.close()
+                return jsonify({
+                    'success': False, 
+                    'error': f'Cannot delete adjustment: current stock ({current_stock}) is less than adjustment quantity ({quantity}). Stock may have been sold or adjusted.'
+                }), 409
+            
+            cursor.execute('''
+                SELECT COUNT(*) as sold_count
+                FROM product_imei
+                WHERE stock_movement_id = ? AND status != 'available' AND status != 'in_stock'
+            ''', (id,))
+            
+            sold_imeis = cursor.fetchone()['sold_count']
+            
+            if sold_imeis > 0:
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': f'Cannot delete adjustment: {sold_imeis} IMEI number(s) from this adjustment have been sold. Delete operation would corrupt sale history.'
+                }), 409
+            
+            cursor.execute('''
+                UPDATE products 
+                SET current_stock = current_stock - ?
+                WHERE id = ?
+            ''', (quantity, product_id))
+            
+            cursor.execute('DELETE FROM product_imei WHERE stock_movement_id = ?', (id,))
+            cursor.execute('DELETE FROM stock_movements WHERE id = ?', (id,))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/reports/sales', methods=['GET'])
 @login_required
 def report_sales():
