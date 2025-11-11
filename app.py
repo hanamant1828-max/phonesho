@@ -308,6 +308,26 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS product_imei (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            imei TEXT UNIQUE NOT NULL,
+            status TEXT DEFAULT 'available',
+            grn_id INTEGER,
+            stock_movement_id INTEGER,
+            received_date TIMESTAMP,
+            sale_id INTEGER,
+            sold_date TIMESTAMP,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products (id),
+            FOREIGN KEY (grn_id) REFERENCES grns (id),
+            FOREIGN KEY (stock_movement_id) REFERENCES stock_movements (id),
+            FOREIGN KEY (sale_id) REFERENCES pos_sales (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -733,6 +753,88 @@ def bulk_update_products():
     conn.close()
     return jsonify({'success': True, 'updated': len(ids)})
 
+@app.route('/api/products/<int:product_id>/imeis', methods=['GET', 'POST'])
+@login_required
+def manage_product_imeis(product_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        imei_list = data.get('imeis', [])
+        grn_id = data.get('grn_id')
+        stock_movement_id = data.get('stock_movement_id')
+        
+        try:
+            added_imeis = []
+            for imei in imei_list:
+                if not imei or not imei.strip():
+                    continue
+                    
+                cursor.execute('''
+                    INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ''', (product_id, imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
+                added_imeis.append(imei.strip())
+            
+            conn.commit()
+            return jsonify({'success': True, 'added': len(added_imeis), 'imeis': added_imeis})
+        except sqlite3.IntegrityError as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': 'One or more IMEI numbers already exist'}), 400
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+    else:
+        status = request.args.get('status', '')
+        
+        query = '''
+            SELECT pi.*, ps.sale_number, ps.customer_name, ps.sale_date
+            FROM product_imei pi
+            LEFT JOIN pos_sales ps ON pi.sale_id = ps.id
+            WHERE pi.product_id = ?
+        '''
+        params = [product_id]
+        
+        if status:
+            query += ' AND pi.status = ?'
+            params.append(status)
+        
+        query += ' ORDER BY pi.created_at DESC'
+        
+        cursor.execute(query, params)
+        imeis = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        return jsonify(imeis)
+
+@app.route('/api/imeis/<int:imei_id>', methods=['DELETE'])
+@login_required
+def delete_imei(imei_id):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('SELECT status FROM product_imei WHERE id = ?', (imei_id,))
+        imei_row = cursor.fetchone()
+        
+        if not imei_row:
+            return jsonify({'success': False, 'error': 'IMEI not found'}), 404
+        
+        if imei_row['status'] == 'sold':
+            return jsonify({'success': False, 'error': 'Cannot delete sold IMEI'}), 400
+        
+        cursor.execute('DELETE FROM product_imei WHERE id = ?', (imei_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
 @app.route('/api/purchase-orders', methods=['GET', 'POST'])
 @login_required
 def purchase_orders():
@@ -909,6 +1011,18 @@ def receive_purchase_order(id):
                         VALUES (?, ?, ?, ?, ?, ?)
                     ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id, 
                           f"Received from PO #{id}"))
+                    
+                    stock_movement_id = cursor.lastrowid
+                    
+                    # Add IMEI numbers if provided
+                    imei_list = item.get('imeis', [])
+                    if imei_list:
+                        for imei in imei_list:
+                            if imei and imei.strip():
+                                cursor.execute('''
+                                    INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
+                                    VALUES (?, ?, ?, ?, ?, ?)
+                                ''', (po_item['product_id'], imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
                 else:
                     # Product was deleted, create new one
                     cursor.execute('''
@@ -939,6 +1053,18 @@ def receive_purchase_order(id):
                         VALUES (?, ?, ?, ?, ?, ?)
                     ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
                           f"Initial stock from PO #{id}"))
+                    
+                    stock_movement_id = cursor.lastrowid
+                    
+                    # Add IMEI numbers if provided
+                    imei_list = item.get('imeis', [])
+                    if imei_list:
+                        for imei in imei_list:
+                            if imei and imei.strip():
+                                cursor.execute('''
+                                    INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
+                                    VALUES (?, ?, ?, ?, ?, ?)
+                                ''', (new_product_id, imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
             else:
                 # Create new product
                 cursor.execute('''
@@ -969,6 +1095,18 @@ def receive_purchase_order(id):
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
                       f"Initial stock from PO #{id}"))
+                
+                stock_movement_id = cursor.lastrowid
+                
+                # Add IMEI numbers if provided
+                imei_list = item.get('imeis', [])
+                if imei_list:
+                    for imei in imei_list:
+                        if imei and imei.strip():
+                            cursor.execute('''
+                                INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
+                                VALUES (?, ?, ?, ?, ?, ?)
+                            ''', (new_product_id, imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
 
         # Check if all items are fully received
         cursor.execute('''
@@ -2689,6 +2827,29 @@ def pos_sales():
                 if transaction_type == 'sale' and product['current_stock'] < quantity:
                     raise ValueError(f'Insufficient stock for {product["name"]}')
                 
+                # Get IMEI IDs if provided
+                imei_ids = item.get('imei_ids', [])
+                imei_string = None
+                
+                # If IMEI IDs are provided, validate them
+                if imei_ids:
+                    if len(imei_ids) != quantity:
+                        raise ValueError(f'Number of IMEIs ({len(imei_ids)}) must match quantity ({quantity}) for {product["name"]}')
+                    
+                    # Validate all IMEIs exist and are available
+                    placeholders = ','.join('?' * len(imei_ids))
+                    cursor.execute(f'''
+                        SELECT id, imei FROM product_imei 
+                        WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
+                    ''', (*imei_ids, product_id))
+                    
+                    available_imeis = cursor.fetchall()
+                    if len(available_imeis) != len(imei_ids):
+                        raise ValueError(f'One or more selected IMEIs are not available for {product["name"]}')
+                    
+                    # Store comma-separated IMEI numbers for display
+                    imei_string = ','.join([row['imei'] for row in available_imeis])
+                
                 # Add sale item
                 cursor.execute('''
                     INSERT INTO pos_sale_items (
@@ -2697,7 +2858,7 @@ def pos_sales():
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     sale_id, product_id, product['name'], item.get('sku'),
-                    quantity, unit_price, item_total, item.get('imei')
+                    quantity, unit_price, item_total, imei_string
                 ))
                 
                 # Update stock based on transaction type
@@ -2709,6 +2870,19 @@ def pos_sales():
                     )
                     movement_type = 'sale'
                     movement_qty = -quantity
+                    
+                    # Mark IMEIs as sold if provided
+                    if imei_ids:
+                        placeholders = ','.join('?' * len(imei_ids))
+                        cursor.execute(f'''
+                            UPDATE product_imei 
+                            SET status = 'sold', sale_id = ?, sold_date = ?
+                            WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
+                        ''', (sale_id, datetime.now(), *imei_ids, product_id))
+                        
+                        # Verify all IMEIs were updated (atomic check for race conditions)
+                        if cursor.rowcount != len(imei_ids):
+                            raise ValueError(f'Failed to mark all IMEIs as sold for {product["name"]}. Some IMEIs may have been sold by another transaction.')
                 elif transaction_type == 'return':
                     # Add stock back for returns
                     cursor.execute(
@@ -2717,6 +2891,30 @@ def pos_sales():
                     )
                     movement_type = 'return'
                     movement_qty = quantity
+                    
+                    # Mark IMEIs as available again if IMEI IDs provided
+                    if imei_ids:
+                        # Validate that these IMEIs belong to this product and are sold
+                        placeholders = ','.join('?' * len(imei_ids))
+                        cursor.execute(f'''
+                            SELECT id FROM product_imei 
+                            WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
+                        ''', (*imei_ids, product_id))
+                        
+                        sold_imeis = cursor.fetchall()
+                        if len(sold_imeis) != len(imei_ids):
+                            raise ValueError(f'One or more selected IMEIs cannot be returned for {product["name"]}')
+                        
+                        # Mark as available again
+                        cursor.execute(f'''
+                            UPDATE product_imei 
+                            SET status = 'available', sale_id = NULL, sold_date = NULL
+                            WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
+                        ''', (*imei_ids, product_id))
+                        
+                        # Verify all IMEIs were updated (atomic check for race conditions)
+                        if cursor.rowcount != len(imei_ids):
+                            raise ValueError(f'Failed to mark all IMEIs as available for {product["name"]}. Some IMEIs may have been modified by another transaction.')
                 
                 # Record stock movement
                 cursor.execute('''
