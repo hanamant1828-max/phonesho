@@ -1824,7 +1824,7 @@ def get_imei_tracking(id):
             pi.imei,
             pi.status,
             pi.created_at,
-            pi.sale_date,
+            pi.sold_date,
             ps.sale_number,
             ps.customer_name,
             CASE 
