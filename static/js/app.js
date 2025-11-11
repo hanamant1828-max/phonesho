@@ -3579,36 +3579,42 @@ function viewIMEITracking(productId) {
                 const addedDate = new Date(record.created_at).toLocaleString();
                 
                 // Sale details for sold items
-                let saleDetails = '-';
+                let saleDetails = '<span class="text-muted">-</span>';
                 if (record.status === 'sold' && record.sale_number) {
-                    const soldDate = record.sale_date ? new Date(record.sale_date).toLocaleString() : 'N/A';
+                    const soldDate = record.sold_date ? new Date(record.sold_date).toLocaleDateString() : 'N/A';
                     saleDetails = `
-                        <div>
-                            <strong>${record.sale_number}</strong>
-                            ${record.customer_name ? `<br><small class="text-muted">Customer: ${record.customer_name}</small>` : ''}
-                            <br><small class="text-muted">Sold: ${soldDate}</small>
+                        <div class="small">
+                            <strong class="text-primary">${record.sale_number}</strong>
+                            ${record.customer_name ? `<br><i class="bi bi-person"></i> ${record.customer_name}` : ''}
+                            <br><i class="bi bi-calendar"></i> ${soldDate}
                         </div>
                     `;
                 }
                 
+                // Action buttons
+                let actionButtons = '<span class="text-muted">-</span>';
+                if (record.status === 'available') {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-danger" onclick="deleteIMEI(${record.id}, '${record.imei}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    `;
+                } else if (record.status === 'sold') {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-info" onclick="viewSaleDetails(${record.sale_id})" title="View Sale">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    `;
+                }
+                
                 content += `
-                    <tr class="${record.status === 'sold' ? 'table-danger' : ''}">
+                    <tr class="${record.status === 'sold' ? 'table-light' : ''}">
                         <td><strong>${record.imei}</strong></td>
-                        <td><span class="badge bg-${statusBadge}">${record.status.replace('_', ' ').toUpperCase()}</span></td>
+                        <td><span class="badge bg-${statusBadge}">${record.status.toUpperCase()}</span></td>
                         <td><small>${addedDate}</small></td>
                         <td><small>${record.reference || 'Manual Entry'}</small></td>
                         <td>${saleDetails}</td>
-                        <td>
-                            ${record.status === 'available' ? `
-                                <button class="btn btn-sm btn-warning" onclick="markIMEISold(${record.id}, '${record.imei}')">
-                                    <i class="bi bi-cart"></i> Mark Sold
-                                </button>
-                            ` : record.status === 'sold' ? `
-                                <span class="badge bg-secondary">
-                                    <i class="bi bi-lock"></i> Sold
-                                </span>
-                            ` : ''}
-                        </td>
+                        <td>${actionButtons}</td>
                     </tr>
                 `;
             });
@@ -3623,6 +3629,7 @@ function viewIMEITracking(productId) {
         `;
         
         $('#imeiTrackingContent').html(content);
+        $('#imeiTrackingModal').data('product-id', id);
         const modal = new bootstrap.Modal($('#imeiTrackingModal'));
         modal.show();
     }).fail(function(xhr) {
@@ -3643,6 +3650,148 @@ function markIMEISold(imeiId, imeiNumber) {
         error: function(xhr) {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update IMEI status'));
         }
+    });
+}
+
+function deleteIMEI(imeiId, imeiNumber) {
+    if (!confirm(`Are you sure you want to delete IMEI ${imeiNumber}?\n\nThis action cannot be undone.`)) return;
+    
+    $.ajax({
+        url: `${API_BASE}/imeis/${imeiId}`,
+        method: 'DELETE',
+        success: function() {
+            alert('IMEI deleted successfully');
+            // Refresh the IMEI tracking modal
+            const productId = $('#imeiTrackingModal').data('product-id');
+            if (productId) {
+                viewIMEITracking(productId);
+            } else {
+                $('#imeiTrackingModal').modal('hide');
+            }
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to delete IMEI'));
+        }
+    });
+}
+
+function viewSaleDetails(saleId) {
+    if (!saleId) {
+        alert('Sale information not available');
+        return;
+    }
+    
+    $.get(`${API_BASE}/pos/sales/${saleId}`, function(sale) {
+        const saleDate = new Date(sale.sale_date).toLocaleString();
+        
+        let content = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-receipt"></i> Sale Details - ${sale.sale_number}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Sale Number:</strong> ${sale.sale_number}</p>
+                            <p><strong>Date:</strong> ${saleDate}</p>
+                            <p><strong>Transaction Type:</strong> <span class="badge bg-${sale.transaction_type === 'sale' ? 'success' : 'warning'}">${sale.transaction_type.toUpperCase()}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Customer:</strong> ${sale.customer_name || 'Walk-in'}</p>
+                            ${sale.customer_phone ? `<p><strong>Phone:</strong> ${sale.customer_phone}</p>` : ''}
+                            <p><strong>Payment Method:</strong> ${sale.payment_method || 'N/A'}</p>
+                        </div>
+                    </div>
+                    
+                    <h6>Items</h6>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                                <th>IMEI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        sale.items.forEach(item => {
+            content += `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td>$${parseFloat(item.total_price).toFixed(2)}</td>
+                    <td>${item.imei || '-'}</td>
+                </tr>
+            `;
+        });
+        
+        content += `
+                        </tbody>
+                    </table>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6 offset-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.subtotal).toFixed(2)}</td>
+                                </tr>
+                                ${sale.discount_amount > 0 ? `
+                                <tr>
+                                    <td class="text-end"><strong>Discount:</strong></td>
+                                    <td class="text-end text-danger">-$${parseFloat(sale.discount_amount).toFixed(2)}</td>
+                                </tr>
+                                ` : ''}
+                                ${sale.tax_amount > 0 ? `
+                                <tr>
+                                    <td class="text-end"><strong>Tax:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.tax_amount).toFixed(2)}</td>
+                                </tr>
+                                ` : ''}
+                                <tr class="fw-bold">
+                                    <td class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.total_amount).toFixed(2)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    ${sale.notes ? `<p class="mt-3"><strong>Notes:</strong> ${sale.notes}</p>` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Create a new modal for sale details
+        const modal = $(`
+            <div class="modal fade" id="saleDetailsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Sale Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">${content}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        $('body').append(modal);
+        const modalInstance = new bootstrap.Modal($('#saleDetailsModal'));
+        modalInstance.show();
+        
+        $('#saleDetailsModal').on('hidden.bs.modal', function() {
+            $(this).remove();
+        });
+    }).fail(function(xhr) {
+        alert('Error loading sale details: ' + (xhr.responseJSON?.error || 'Unknown error'));
     });
 }
 
