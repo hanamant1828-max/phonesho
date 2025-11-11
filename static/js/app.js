@@ -4,6 +4,9 @@ let inventoryTable = null;
 let poItemCounter = 0;
 let isAuthenticated = false;
 
+let currentPOSProductForIMEI = null;
+let currentPOSCartIndex = null;
+
 $(document).ready(function() {
     checkAuth();
 
@@ -2467,46 +2470,45 @@ function loadStockAdjustment() {
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="tab-pane fade" id="history-panel" role="tabpanel">
-        <div class="card">
-            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Stock Adjustment History</h5>
-                <button class="btn btn-sm btn-light" onclick="loadAdjustmentHistory()">
-                    <i class="bi bi-arrow-clockwise"></i> Refresh
-                </button>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-hover" id="adjustmentHistoryTable">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Date & Time</th>
-                                <th>Product</th>
-                                <th>SKU</th>
-                                <th>Quantity Added</th>
-                                <th>IMEI Count</th>
-                                <th>Notes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="adjustmentHistoryBody">
-                            <tr>
-                                <td colspan="8" class="text-center">
-                                    <div class="spinner-border text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <div class="tab-pane fade" id="history-panel" role="tabpanel">
+            <div class="card">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Stock Adjustment History</h5>
+                    <button class="btn btn-sm btn-light" onclick="loadAdjustmentHistory()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="adjustmentHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Date & Time</th>
+                                    <th>Product</th>
+                                    <th>SKU</th>
+                                    <th>Quantity Added</th>
+                                    <th>IMEI Count</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adjustmentHistoryBody">
+                                <tr>
+                                    <td colspan="8" class="text-center">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
     `);
 
     loadProductsForAdjustment();
@@ -4199,7 +4201,7 @@ function loadPOS() {
                 <!-- Transaction Type Selector -->
                 <div class="card mb-3">
                     <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> Transaction Type</h6>
+                        <h6 class="mb-0"><i class="bi bi-tag"></i> Transaction Type</h6>
                     </div>
                     <div class="card-body">
                         <div class="btn-group w-100" role="group">
@@ -4210,12 +4212,12 @@ function loadPOS() {
 
                             <input type="radio" class="btn-check" name="transactionType" id="typeReturn" value="return">
                             <label class="btn btn-outline-danger" for="typeReturn">
-                                <i class="bi bi-arrow-counterclockwise"></i> Return
+                                <i class="bi bi-arrow-return-left"></i> Return
                             </label>
 
                             <input type="radio" class="btn-check" name="transactionType" id="typeExchange" value="exchange">
                             <label class="btn btn-outline-warning" for="typeExchange">
-                                <i class="bi bi-arrow-repeat"></i> Exchange
+                                <i class="bi bi-arrow-left-right"></i> Exchange
                             </label>
                         </div>
                         <div id="returnExchangeInfo" class="alert alert-info mt-3" style="display:none;">
@@ -4456,55 +4458,126 @@ function searchPOSProducts(query) {
 }
 
 function addToCart(product) {
-    // Check if product has available IMEI numbers
+    const existingItem = posCart.find(item => item.product_id === product.id);
+
+    if (existingItem) {
+        existingItem.quantity += 1;
+        // Check if product has IMEI tracking
+        checkAndPromptIMEI(product, posCart.indexOf(existingItem));
+    } else {
+        posCart.push({
+            product_id: product.id,
+            product_name: product.name,
+            sku: product.sku,
+            unit_price: product.selling_price,
+            quantity: 1,
+            imei_ids: [],
+            imei_available: [], // Initialize for IMEI selection
+            imei_numbers: []    // To store selected IMEI strings for display
+        });
+        // Check if product has IMEI tracking
+        checkAndPromptIMEI(product, posCart.length - 1);
+    }
+
+    updatePOSCart();
+    $('#posProductSearch').val('').focus();
+    $('#posSearchResults').empty(); // Clear search results after adding to cart
+}
+
+function checkAndPromptIMEI(product, cartIndex) {
+    // Check if product has available IMEIs
     $.get(`${API_BASE}/products/${product.id}/imeis?status=available`, function(imeis) {
-        const hasIMEI = imeis && imeis.length > 0;
-
-        const existingIndex = posCart.findIndex(item => item.product_id === product.id);
-
-        if (existingIndex >= 0) {
-            posCart[existingIndex].quantity += 1;
-            if (hasIMEI) {
-                posCart[existingIndex].imei_available = imeis;
-            }
-        } else {
-            posCart.push({
-                product_id: product.id,
-                product_name: product.name,
-                sku: product.sku,
-                unit_price: parseFloat(product.selling_price),
-                quantity: 1,
-                available_stock: product.current_stock,
-                imei_available: hasIMEI ? imeis : [],
-                imei_ids: []
-            });
+        // Only prompt if there are available IMEIs and the item is not yet fully selected
+        if (imeis.length > 0 && (posCart[cartIndex].imei_ids.length < posCart[cartIndex].quantity)) {
+            // Store available IMEIs for this product in the cart item
+            posCart[cartIndex].imei_available = imeis;
+            // Show selection modal
+            currentPOSProductForIMEI = product;
+            currentPOSCartIndex = cartIndex;
+            showIMEISelectionModal(product, posCart[cartIndex].quantity, posCart[cartIndex].imei_ids);
+        } else if (imeis.length === 0 && posCart[cartIndex].imei_ids.length > 0) {
+            // If no IMEIs are available but some were previously selected, clear them
+            posCart[cartIndex].imei_ids = [];
+            posCart[cartIndex].imei_available = [];
+            posCart[cartIndex].imei_numbers = [];
+            updatePOSCart(); // Update cart to reflect cleared IMEIs
         }
-
-        updatePOSCart();
-        $('#posProductSearch').val('').focus();
-        $('#posSearchResults').empty(); // Clear search results after adding to cart
     });
 }
 
-function updatePOSCartQuantity(index, quantity) {
-    if (quantity <= 0) {
-        posCart.splice(index, 1);
-    } else if (quantity <= posCart[index].max_stock) {
-        posCart[index].quantity = quantity;
-    } else {
-        alert(`Maximum stock is ${posCart[index].max_stock}`);
-        return;
-    }
-    updatePOSCart();
+function showIMEISelectionModal(product, requiredQty, selectedIds = []) {
+    $.get(`${API_BASE}/products/${product.id}/imeis?status=available`, function(imeis) {
+        $('#imeiProductName').text(product.name);
+        $('#imeiQuantityRequired').text(requiredQty);
+
+        const listBody = $('#imeiSelectionList');
+        listBody.empty();
+
+        if (imeis.length === 0) {
+            listBody.append(`
+                <tr>
+                    <td colspan="3" class="text-center text-muted">
+                        <i class="bi bi-inbox"></i> No IMEI numbers available for this product
+                    </td>
+                </tr>
+            `);
+        } else {
+            imeis.forEach(imei => {
+                const isChecked = selectedIds.includes(imei.id) ? 'checked' : '';
+                listBody.append(`
+                    <tr>
+                        <td>
+                            <div class="form-check">
+                                <input class="form-check-input imei-checkbox" type="checkbox" value="${imei.id}" 
+                                       id="imei_${imei.id}" ${isChecked}>
+                            </div>
+                        </td>
+                        <td><label for="imei_${imei.id}"><code>${imei.imei}</code></label></td>
+                        <td><span class="badge bg-success">Available</span></td>
+                    </tr>
+                `);
+            });
+        }
+
+        $('#imeiSelectionError').hide();
+        $('#confirmImeiSelectionBtn').data('cart-index', currentPOSCartIndex); // Ensure correct index is stored
+        const modal = new bootstrap.Modal($('#imeiSelectionModal'));
+        modal.show();
+    });
 }
 
-function removeFromPOSCart(index) {
-    posCart.splice(index, 1);
+function confirmIMEISelection() {
+    const cartIndex = $('#confirmImeiSelectionBtn').data('cart-index');
+    if (cartIndex === null || cartIndex === undefined) return; // Should not happen, but good practice
+
+    const item = posCart[cartIndex];
+    const requiredQty = item.quantity;
+
+    const selectedIMEIs = [];
+    $('.imei-checkbox:checked').each(function() {
+        selectedIMEIs.push({
+            id: parseInt($(this).val()),
+            imei: $(this).data('imei') // Store imei string for display
+        });
+    });
+
+    if (selectedIMEIs.length !== requiredQty) {
+        $('#imeiSelectionError').text(`Please select exactly ${requiredQty} IMEI number(s). Currently selected: ${selectedIMEIs.length}`).show();
+        return;
+    }
+
+    // Update cart item with selected IMEI IDs and their strings
+    posCart[cartIndex].imei_ids = selectedIMEIs.map(i => i.id);
+    posCart[cartIndex].imei_numbers = selectedIMEIs.map(i => i.imei); // Store strings for display
+
+    // Close modal and update display
+    bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
+    $('#imeiSelectionError').hide();
     updatePOSCart();
 }
 
 function updatePOSCart() {
-    const tbody = $('#posCartBody');
+    const tbody = $('#posCartTable tbody');
     tbody.empty();
 
     // Get transaction type
@@ -4514,11 +4587,11 @@ function updatePOSCart() {
     let headerColor, headerIcon, headerLabel;
     if (transactionType === 'return') {
         headerColor = '#dc3545';
-        headerIcon = 'arrow-counterclockwise';
+        headerIcon = 'arrow-return-left';
         headerLabel = 'Return Cart';
     } else if (transactionType === 'exchange') {
         headerColor = '#ffc107';
-        headerIcon = 'arrow-repeat';
+        headerIcon = 'arrow-left-right';
         headerLabel = 'Exchange Cart';
     } else {
         headerColor = '#198754';
@@ -4531,69 +4604,63 @@ function updatePOSCart() {
     if (posCart.length === 0) {
         $('#emptyCart').show();
         $('#posCartTable').hide();
-    } else {
-        $('#emptyCart').hide();
-        $('#posCartTable').show();
-
-        posCart.forEach((item, index) => {
-            const itemTotal = item.quantity * item.unit_price;
-            const hasIMEI = item.imei_available && item.imei_available.length > 0;
-
-            let imeiDisplay = '-';
-            if (hasIMEI) {
-                const selectedCount = item.imei_ids ? item.imei_ids.length : 0;
-                const allSelected = selectedCount === item.quantity;
-                const buttonClass = allSelected ? 'btn-success' : 'btn-outline-primary';
-                const buttonIcon = allSelected ? 'check-circle' : 'upc-scan';
-                
-                imeiDisplay = `
-                    <button class="btn btn-sm ${buttonClass}" onclick="selectIMEI(${index})">
-                        <i class="bi bi-${buttonIcon}"></i> ${allSelected ? 'Selected' : 'Select'} (${selectedCount}/${item.quantity})
-                    </button>
-                `;
-                
-                // Show selected IMEI numbers below the button if any are selected
-                if (item.imei_numbers && item.imei_numbers.length > 0) {
-                    imeiDisplay += `<div class="small text-muted mt-1">`;
-                    item.imei_numbers.forEach((imei, idx) => {
-                        if (idx < 2) { // Show first 2
-                            imeiDisplay += `<div class="text-truncate" style="max-width: 150px;" title="${imei}">${imei}</div>`;
-                        }
-                    });
-                    if (item.imei_numbers.length > 2) {
-                        imeiDisplay += `<div>+${item.imei_numbers.length - 2} more</div>`;
-                    }
-                    imeiDisplay += `</div>`;
-                }
-            }
-
-            tbody.append(`
-                <tr>
-                    <td>
-                        <strong>${item.product_name}</strong>
-                        <div class="small text-muted">${item.sku || ''}</div>
-                    </td>
-                    <td>$${item.unit_price.toFixed(2)}</td>
-                    <td>
-                        <div class="input-group input-group-sm" style="width: 120px;">
-                            <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity - 1})">-</button>
-                            <input type="number" class="form-control text-center" value="${item.quantity}"
-                                   onchange="updatePOSCartQuantity(${index}, parseInt(this.value))" min="1" max="${item.available_stock}">
-                            <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity + 1})">+</button>
-                        </div>
-                        <small class="text-muted">Stock: ${item.available_stock}</small>
-                    </td>
-                    <td>${imeiDisplay}</td>
-                    <td><strong>$${itemTotal.toFixed(2)}</strong></td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
+        // Reset totals if cart is empty
+        updatePOSTotals(0);
+        return;
     }
+
+    $('#emptyCart').hide();
+    $('#posCartTable').show();
+
+    let subtotal = 0;
+
+    posCart.forEach((item, index) => {
+        const itemTotal = item.quantity * item.unit_price;
+        subtotal += itemTotal;
+
+        // Display IMEI information
+        let imeiDisplay = '-';
+        let imeiClass = '';
+        if (item.imei_ids && item.imei_ids.length > 0) {
+            imeiDisplay = `<span class="badge bg-success">${item.imei_ids.length} IMEI</span>`;
+            if (item.imei_ids.length < item.quantity) {
+                imeiDisplay = `<span class="badge bg-warning">${item.imei_ids.length}/${item.quantity} IMEI</span>`;
+                imeiClass = 'text-warning'; // Highlight row if IMEI count is incomplete
+            }
+        }
+
+        tbody.append(`
+            <tr class="${imeiClass}">
+                <td>
+                    <strong>${item.product_name}</strong>
+                    <div class="small text-muted">${item.sku || ''}</div>
+                </td>
+                <td>$${item.unit_price.toFixed(2)}</td>
+                <td>
+                    <div class="input-group input-group-sm" style="width: 120px;">
+                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, -1)">-</button>
+                        <input type="number" class="form-control text-center" value="${item.quantity}"
+                               onchange="updateCartQty(${index}, parseInt(this.value))" min="1" max="${item.available_stock || 999}">
+                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, 1)">+</button>
+                    </div>
+                    <small class="text-muted">Stock: ${item.available_stock}</small>
+                </td>
+                <td>
+                    ${imeiDisplay}
+                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="selectIMEIForCart(${index})" title="Select IMEI">
+                        <i class="bi bi-upc-scan"></i>
+                    </button>
+                    ${item.imei_numbers && item.imei_numbers.length > 0 ? `<div class="small text-muted mt-1">${item.imei_numbers.join(', ')}</div>` : ''}
+                </td>
+                <td><strong>$${itemTotal.toFixed(2)}</strong></td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
 
     // Update transaction date and time
     const now = new Date();
@@ -4602,18 +4669,21 @@ function updatePOSCart() {
     $('#posTransactionDate').text(now.toLocaleDateString('en-US', dateOptions));
     $('#posTransactionTime').text(now.toLocaleTimeString('en-US', timeOptions));
 
-    // Calculate totals
-    let subtotal = posCart.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    updatePOSTotals(subtotal);
+}
+
+function updatePOSTotals(subtotal) {
     const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
     const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
+    const transactionType = $('input[name="transactionType"]:checked').val();
 
-    // For returns, make values negative
+    let effectiveSubtotal = subtotal;
     if (transactionType === 'return') {
-        subtotal = -Math.abs(subtotal);
+        effectiveSubtotal = -Math.abs(subtotal); // Make subtotal negative for returns
     }
 
-    const discountAmount = Math.abs(subtotal) * (discountPercent / 100);
-    const taxableAmount = subtotal - (transactionType === 'return' ? -discountAmount : discountAmount);
+    const discountAmount = Math.abs(effectiveSubtotal) * (discountPercent / 100);
+    const taxableAmount = effectiveSubtotal - (transactionType === 'return' ? -discountAmount : discountAmount);
     const taxAmount = Math.abs(taxableAmount) * (taxPercent / 100);
     const total = taxableAmount + (transactionType === 'return' ? -taxAmount : taxAmount);
 
@@ -4624,6 +4694,33 @@ function updatePOSCart() {
     $('#posTotal').text((total < 0 ? '-' : '') + '$' + Math.abs(total).toFixed(2));
 }
 
+function updateCartQty(index, change) {
+    const item = posCart[index];
+    let newQuantity = item.quantity + change;
+
+    // Ensure quantity is at least 1 and does not exceed stock (if available)
+    if (newQuantity < 1) newQuantity = 1;
+    if (item.available_stock && newQuantity > item.available_stock) {
+        alert(`Maximum available stock is ${item.available_stock}`);
+        newQuantity = item.available_stock;
+    }
+
+    item.quantity = newQuantity;
+
+    // If IMEI selection is required and quantity changes, reset IMEI selection
+    if (item.imei_available && item.imei_available.length > 0) {
+        item.imei_ids = []; // Clear selected IMEIs
+        item.imei_numbers = [];
+    }
+
+    updatePOSCart();
+}
+
+function removeFromPOSCart(index) {
+    posCart.splice(index, 1);
+    updatePOSCart();
+}
+
 function clearPOSCart() {
     if (posCart.length > 0 && !confirm('Clear all items from cart?')) {
         return;
@@ -4632,72 +4729,15 @@ function clearPOSCart() {
     updatePOSCart();
 }
 
-function selectIMEI(cartIndex) {
-    const item = posCart[cartIndex];
-
-    if (!item.imei_available || item.imei_available.length === 0) {
-        alert('No IMEI numbers available for this product');
-        return;
-    }
-
-    $('#imeiProductName').text(item.product_name);
-    $('#imeiQuantityRequired').text(item.quantity);
-
-    const tbody = $('#imeiSelectionList');
-    tbody.empty();
-
-    item.imei_available.forEach(imei => {
-        const isSelected = item.imei_ids && item.imei_ids.includes(imei.id);
-        tbody.append(`
-            <tr>
-                <td>
-                    <input type="checkbox" class="form-check-input imei-checkbox"
-                           value="${imei.id}" data-imei="${imei.imei}"
-                           ${isSelected ? 'checked' : ''}>
-                </td>
-                <td><code>${imei.imei}</code></td>
-                <td><span class="badge bg-success">Available</span></td>
-            </tr>
-        `);
+function selectIMEIForCart(index) {
+    const item = posCart[index];
+    // Fetch product details again to ensure we have the latest IMEI list
+    $.get(`${API_BASE}/products/${item.product_id}`, function(product) {
+        currentPOSProductForIMEI = product;
+        currentPOSCartIndex = index;
+        showIMEISelectionModal(product, item.quantity, item.imei_ids);
     });
-
-    $('#imeiSelectionError').hide();
-    $('#confirmImeiSelectionBtn').data('cart-index', cartIndex);
-
-    const modal = new bootstrap.Modal($('#imeiSelectionModal'));
-    modal.show();
 }
-
-function confirmImeiSelection() {
-    const cartIndex = $('#confirmImeiSelectionBtn').data('cart-index');
-    const item = posCart[cartIndex];
-
-    const selectedIMEIs = [];
-    $('.imei-checkbox:checked').each(function() {
-        selectedIMEIs.push({
-            id: parseInt($(this).val()),
-            imei: $(this).data('imei')
-        });
-    });
-
-    if (selectedIMEIs.length !== item.quantity) {
-        $('#imeiSelectionError').text(
-            `Please select exactly ${item.quantity} IMEI number(s). Currently selected: ${selectedIMEIs.length}`
-        ).show();
-        return;
-    }
-
-    posCart[cartIndex].imei_ids = selectedIMEIs.map(i => i.id);
-    posCart[cartIndex].imei_numbers = selectedIMEIs.map(i => i.imei);
-
-    bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
-    updatePOSCart();
-}
-
-// Add event listener to imei selection modal confirmation button
-$(document).on('click', '#confirmImeiSelectionBtn', function() {
-    confirmImeiSelection();
-});
 
 function completePOSSale() {
     if (posCart.length === 0) {
@@ -4705,17 +4745,23 @@ function completePOSSale() {
         return;
     }
 
-    // Check if all items with available IMEIs have the required number selected
-    for (let item of posCart) {
-        if (item.imei_available && item.imei_available.length > 0) {
-            const selectedCount = item.imei_ids ? item.imei_ids.length : 0;
-            if (selectedCount !== item.quantity) {
-                alert(`Please select ${item.quantity} IMEI number(s) for ${item.product_name}`);
-                return;
-            }
+    // Check if all items with IMEI tracking have the required number of IMEIs selected
+    let imeiSelectionIncomplete = false;
+    let incompleteItemName = '';
+    posCart.forEach(item => {
+        // Check only if the item requires IMEIs (indicated by available IMEIs or already selected IMEIs)
+        // And if the number of selected IMEIs is less than the required quantity
+        if ((item.imei_available && item.imei_available.length > 0 || (item.imei_ids && item.imei_ids.length > 0)) &&
+            item.imei_ids.length < item.quantity) {
+            imeiSelectionIncomplete = true;
+            incompleteItemName = item.product_name; // Store name for alert message
         }
-    }
+    });
 
+    if (imeiSelectionIncomplete) {
+        alert(`IMEI selection is incomplete for "${incompleteItemName}". Please ensure all required IMEI numbers are selected for this item.`);
+        return; // Prevent proceeding if IMEI selection is incomplete
+    }
 
     const transactionType = $('input[name="transactionType"]:checked').val();
     const transactionLabel = transactionType === 'return' ? 'Return' :
@@ -4752,6 +4798,8 @@ function completePOSSale() {
                 const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
                 alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
                 loadPOS(); // Reset for new transaction
+            } else {
+                alert('Error: ' + (response.error || 'Failed to complete transaction'));
             }
         },
         error: function(xhr) {
