@@ -3582,26 +3582,35 @@ function viewIMEITracking(productId) {
                 let saleDetails = '<span class="text-muted">-</span>';
                 if (record.status === 'sold' && record.sale_number) {
                     const soldDate = record.sold_date ? new Date(record.sold_date).toLocaleDateString() : 'N/A';
+                    const soldTime = record.sold_date ? new Date(record.sold_date).toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                    }) : '';
+                    
                     saleDetails = `
                         <div class="small">
-                            <strong class="text-primary">${record.sale_number}</strong>
-                            ${record.customer_name ? `<br><i class="bi bi-person"></i> ${record.customer_name}` : ''}
-                            <br><i class="bi bi-calendar"></i> ${soldDate}
+                            <div><strong class="text-primary"><i class="bi bi-receipt"></i> ${record.sale_number}</strong></div>
+                            ${record.customer_name ? `<div class="text-muted"><i class="bi bi-person-fill"></i> ${record.customer_name}</div>` : '<div class="text-muted"><i class="bi bi-person"></i> Walk-in Customer</div>'}
+                            <div class="text-muted"><i class="bi bi-calendar3"></i> ${soldDate} ${soldTime}</div>
+                            <div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-upc-scan"></i> IMEI: ${record.imei}</span></div>
                         </div>
                     `;
                 }
 
-                // Action buttons
+                // Action buttons - store record id in a variable to avoid scope issues
+                const recordId = record.id;
+                const saleId = record.sale_id;
+                
                 let actionButtons = '<span class="text-muted">-</span>';
                 if (record.status === 'available') {
                     actionButtons = `
-                        <button class="btn btn-sm btn-danger" onclick="deleteIMEI(${record.id}, '${record.imei}')">
+                        <button class="btn btn-sm btn-danger" onclick="deleteIMEI(${recordId}, '${record.imei}')">
                             <i class="bi bi-trash"></i>
                         </button>
                     `;
-                } else if (record.status === 'sold') {
+                } else if (record.status === 'sold' && saleId) {
                     actionButtons = `
-                        <button class="btn btn-sm btn-info" onclick="viewSaleDetails(${record.sale_id})" title="View Sale">
+                        <button class="btn btn-sm btn-info" onclick="viewSaleDetails(${saleId})" title="View Sale">
                             <i class="bi bi-eye"></i>
                         </button>
                     `;
