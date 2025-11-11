@@ -152,12 +152,16 @@ function loadPage(page) {
     }
 }
 
+let salesChart = null;
+
 function loadDashboard() {
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-speedometer2"></i> Dashboard</h2>
         </div>
-        <div class="row" id="statsCards">
+        
+        <!-- Stats Cards -->
+        <div class="row mb-4" id="statsCards">
             <div class="col-md-3">
                 <div class="card stats-card">
                     <div class="stats-icon text-primary"><i class="bi bi-box-seam"></i></div>
@@ -167,42 +171,109 @@ function loadDashboard() {
             </div>
             <div class="col-md-3">
                 <div class="card stats-card">
+                    <div class="stats-icon text-success"><i class="bi bi-cart-check"></i></div>
+                    <div class="stats-value" id="totalSales">$0</div>
+                    <div class="stats-label">Total Sales (30d)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="stats-icon text-info"><i class="bi bi-graph-up"></i></div>
+                    <div class="stats-value" id="totalProfit">$0</div>
+                    <div class="stats-label">Total Profit (30d)</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
                     <div class="stats-icon text-warning"><i class="bi bi-exclamation-triangle"></i></div>
                     <div class="stats-value" id="lowStock">0</div>
-                    <div class="stats-label">Low Stock</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="stats-icon text-danger"><i class="bi bi-x-circle"></i></div>
-                    <div class="stats-value" id="outOfStock">0</div>
-                    <div class="stats-label">Out of Stock</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card stats-card">
-                    <div class="stats-icon text-success"><i class="bi bi-currency-dollar"></i></div>
-                    <div class="stats-value" id="stockValue">$0</div>
-                    <div class="stats-label">Stock Value</div>
+                    <div class="stats-label">Low Stock Items</div>
                 </div>
             </div>
         </div>
 
-        <div class="row">
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-graph-up"></i> Sales Trend</span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="salesPeriod" id="period7d" value="7" checked>
+                            <label class="btn btn-outline-primary" for="period7d">7 Days</label>
+                            
+                            <input type="radio" class="btn-check" name="salesPeriod" id="period30d" value="30">
+                            <label class="btn btn-outline-primary" for="period30d">30 Days</label>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="salesChart" height="80"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-trophy"></i> Top Selling Products
+                    </div>
+                    <div class="card-body">
+                        <div id="topProductsList"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profit Summary & Recent Transactions -->
+        <div class="row mb-4">
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <i class="bi bi-exclamation-triangle text-warning"></i> Low Stock Alerts
+                        <i class="bi bi-cash-stack"></i> Profit Margin Summary (30 Days)
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <h5 class="text-primary" id="totalRevenue">$0</h5>
+                                <small class="text-muted">Revenue</small>
+                            </div>
+                            <div class="col-4">
+                                <h5 class="text-danger" id="totalCost">$0</h5>
+                                <small class="text-muted">Cost</small>
+                            </div>
+                            <div class="col-4">
+                                <h5 class="text-success" id="netProfit">$0</h5>
+                                <small class="text-muted">Profit</small>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="text-center">
+                            <h3 class="mb-0" id="profitMarginPercent">0%</h3>
+                            <small class="text-muted">Profit Margin</small>
+                        </div>
+                        <div class="progress mt-3" style="height: 25px;">
+                            <div class="progress-bar bg-success" id="profitProgressBar" role="progressbar" style="width: 0%">
+                                <span id="profitProgressText">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-clock-history"></i> Recent POS Transactions
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-sm" id="lowStockTable">
+                            <table class="table table-sm table-hover" id="recentTransactionsTable">
                                 <thead>
                                     <tr>
-                                        <th>Product</th>
-                                        <th>Brand</th>
-                                        <th>Current Stock</th>
-                                        <th>Min Level</th>
+                                        <th>Sale #</th>
+                                        <th>Customer</th>
+                                        <th>Amount</th>
+                                        <th>Time</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -211,20 +282,26 @@ function loadDashboard() {
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+        </div>
+
+        <!-- Low Stock Alerts -->
+        <div class="row">
+            <div class="col-md-12">
                 <div class="card">
                     <div class="card-header">
-                        <i class="bi bi-clock-history"></i> Recent Stock Movements
+                        <i class="bi bi-exclamation-triangle text-warning"></i> Low Stock Alerts
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-sm" id="recentMovementsTable">
+                            <table class="table table-sm table-hover" id="lowStockTable">
                                 <thead>
                                     <tr>
                                         <th>Product</th>
-                                        <th>Type</th>
-                                        <th>Quantity</th>
-                                        <th>Date</th>
+                                        <th>Brand</th>
+                                        <th>Category</th>
+                                        <th>Current Stock</th>
+                                        <th>Min Level</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -236,46 +313,179 @@ function loadDashboard() {
         </div>
     `);
 
-    $.get(`${API_BASE}/dashboard/stats`, function(data) {
-        $('#totalProducts').text(data.total_products);
-        $('#lowStock').text(data.low_stock);
-        $('#outOfStock').text(data.out_of_stock);
-        $('#stockValue').text('$' + data.stock_value.toFixed(2));
+    // Load dashboard data
+    loadDashboardData();
+    
+    // Period change handler
+    $('input[name="salesPeriod"]').on('change', function() {
+        loadSalesChart($(this).val());
+    });
+}
 
+function loadDashboardData() {
+    $.get(`${API_BASE}/dashboard/analytics`, function(data) {
+        // Update stats cards
+        $('#totalProducts').text(data.total_products);
+        $('#totalSales').text('$' + data.total_sales.toFixed(2));
+        $('#totalProfit').text('$' + data.total_profit.toFixed(2));
+        $('#lowStock').text(data.low_stock_count);
+
+        // Update profit summary
+        $('#totalRevenue').text('$' + data.profit_summary.revenue.toFixed(2));
+        $('#totalCost').text('$' + data.profit_summary.cost.toFixed(2));
+        $('#netProfit').text('$' + data.profit_summary.profit.toFixed(2));
+        
+        const marginPercent = data.profit_summary.margin_percent || 0;
+        $('#profitMarginPercent').text(marginPercent.toFixed(2) + '%');
+        $('#profitProgressBar').css('width', Math.min(marginPercent, 100) + '%');
+        $('#profitProgressText').text(marginPercent.toFixed(1) + '%');
+
+        // Update top products
+        const topProductsList = $('#topProductsList');
+        topProductsList.empty();
+        if (data.top_products.length === 0) {
+            topProductsList.append('<p class="text-muted text-center">No sales data yet</p>');
+        } else {
+            data.top_products.forEach((product, index) => {
+                const badgeClass = index === 0 ? 'bg-warning' : index === 1 ? 'bg-secondary' : 'bg-info';
+                topProductsList.append(`
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">#${index + 1}</span>
+                            <strong>${product.product_name}</strong>
+                            <br>
+                            <small class="text-muted">${product.brand_name || 'N/A'}</small>
+                        </div>
+                        <div class="text-end">
+                            <strong class="text-success">${product.total_quantity} sold</strong>
+                            <br>
+                            <small class="text-muted">$${product.total_revenue.toFixed(2)}</small>
+                        </div>
+                    </div>
+                `);
+            });
+        }
+
+        // Update recent transactions
+        const transactionsBody = $('#recentTransactionsTable tbody');
+        transactionsBody.empty();
+        if (data.recent_transactions.length === 0) {
+            transactionsBody.append('<tr><td colspan="4" class="text-center text-muted">No recent transactions</td></tr>');
+        } else {
+            data.recent_transactions.forEach(transaction => {
+                const date = new Date(transaction.sale_date);
+                const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                const amountClass = transaction.transaction_type === 'return' ? 'text-danger' : 'text-success';
+                transactionsBody.append(`
+                    <tr>
+                        <td><small>${transaction.sale_number}</small></td>
+                        <td><small>${transaction.customer_name || 'Walk-in'}</small></td>
+                        <td class="${amountClass}"><strong>$${Math.abs(transaction.total_amount).toFixed(2)}</strong></td>
+                        <td><small>${timeStr}</small></td>
+                    </tr>
+                `);
+            });
+        }
+
+        // Update low stock table
         const lowStockBody = $('#lowStockTable tbody');
         lowStockBody.empty();
         if (data.low_stock_items.length === 0) {
-            lowStockBody.append('<tr><td colspan="4" class="text-center text-muted">No low stock items</td></tr>');
+            lowStockBody.append('<tr><td colspan="6" class="text-center text-muted">No low stock items</td></tr>');
         } else {
             data.low_stock_items.forEach(item => {
                 lowStockBody.append(`
                     <tr>
                         <td>${item.name}</td>
                         <td>${item.brand_name || '-'}</td>
-                        <td class="stock-low">${item.current_stock}</td>
+                        <td>${item.category_name || '-'}</td>
+                        <td><span class="badge bg-warning">${item.current_stock}</span></td>
                         <td>${item.min_stock_level}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewProductDetails(${item.id})">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
                     </tr>
                 `);
             });
+        }
+    });
+
+    // Load sales chart with default 7 days
+    loadSalesChart(7);
+}
+
+function loadSalesChart(days) {
+    $.get(`${API_BASE}/dashboard/sales-chart?days=${days}`, function(data) {
+        const ctx = document.getElementById('salesChart');
+        if (!ctx) return;
+
+        // Destroy existing chart if it exists
+        if (salesChart) {
+            salesChart.destroy();
         }
 
-        const movementsBody = $('#recentMovementsTable tbody');
-        movementsBody.empty();
-        if (data.recent_movements.length === 0) {
-            movementsBody.append('<tr><td colspan="4" class="text-center text-muted">No recent movements</td></tr>');
-        } else {
-            data.recent_movements.slice(0, 10).forEach(movement => {
-                const date = new Date(movement.created_at);
-                movementsBody.append(`
-                    <tr>
-                        <td>${movement.product_name || 'N/A'}</td>
-                        <td><span class="badge bg-${movement.type === 'purchase' ? 'success' : 'info'}">${movement.type}</span></td>
-                        <td>${movement.quantity}</td>
-                        <td>${date.toLocaleDateString()}</td>
-                    </tr>
-                `);
-            });
-        }
+        salesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: 'Sales',
+                    data: data.sales,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Profit',
+                    data: data.profit,
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: `Sales & Profit Trend (Last ${days} Days)`
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += '$' + context.parsed.y.toFixed(2);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '$' + value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
     });
 }
 

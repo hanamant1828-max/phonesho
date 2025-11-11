@@ -1882,6 +1882,173 @@ def dashboard_stats():
         'recent_movements': recent_movements
     })
 
+@app.route('/api/dashboard/analytics', methods=['GET'])
+@login_required
+def dashboard_analytics():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Total products
+    cursor.execute('SELECT COUNT(*) as count FROM products WHERE status = "active"')
+    total_products = cursor.fetchone()['count']
+    
+    # Sales and profit for last 30 days
+    cursor.execute('''
+        SELECT 
+            COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN total_amount ELSE 0 END), 0) as total_sales,
+            COALESCE(SUM(CASE WHEN transaction_type = 'return' THEN ABS(total_amount) ELSE 0 END), 0) as total_returns
+        FROM pos_sales 
+        WHERE DATE(sale_date) >= DATE('now', '-30 days')
+    ''')
+    sales_data = cursor.fetchone()
+    total_sales = sales_data['total_sales'] - sales_data['total_returns']
+    
+    # Calculate profit (revenue - cost)
+    cursor.execute('''
+        SELECT 
+            COALESCE(SUM(psi.total_price), 0) as revenue,
+            COALESCE(SUM(psi.quantity * p.cost_price), 0) as cost
+        FROM pos_sale_items psi
+        LEFT JOIN products p ON psi.product_id = p.id
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id
+        WHERE DATE(ps.sale_date) >= DATE('now', '-30 days')
+        AND ps.transaction_type = 'sale'
+    ''')
+    profit_data = cursor.fetchone()
+    revenue = profit_data['revenue'] or 0
+    cost = profit_data['cost'] or 0
+    profit = revenue - cost
+    margin_percent = (profit / revenue * 100) if revenue > 0 else 0
+    
+    # Low stock count
+    cursor.execute('SELECT COUNT(*) as count FROM products WHERE current_stock <= min_stock_level AND status = "active"')
+    low_stock_count = cursor.fetchone()['count']
+    
+    # Top 5 selling products (last 30 days)
+    cursor.execute('''
+        SELECT 
+            psi.product_name,
+            p.name as current_product_name,
+            b.name as brand_name,
+            SUM(psi.quantity) as total_quantity,
+            SUM(psi.total_price) as total_revenue
+        FROM pos_sale_items psi
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id
+        LEFT JOIN products p ON psi.product_id = p.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE DATE(ps.sale_date) >= DATE('now', '-30 days')
+        AND ps.transaction_type = 'sale'
+        GROUP BY psi.product_id
+        ORDER BY total_quantity DESC
+        LIMIT 5
+    ''')
+    top_products = []
+    for row in cursor.fetchall():
+        product = dict(row)
+        product['product_name'] = product['current_product_name'] or product['product_name']
+        top_products.append(product)
+    
+    # Recent POS transactions
+    cursor.execute('''
+        SELECT 
+            sale_number,
+            customer_name,
+            total_amount,
+            transaction_type,
+            sale_date
+        FROM pos_sales
+        ORDER BY sale_date DESC
+        LIMIT 10
+    ''')
+    recent_transactions = [dict(row) for row in cursor.fetchall()]
+    
+    # Low stock items
+    cursor.execute('''
+        SELECT p.*, c.name as category_name, b.name as brand_name
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        WHERE p.current_stock <= p.min_stock_level AND p.status = "active"
+        ORDER BY p.current_stock ASC
+        LIMIT 10
+    ''')
+    low_stock_items = [dict(row) for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    return jsonify({
+        'total_products': total_products,
+        'total_sales': total_sales,
+        'total_profit': profit,
+        'low_stock_count': low_stock_count,
+        'profit_summary': {
+            'revenue': revenue,
+            'cost': cost,
+            'profit': profit,
+            'margin_percent': margin_percent
+        },
+        'top_products': top_products,
+        'recent_transactions': recent_transactions,
+        'low_stock_items': low_stock_items
+    })
+
+@app.route('/api/dashboard/sales-chart', methods=['GET'])
+@login_required
+def dashboard_sales_chart():
+    days = int(request.args.get('days', 7))
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Get sales and profit for each day
+    cursor.execute('''
+        SELECT 
+            DATE(sale_date) as sale_day,
+            COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN total_amount ELSE -ABS(total_amount) END), 0) as daily_sales
+        FROM pos_sales
+        WHERE DATE(sale_date) >= DATE('now', '-' || ? || ' days')
+        GROUP BY DATE(sale_date)
+        ORDER BY sale_day
+    ''', (days,))
+    
+    sales_by_day = {row['sale_day']: row['daily_sales'] for row in cursor.fetchall()}
+    
+    # Get profit for each day
+    cursor.execute('''
+        SELECT 
+            DATE(ps.sale_date) as sale_day,
+            COALESCE(SUM(psi.total_price - (psi.quantity * p.cost_price)), 0) as daily_profit
+        FROM pos_sale_items psi
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id
+        LEFT JOIN products p ON psi.product_id = p.id
+        WHERE DATE(ps.sale_date) >= DATE('now', '-' || ? || ' days')
+        AND ps.transaction_type = 'sale'
+        GROUP BY DATE(ps.sale_date)
+        ORDER BY sale_day
+    ''', (days,))
+    
+    profit_by_day = {row['sale_day']: row['daily_profit'] for row in cursor.fetchall()}
+    
+    conn.close()
+    
+    # Generate labels and data for last N days
+    from datetime import datetime, timedelta
+    labels = []
+    sales_data = []
+    profit_data = []
+    
+    for i in range(days - 1, -1, -1):
+        day = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+        label = (datetime.now() - timedelta(days=i)).strftime('%b %d')
+        labels.append(label)
+        sales_data.append(float(sales_by_day.get(day, 0)))
+        profit_data.append(float(profit_by_day.get(day, 0)))
+    
+    return jsonify({
+        'labels': labels,
+        'sales': sales_data,
+        'profit': profit_data
+    })
+
 @app.route('/api/export/template', methods=['GET'])
 @login_required
 def export_template():
