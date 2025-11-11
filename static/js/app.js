@@ -3548,6 +3548,12 @@ function viewIMEITracking(productId) {
                 <div class="card-body">
                     <div class="alert alert-info">
                         <strong>Total IMEI Records:</strong> ${data.total_count}
+                        <span class="ms-3">
+                            <i class="bi bi-check-circle text-success"></i> Available: ${data.imei_records.filter(r => r.status === 'available').length}
+                        </span>
+                        <span class="ms-3">
+                            <i class="bi bi-cart-x text-danger"></i> Sold: ${data.imei_records.filter(r => r.status === 'sold').length}
+                        </span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-sm table-hover">
@@ -3557,6 +3563,7 @@ function viewIMEITracking(productId) {
                                     <th>Status</th>
                                     <th>Added Date</th>
                                     <th>Reference</th>
+                                    <th>Sale Details</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -3564,24 +3571,42 @@ function viewIMEITracking(productId) {
         `;
         
         if (data.imei_records.length === 0) {
-            content += '<tr><td colspan="5" class="text-center text-muted">No IMEI records found</td></tr>';
+            content += '<tr><td colspan="6" class="text-center text-muted">No IMEI records found</td></tr>';
         } else {
             data.imei_records.forEach(record => {
-                const statusBadge = record.status === 'in_stock' ? 'success' : 
+                const statusBadge = record.status === 'available' ? 'success' : 
                                    record.status === 'sold' ? 'danger' : 'warning';
-                const date = new Date(record.created_at).toLocaleString();
+                const addedDate = new Date(record.created_at).toLocaleString();
+                
+                // Sale details for sold items
+                let saleDetails = '-';
+                if (record.status === 'sold' && record.sale_number) {
+                    const soldDate = record.sale_date ? new Date(record.sale_date).toLocaleString() : 'N/A';
+                    saleDetails = `
+                        <div>
+                            <strong>${record.sale_number}</strong>
+                            ${record.customer_name ? `<br><small class="text-muted">Customer: ${record.customer_name}</small>` : ''}
+                            <br><small class="text-muted">Sold: ${soldDate}</small>
+                        </div>
+                    `;
+                }
                 
                 content += `
-                    <tr>
+                    <tr class="${record.status === 'sold' ? 'table-danger' : ''}">
                         <td><strong>${record.imei}</strong></td>
                         <td><span class="badge bg-${statusBadge}">${record.status.replace('_', ' ').toUpperCase()}</span></td>
-                        <td>${date}</td>
-                        <td>${record.reference || 'Manual Entry'}</td>
+                        <td><small>${addedDate}</small></td>
+                        <td><small>${record.reference || 'Manual Entry'}</small></td>
+                        <td>${saleDetails}</td>
                         <td>
-                            ${record.status === 'in_stock' ? `
+                            ${record.status === 'available' ? `
                                 <button class="btn btn-sm btn-warning" onclick="markIMEISold(${record.id}, '${record.imei}')">
                                     <i class="bi bi-cart"></i> Mark Sold
                                 </button>
+                            ` : record.status === 'sold' ? `
+                                <span class="badge bg-secondary">
+                                    <i class="bi bi-lock"></i> Sold
+                                </span>
                             ` : ''}
                         </td>
                     </tr>

@@ -791,9 +791,11 @@ def manage_product_imeis(product_id):
         status = request.args.get('status', '')
         
         query = '''
-            SELECT pi.*, ps.sale_number, ps.customer_name, ps.sale_date
+            SELECT pi.*, ps.sale_number, ps.customer_name, ps.sale_date,
+                   sm.reference_type, sm.reference_id
             FROM product_imei pi
             LEFT JOIN pos_sales ps ON pi.sale_id = ps.id
+            LEFT JOIN stock_movements sm ON pi.stock_movement_id = sm.id
             WHERE pi.product_id = ?
         '''
         params = [product_id]
@@ -802,7 +804,7 @@ def manage_product_imeis(product_id):
             query += ' AND pi.status = ?'
             params.append(status)
         
-        query += ' ORDER BY pi.created_at DESC'
+        query += ' ORDER BY pi.status ASC, pi.created_at DESC'
         
         cursor.execute(query, params)
         imeis = [dict(row) for row in cursor.fetchall()]
@@ -1815,22 +1817,27 @@ def get_imei_tracking(id):
     
     product_name = product_row['name']
     
-    # Get IMEI records
+    # Get IMEI records with sale information
     cursor.execute('''
         SELECT 
             pi.id,
             pi.imei,
             pi.status,
             pi.created_at,
+            pi.sale_date,
+            ps.sale_number,
+            ps.customer_name,
             CASE 
                 WHEN sm.reference_type = 'purchase_order' THEN 'PO #' || sm.reference_id
                 WHEN sm.reference_type = 'manual' THEN 'Stock Adjustment'
+                WHEN sm.reference_type = 'grn' THEN 'GRN #' || sm.reference_id
                 ELSE sm.reference_type
             END as reference
         FROM product_imei pi
         LEFT JOIN stock_movements sm ON pi.stock_movement_id = sm.id
+        LEFT JOIN pos_sales ps ON pi.sale_id = ps.id
         WHERE pi.product_id = ?
-        ORDER BY pi.created_at DESC
+        ORDER BY pi.status ASC, pi.created_at DESC
     ''', (id,))
     
     imei_records = [dict(row) for row in cursor.fetchall()]
