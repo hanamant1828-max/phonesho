@@ -55,6 +55,14 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
+    
+    # Check and add sale_id column to product_imei if it doesn't exist
+    if columns and 'sale_id' not in columns:
+        try:
+            cursor.execute('ALTER TABLE product_imei ADD COLUMN sale_id INTEGER')
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (

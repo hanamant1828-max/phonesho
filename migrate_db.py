@@ -49,6 +49,21 @@ def migrate_database():
             print(f"Migration error for sold_date: {e}")
     else:
         print("sold_date column already exists in product_imei table.")
+    
+    # Check if sale_id column exists in product_imei table
+    cursor.execute("PRAGMA table_info(product_imei)")
+    columns = [column[1] for column in cursor.fetchall()]
+    
+    if 'sale_id' not in columns:
+        try:
+            cursor.execute('ALTER TABLE product_imei ADD COLUMN sale_id INTEGER')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_product_imei_sale_id ON product_imei(sale_id)')
+            conn.commit()
+            print("sale_id column added successfully to product_imei table.")
+        except sqlite3.OperationalError as e:
+            print(f"Migration error for sale_id: {e}")
+    else:
+        print("sale_id column already exists in product_imei table.")
 
     conn.close()
 
