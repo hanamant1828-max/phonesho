@@ -31,6 +31,10 @@ A comprehensive web-based inventory management system designed specifically for 
 10. **grns** - Goods Receipt Notes
 11. **grn_items** - GRN line items
 12. **damaged_items** - Damaged product records
+13. **product_imei** - Individual IMEI tracking for serialized products
+14. **pos_sales** - Point of sale transactions
+15. **pos_sale_items** - POS sale line items
+16. **pos_payments** - Payment records for POS sales
 
 ## Features Implemented
 
@@ -105,6 +109,20 @@ A comprehensive web-based inventory management system designed specifically for 
 - Automatic stock movement recording
 - Transaction safety with NULL handling
 
+### Phase 11: IMEI Tracking System ✓
+- Individual IMEI number tracking for serialized products
+- IMEI capture during stock receiving (GRN process)
+- IMEI assignment during POS sales
+- Track which specific IMEI was sold to which customer
+- IMEI availability status (available/sold)
+- Return handling - restore IMEI availability on returns
+- Race condition protection - prevent double-selling of same IMEI
+- Atomic updates with rowcount validation
+- Full audit trail (received date, sold date, sale reference)
+- Search products by IMEI number
+- View IMEI history and sales information
+- See comprehensive documentation in IMEI_TRACKING_GUIDE.md
+
 ## Technical Details
 
 ### API Endpoints
@@ -114,13 +132,18 @@ A comprehensive web-based inventory management system designed specifically for 
 - `/api/products` - Product CRUD and filtering
 - `/api/products/bulk-delete` - Bulk delete
 - `/api/products/bulk-update` - Bulk update
+- `/api/products/<id>/imeis` - IMEI management (GET list, POST add)
+- `/api/products/<id>/imei-tracking` - Get IMEI tracking details
+- `/api/products/search-by-imei` - Search products by IMEI
+- `/api/imeis/<id>` - Delete IMEI (DELETE)
 - `/api/purchase-orders` - PO management
-- `/api/purchase-orders/<id>/receive` - Receive PO
+- `/api/purchase-orders/<id>/receive` - Receive PO (with IMEI capture)
 - `/api/quick-orders` - Quick order management (GET list, POST create)
 - `/api/quick-orders/<id>` - Quick order details
 - `/api/stock-adjustment` - Add stock to existing products
 - `/api/grns` - GRN management
 - `/api/grns/<id>` - GRN details
+- `/api/pos/sales` - POS sales (with IMEI tracking)
 - `/api/dashboard/stats` - Dashboard statistics
 - `/api/export/products` - Export to Excel
 - `/api/import/products` - Import from file
@@ -157,6 +180,16 @@ A comprehensive web-based inventory management system designed specifically for 
 5. Set up regular database backups
 
 ## Recent Changes
+- **November 11, 2025**: Added IMEI Tracking System
+  - Created product_imei table for individual IMEI tracking
+  - Implemented API endpoints for IMEI management
+  - Updated purchase order receiving to capture IMEI numbers
+  - Enhanced POS sales to track sold IMEIs with atomic updates
+  - Added race condition protection to prevent double-selling
+  - Implemented return handling to restore IMEI availability
+  - Created comprehensive documentation (IMEI_TRACKING_GUIDE.md)
+  - Architect-reviewed and approved implementation
+  - Full traceability: track which IMEI was sold to which customer
 - **November 10, 2025**: Added Stock Adjustment feature
   - Created POST /api/stock-adjustment endpoint for adding stock
   - Built UI showing current stock before adjustment
