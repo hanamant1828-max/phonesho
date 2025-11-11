@@ -4542,11 +4542,29 @@ function updatePOSCart() {
             let imeiDisplay = '-';
             if (hasIMEI) {
                 const selectedCount = item.imei_ids ? item.imei_ids.length : 0;
+                const allSelected = selectedCount === item.quantity;
+                const buttonClass = allSelected ? 'btn-success' : 'btn-outline-primary';
+                const buttonIcon = allSelected ? 'check-circle' : 'upc-scan';
+                
                 imeiDisplay = `
-                    <button class="btn btn-sm btn-outline-primary" onclick="selectIMEI(${index})">
-                        <i class="bi bi-upc-scan"></i> Select (${selectedCount}/${item.quantity})
+                    <button class="btn btn-sm ${buttonClass}" onclick="selectIMEI(${index})">
+                        <i class="bi bi-${buttonIcon}"></i> ${allSelected ? 'Selected' : 'Select'} (${selectedCount}/${item.quantity})
                     </button>
                 `;
+                
+                // Show selected IMEI numbers below the button if any are selected
+                if (item.imei_numbers && item.imei_numbers.length > 0) {
+                    imeiDisplay += `<div class="small text-muted mt-1">`;
+                    item.imei_numbers.forEach((imei, idx) => {
+                        if (idx < 2) { // Show first 2
+                            imeiDisplay += `<div class="text-truncate" style="max-width: 150px;" title="${imei}">${imei}</div>`;
+                        }
+                    });
+                    if (item.imei_numbers.length > 2) {
+                        imeiDisplay += `<div>+${item.imei_numbers.length - 2} more</div>`;
+                    }
+                    imeiDisplay += `</div>`;
+                }
             }
 
             tbody.append(`
@@ -4560,10 +4578,10 @@ function updatePOSCart() {
                         <div class="input-group input-group-sm" style="width: 120px;">
                             <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity - 1})">-</button>
                             <input type="number" class="form-control text-center" value="${item.quantity}"
-                                   onchange="updatePOSCartQuantity(${index}, parseInt(this.value))" min="1" max="${item.max_stock}">
+                                   onchange="updatePOSCartQuantity(${index}, parseInt(this.value))" min="1" max="${item.available_stock}">
                             <button class="btn btn-outline-secondary" onclick="updatePOSCartQuantity(${index}, ${item.quantity + 1})">+</button>
                         </div>
-                        <small class="text-muted">Stock: ${item.max_stock}</small>
+                        <small class="text-muted">Stock: ${item.available_stock}</small>
                     </td>
                     <td>${imeiDisplay}</td>
                     <td><strong>$${itemTotal.toFixed(2)}</strong></td>
@@ -4675,6 +4693,11 @@ function confirmImeiSelection() {
     bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
     updatePOSCart();
 }
+
+// Add event listener to imei selection modal confirmation button
+$(document).on('click', '#confirmImeiSelectionBtn', function() {
+    confirmImeiSelection();
+});
 
 function completePOSSale() {
     if (posCart.length === 0) {
