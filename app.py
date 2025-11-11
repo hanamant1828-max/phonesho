@@ -46,6 +46,16 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Check and add sold_date column to product_imei if it doesn't exist
+    cursor.execute("PRAGMA table_info(product_imei)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'sold_date' not in columns and columns:  # Only if table exists
+        try:
+            cursor.execute('ALTER TABLE product_imei ADD COLUMN sold_date TIMESTAMP')
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

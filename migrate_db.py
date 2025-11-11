@@ -35,6 +35,20 @@ def migrate_database():
     ''')
     conn.commit()
     print("product_imei table ready.")
+    
+    # Check if sold_date column exists in product_imei table
+    cursor.execute("PRAGMA table_info(product_imei)")
+    columns = [column[1] for column in cursor.fetchall()]
+    
+    if 'sold_date' not in columns:
+        try:
+            cursor.execute('ALTER TABLE product_imei ADD COLUMN sold_date TIMESTAMP')
+            conn.commit()
+            print("sold_date column added successfully to product_imei table.")
+        except sqlite3.OperationalError as e:
+            print(f"Migration error for sold_date: {e}")
+    else:
+        print("sold_date column already exists in product_imei table.")
 
     conn.close()
 
