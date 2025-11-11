@@ -2753,226 +2753,338 @@ function submitQuickOrder() {
 function loadReports() {
     $('#content-area').html(`
         <div class="page-header">
-            <h2><i class="bi bi-file-earmark-bar-graph"></i> Reports</h2>
-            <p class="text-muted">Generate and export various business reports</p>
+            <h2><i class="bi bi-file-earmark-bar-graph"></i> Business Reports & Analytics</h2>
+            <p class="text-muted">Generate comprehensive reports to track your business performance</p>
         </div>
-        
-        <div class="row">
-            <!-- Sales Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-cart-check"></i> Sales Report</h5>
-                    </div>
+
+        <!-- Quick Stats Summary -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
                     <div class="card-body">
-                        <p class="card-text">View and export POS sales transactions with filters by date, payment method, and transaction type.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Date Range</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="salesReportFrom">
-                                </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="salesReportTo">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Transaction Type</label>
-                            <select class="form-select form-select-sm" id="salesReportType">
-                                <option value="">All Types</option>
-                                <option value="sale">Sales</option>
-                                <option value="return">Returns</option>
-                                <option value="exchange">Exchanges</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-primary btn-sm w-100" onclick="generateSalesReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
+                        <h6 class="card-title"><i class="bi bi-calendar-range"></i> Reporting Period</h6>
+                        <p class="card-text mb-0">Current Month</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Inventory Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0"><i class="bi bi-box-seam"></i> Inventory Report</h5>
-                    </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
                     <div class="card-body">
-                        <p class="card-text">Current inventory levels with stock value, low stock alerts, and product details.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Category</label>
-                            <select class="form-select form-select-sm" id="inventoryReportCategory">
-                                <option value="">All Categories</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Stock Status</label>
-                            <select class="form-select form-select-sm" id="inventoryReportStatus">
-                                <option value="">All</option>
-                                <option value="low">Low Stock</option>
-                                <option value="out">Out of Stock</option>
-                                <option value="good">Good Stock</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-success btn-sm w-100" onclick="generateInventoryReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
+                        <h6 class="card-title"><i class="bi bi-file-earmark-check"></i> Available Reports</h6>
+                        <p class="card-text mb-0">6 Report Types</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Purchase Orders Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-info text-white">
-                        <h5 class="mb-0"><i class="bi bi-cart-plus"></i> Purchase Orders</h5>
-                    </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
                     <div class="card-body">
-                        <p class="card-text">Complete purchase order history with receiving status and payment information.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Date Range</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="poReportFrom">
-                                </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="poReportTo">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Status</label>
-                            <select class="form-select form-select-sm" id="poReportStatus">
-                                <option value="">All Status</option>
-                                <option value="pending">Pending</option>
-                                <option value="partial">Partial</option>
-                                <option value="completed">Completed</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-info btn-sm w-100" onclick="generatePOReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
+                        <h6 class="card-title"><i class="bi bi-download"></i> Export Format</h6>
+                        <p class="card-text mb-0">Excel (XLSX)</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- Stock Movement Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-warning text-dark">
-                        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Movements</h5>
-                    </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
                     <div class="card-body">
-                        <p class="card-text">Track all stock movements including purchases, sales, adjustments, and returns.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Date Range</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="movementReportFrom">
-                                </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="movementReportTo">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Movement Type</label>
-                            <select class="form-select form-select-sm" id="movementReportType">
-                                <option value="">All Types</option>
-                                <option value="purchase">Purchases</option>
-                                <option value="sale">Sales</option>
-                                <option value="adjustment">Adjustments</option>
-                                <option value="return">Returns</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-warning btn-sm w-100" onclick="generateMovementReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
+                        <h6 class="card-title"><i class="bi bi-clock-history"></i> Quick Access</h6>
+                        <p class="card-text mb-0">Real-time Data</p>
                     </div>
                 </div>
             </div>
-            
-            <!-- GRN Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0"><i class="bi bi-receipt"></i> GRN Report</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="card-text">Goods Receipt Notes with received quantities, damaged items, and payment status.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Date Range</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="grnReportFrom">
+        </div>
+
+        <!-- Report Categories -->
+        <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sales-reports-tab" data-bs-toggle="tab" data-bs-target="#sales-reports" type="button">
+                    <i class="bi bi-cart-check"></i> Sales & Transactions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="inventory-reports-tab" data-bs-toggle="tab" data-bs-target="#inventory-reports" type="button">
+                    <i class="bi bi-box-seam"></i> Inventory & Stock
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="procurement-reports-tab" data-bs-toggle="tab" data-bs-target="#procurement-reports" type="button">
+                    <i class="bi bi-cart-plus"></i> Procurement
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="financial-reports-tab" data-bs-toggle="tab" data-bs-target="#financial-reports" type="button">
+                    <i class="bi bi-graph-up"></i> Financial Analysis
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="reportTabContent">
+            <!-- Sales & Transactions Reports -->
+            <div class="tab-pane fade show active" id="sales-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-cart-check"></i> POS Sales Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Detailed sales transactions with customer information, payment methods, and transaction types.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="salesReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="salesReportTo">
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="grnReportTo">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Transaction Type</label>
+                                    <select class="form-select" id="salesReportType">
+                                        <option value="">All Types</option>
+                                        <option value="sale">Sales</option>
+                                        <option value="return">Returns</option>
+                                        <option value="exchange">Exchanges</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-info">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Sale number, customer details, items sold, payment info, timestamps</small>
                                 </div>
                             </div>
+                            <div class="card-footer">
+                                <button class="btn btn-primary w-100" onclick="generateSalesReport()">
+                                    <i class="bi bi-download"></i> Download Sales Report
+                                </button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Payment Status</label>
-                            <select class="form-select form-select-sm" id="grnReportPayment">
-                                <option value="">All Status</option>
-                                <option value="paid">Paid</option>
-                                <option value="partial">Partial</option>
-                                <option value="unpaid">Unpaid</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <button class="btn btn-secondary btn-sm w-100" onclick="generateGRNReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
                     </div>
                 </div>
             </div>
-            
-            <!-- Profit Analysis Report -->
-            <div class="col-md-6 col-lg-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-header bg-danger text-white">
-                        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Profit Analysis</h5>
-                    </div>
-                    <div class="card-body">
-                        <p class="card-text">Analyze profit margins, cost vs selling price, and identify most profitable products.</p>
-                        <div class="mb-3">
-                            <label class="form-label small">Date Range</label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="profitReportFrom">
+
+            <!-- Inventory & Stock Reports -->
+            <div class="tab-pane fade" id="inventory-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Current Inventory Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Complete inventory snapshot with stock levels, values, and low stock alerts.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Category Filter</label>
+                                    <select class="form-select" id="inventoryReportCategory">
+                                        <option value="">All Categories</option>
+                                    </select>
                                 </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control form-control-sm" id="profitReportTo">
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Stock Status</label>
+                                    <select class="form-select" id="inventoryReportStatus">
+                                        <option value="">All</option>
+                                        <option value="low">Low Stock</option>
+                                        <option value="out">Out of Stock</option>
+                                        <option value="good">Good Stock</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-success">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> SKU, product name, stock levels, pricing, stock value, status</small>
                                 </div>
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label small">Sort By</label>
-                            <select class="form-select form-select-sm" id="profitReportSort">
-                                <option value="margin">Profit Margin</option>
-                                <option value="quantity">Quantity Sold</option>
-                                <option value="revenue">Total Revenue</option>
-                            </select>
+                            <div class="card-footer">
+                                <button class="btn btn-success w-100" onclick="generateInventoryReport()">
+                                    <i class="bi bi-download"></i> Download Inventory Report
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-footer">
-                        <button class="btn btn-danger btn-sm w-100" onclick="generateProfitReport()">
-                            <i class="bi bi-file-earmark-excel"></i> Generate Report
-                        </button>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Movement Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Track all inventory movements including purchases, sales, adjustments, and returns.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="movementReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="movementReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Movement Type</label>
+                                    <select class="form-select" id="movementReportType">
+                                        <option value="">All Types</option>
+                                        <option value="purchase">Purchases</option>
+                                        <option value="sale">Sales</option>
+                                        <option value="adjustment">Adjustments</option>
+                                        <option value="return">Returns</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-warning">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Product, movement type, quantity, reference, date/time</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-warning w-100" onclick="generateMovementReport()">
+                                    <i class="bi bi-download"></i> Download Movement Report
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Procurement Reports -->
+            <div class="tab-pane fade" id="procurement-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="bi bi-cart-plus"></i> Purchase Orders Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Complete PO history with supplier details, quantities, and receiving status.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="poReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="poReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Status</label>
+                                    <select class="form-select" id="poReportStatus">
+                                        <option value="">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-info">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> PO number, supplier, items, quantities, amounts, status</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-info w-100" onclick="generatePOReport()">
+                                    <i class="bi bi-download"></i> Download PO Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0"><i class="bi bi-receipt"></i> GRN Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Goods Receipt Notes with received quantities, damaged items, and payment status.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="grnReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="grnReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Payment Status</label>
+                                    <select class="form-select" id="grnReportPayment">
+                                        <option value="">All Status</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="unpaid">Unpaid</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-secondary">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> GRN number, PO details, received/damaged quantities, payment info</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-secondary w-100" onclick="generateGRNReport()">
+                                    <i class="bi bi-download"></i> Download GRN Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Analysis Reports -->
+            <div class="tab-pane fade" id="financial-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Profit Analysis Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Analyze profit margins, identify top-performing products, and track financial performance.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="profitReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="profitReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Sort By</label>
+                                    <select class="form-select" id="profitReportSort">
+                                        <option value="margin">Profit Margin %</option>
+                                        <option value="quantity">Quantity Sold</option>
+                                        <option value="revenue">Total Revenue</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-danger">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Product details, cost/selling price, profit margins, sales data</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-danger w-100" onclick="generateProfitReport()">
+                                    <i class="bi bi-download"></i> Download Profit Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card mt-4 bg-light">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-question-circle"></i> How to Use Reports</h6>
+                <ul class="mb-0">
+                    <li>Select the report category tab that matches your needs</li>
+                    <li>Configure the date range and filters for each report</li>
+                    <li>Click the download button to generate an Excel file</li>
+                    <li>All reports are generated in real-time with current data</li>
+                    <li>Downloaded files can be opened in Excel, Google Sheets, or any spreadsheet application</li>
+                </ul>
             </div>
         </div>
     `);
