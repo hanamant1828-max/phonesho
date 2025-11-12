@@ -882,9 +882,11 @@ def verify_product_imei(product_id):
         imei_record = cursor.fetchone()
 
         if imei_record:
+            # Accept both 'available' and 'in_stock' as available for sale
+            is_available = imei_record['status'] in ('available', 'in_stock')
             return jsonify({
                 'exists': True,
-                'available': imei_record['status'] == 'available',
+                'available': is_available,
                 'imei_id': imei_record['id'],
                 'status': imei_record['status']
             })
