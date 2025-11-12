@@ -112,12 +112,18 @@ A comprehensive web-based inventory management system designed specifically for 
 ### Phase 11: IMEI Tracking System ✓
 - Individual IMEI number tracking for serialized products
 - IMEI capture during stock receiving (GRN process)
-- IMEI assignment during POS sales
+- **Smart IMEI handling during POS sales** (dual-path system):
+  - **Path 1**: Select from existing inventory IMEIs
+  - **Path 2**: Manually enter new IMEIs (auto-creates records marked as sold)
+  - IMEI verification API to distinguish existing vs new IMEIs
+  - Mutually exclusive handling prevents mixed payloads
 - Track which specific IMEI was sold to which customer
 - IMEI availability status (available/sold)
 - Return handling - restore IMEI availability on returns
 - Race condition protection - prevent double-selling of same IMEI
 - Atomic updates with rowcount validation
+- 15-digit format validation (client and server-side)
+- Global uniqueness enforcement via database constraint
 - Full audit trail (received date, sold date, sale reference)
 - Search products by IMEI number
 - View IMEI history and sales information
@@ -133,6 +139,7 @@ A comprehensive web-based inventory management system designed specifically for 
 - `/api/products/bulk-delete` - Bulk delete
 - `/api/products/bulk-update` - Bulk update
 - `/api/products/<id>/imeis` - IMEI management (GET list, POST add)
+- `/api/products/<id>/imeis/verify` - Verify if IMEI exists (POST) - returns status
 - `/api/products/<id>/imei-tracking` - Get IMEI tracking details
 - `/api/products/search-by-imei` - Search products by IMEI
 - `/api/imeis/<id>` - Delete IMEI (DELETE)
@@ -180,6 +187,16 @@ A comprehensive web-based inventory management system designed specifically for 
 5. Set up regular database backups
 
 ## Recent Changes
+- **November 12, 2025**: Enhanced Smart IMEI Tracking for POS
+  - Implemented dual-path IMEI handling in POS sales
+  - Added IMEI verification endpoint (`/api/products/<id>/imeis/verify`)
+  - Updated POS to allow both inventory selection and manual entry
+  - Manual IMEIs are auto-created with status='sold' in single transaction
+  - Added IMEI selection modal in pos.html for choosing from available inventory
+  - 15-digit format validation enforced (client and server-side)
+  - Global uniqueness check prevents duplicate IMEIs across products
+  - Architect-reviewed with PASS status - meets all functional requirements
+  - Products with/without IMEI tracking now fully supported
 - **November 11, 2025**: Added IMEI Tracking System
   - Created product_imei table for individual IMEI tracking
   - Implemented API endpoints for IMEI management
