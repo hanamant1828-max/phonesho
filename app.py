@@ -60,6 +60,7 @@ def get_db():
     return conn
 
 def init_db():
+    """Initialize the database and create tables if they don't exist"""
     conn = get_db()
     cursor = conn.cursor()
 
@@ -383,6 +384,9 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+# Initialize database automatically when app starts
+init_db()
 
 @app.route('/')
 def index():
