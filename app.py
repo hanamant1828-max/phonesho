@@ -19,6 +19,10 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads/models'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching during development
 
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/css', exist_ok=True)
