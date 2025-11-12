@@ -104,6 +104,7 @@ function performLogout() {
 }
 
 function initNavigation() {
+    // Handle regular nav links
     $('.nav-link[data-page]').on('click', function(e) {
         e.preventDefault();
         const page = $(this).data('page');
@@ -115,6 +116,21 @@ function initNavigation() {
 
         $('.nav-link').removeClass('active');
         $(this).addClass('active');
+        loadPage(page);
+    });
+
+    // Handle dropdown menu items
+    $('.dropdown-item[data-page]').on('click', function(e) {
+        e.preventDefault();
+        const page = $(this).data('page');
+        
+        $('.nav-link').removeClass('active');
+        $('.dropdown-item').removeClass('active');
+        $(this).addClass('active');
+        
+        // Also mark the parent dropdown as active
+        $(this).closest('.dropdown').find('.nav-link').addClass('active');
+        
         loadPage(page);
     });
 }
