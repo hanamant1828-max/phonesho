@@ -1,0 +1,14 @@
+{
+  "typeCheckingMode": "basic",
+  "reportOptionalSubscript": false,
+  "reportOptionalMemberAccess": false,
+  "reportGeneralTypeIssues": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportMissingTypeStubs": false,
+  "reportIncompatibleMethodOverride": false,
+  "reportIncompatibleVariableOverride": false,
+  "strictParameterNoneValue": false,
+  "pythonVersion": "3.11"
+}

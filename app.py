@@ -446,6 +446,9 @@ def category_detail(id):
 
     if request.method == 'PUT':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
         try:
             cursor.execute('UPDATE categories SET name = ?, description = ? WHERE id = ?',
                          (data['name'], data.get('description', ''), id))
@@ -464,6 +467,9 @@ def category_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete category with associated products'}), 400
         finally:
             conn.close()
+    
+    conn.close()
+    return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
 @app.route('/api/brands', methods=['GET', 'POST'])
 @login_required
@@ -508,6 +514,9 @@ def brand_detail(id):
 
     if request.method == 'PUT':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
         try:
             cursor.execute('UPDATE brands SET name = ?, description = ? WHERE id = ?',
                          (data['name'], data.get('description', ''), id))
@@ -526,6 +535,9 @@ def brand_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete brand with associated products'}), 400
         finally:
             conn.close()
+    
+    conn.close()
+    return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
 @app.route('/api/models', methods=['GET', 'POST'])
 @login_required
