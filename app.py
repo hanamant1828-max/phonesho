@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, send_from_directory
 from functools import wraps
 from werkzeug.utils import secure_filename
 import sqlite3
@@ -17,6 +17,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_ENV') == 'production'
 app.config['UPLOAD_FOLDER'] = 'static/uploads/models'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching during development
 
 # Create upload folder if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -376,6 +377,11 @@ def index():
 @app.route('/pos')
 def pos_page():
     return render_template('pos.html')
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Explicitly serve static files"""
+    return send_from_directory(app.static_folder, filename)
 
 @app.route('/api/login', methods=['POST'])
 def login():
