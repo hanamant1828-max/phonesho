@@ -3066,11 +3066,11 @@ def pos_sales():
                     if len(imei_ids) != quantity:
                         raise ValueError(f'Number of selected IMEIs ({len(imei_ids)}) must match quantity ({quantity}) for {product["name"]}')
 
-                    # Validate all IMEIs exist and are available
+                    # Validate all IMEIs exist and are available (both 'available' and 'in_stock' statuses)
                     placeholders = ','.join('?' * len(imei_ids))
                     cursor.execute(f'''
                         SELECT id, imei FROM product_imei 
-                        WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
+                        WHERE id IN ({placeholders}) AND product_id = ? AND status IN ('available', 'in_stock')
                     ''', (*imei_ids, product_id))
 
                     available_imeis = cursor.fetchall()
@@ -3136,7 +3136,7 @@ def pos_sales():
                         cursor.execute(f'''
                             UPDATE product_imei 
                             SET status = 'sold', sale_id = ?, sold_date = ?
-                            WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
+                            WHERE id IN ({placeholders}) AND product_id = ? AND status IN ('available', 'in_stock')
                         ''', (sale_id, datetime.now(), *imei_ids, product_id))
 
                         # Verify all IMEIs were updated (atomic check for race conditions)
