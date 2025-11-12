@@ -55,7 +55,7 @@ def init_db():
             conn.commit()
         except sqlite3.OperationalError:
             pass
-    
+
     # Check and add sale_id column to product_imei if it doesn't exist
     if columns and 'sale_id' not in columns:
         try:
@@ -94,7 +94,7 @@ def init_db():
             UNIQUE(name, brand_id)
         )
     ''')
-    
+
     # Add image_data column if it doesn't exist (migration)
     cursor.execute("PRAGMA table_info(models)")
     columns = [column[1] for column in cursor.fetchall()]
@@ -394,7 +394,7 @@ def categories():
         if not data or 'name' not in data or not data['name'].strip():
             conn.close()
             return jsonify({'success': False, 'error': 'Category name is required'}), 400
-        
+
         try:
             cursor.execute('INSERT INTO categories (name, description) VALUES (?, ?)',
                          (data['name'].strip(), data.get('description', '').strip()))
@@ -456,7 +456,7 @@ def brands():
         if not data or 'name' not in data or not data['name'].strip():
             conn.close()
             return jsonify({'success': False, 'error': 'Brand name is required'}), 400
-        
+
         try:
             cursor.execute('INSERT INTO brands (name, description) VALUES (?, ?)',
                          (data['name'].strip(), data.get('description', '').strip()))
@@ -520,11 +520,11 @@ def models():
             brand_id = data.get('brand_id')
             description = data.get('description', '')
             image_data = data.get('image_data', '')
-            
+
             # Validate that name and brand_id are provided
             if not name or not brand_id:
                 return jsonify({'success': False, 'error': 'Name and brand are required'}), 400
-            
+
             cursor.execute('INSERT INTO models (name, brand_id, description, image_data) VALUES (?, ?, ?, ?)',
                          (name, brand_id, description, image_data))
             conn.commit()
@@ -559,11 +559,11 @@ def model_detail(id):
             brand_id = data.get('brand_id')
             description = data.get('description', '')
             image_data = data.get('image_data', '')
-            
+
             # Validate that name and brand_id are provided
             if not name or not brand_id:
                 return jsonify({'success': False, 'error': 'Name and brand are required'}), 400
-            
+
             cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_data = ? WHERE id = ?',
                          (name, brand_id, description, image_data, id))
             conn.commit()
@@ -810,19 +810,19 @@ def manage_product_imeis(product_id):
         imei_list = data.get('imeis', [])
         grn_id = data.get('grn_id')
         stock_movement_id = data.get('stock_movement_id')
-        
+
         try:
             added_imeis = []
             for imei in imei_list:
                 if not imei or not imei.strip():
                     continue
-                    
+
                 cursor.execute('''
                     INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (product_id, imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
                 added_imeis.append(imei.strip())
-            
+
             conn.commit()
             return jsonify({'success': True, 'added': len(added_imeis), 'imeis': added_imeis})
         except sqlite3.IntegrityError as e:
@@ -835,7 +835,7 @@ def manage_product_imeis(product_id):
             conn.close()
     else:
         status = request.args.get('status', '')
-        
+
         query = '''
             SELECT pi.*, ps.sale_number, ps.customer_name, ps.sale_date,
                    sm.reference_type, sm.reference_id
@@ -845,38 +845,42 @@ def manage_product_imeis(product_id):
             WHERE pi.product_id = ?
         '''
         params = [product_id]
-        
+
         if status:
-            query += ' AND pi.status = ?'
-            params.append(status)
-        
-        query += ' ORDER BY pi.status ASC, pi.created_at DESC'
-        
+            # Handle both 'available' and 'in_stock' when status filter is 'available'
+            if status == 'available':
+                query += " AND pi.status IN ('available', 'in_stock')"
+            else:
+                query += ' AND pi.status = ?'
+                params.append(status)
+
+        query += ' ORDER BY CASE WHEN pi.status IN (\'available\', \'in_stock\') THEN 0 ELSE 1 END, pi.created_at DESC'
+
         cursor.execute(query, params)
         imeis = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
+
         return jsonify(imeis)
 
 @app.route('/api/products/<int:product_id>/imeis/verify', methods=['GET'])
 @login_required
 def verify_product_imei(product_id):
     imei = request.args.get('imei', '').strip()
-    
+
     if not imei:
         return jsonify({'error': 'IMEI parameter required'}), 400
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('''
             SELECT id, imei, status FROM product_imei 
             WHERE product_id = ? AND imei = ?
         ''', (product_id, imei))
-        
+
         imei_record = cursor.fetchone()
-        
+
         if imei_record:
             return jsonify({
                 'exists': True,
@@ -897,17 +901,17 @@ def verify_product_imei(product_id):
 def delete_imei(imei_id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('SELECT status FROM product_imei WHERE id = ?', (imei_id,))
         imei_row = cursor.fetchone()
-        
+
         if not imei_row:
             return jsonify({'success': False, 'error': 'IMEI not found'}), 404
-        
+
         if imei_row['status'] == 'sold':
             return jsonify({'success': False, 'error': 'Cannot delete sold IMEI'}), 400
-        
+
         cursor.execute('DELETE FROM product_imei WHERE id = ?', (imei_id,))
         conn.commit()
         return jsonify({'success': True})
@@ -1093,9 +1097,9 @@ def receive_purchase_order(id):
                         VALUES (?, ?, ?, ?, ?, ?)
                     ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id, 
                           f"Received from PO #{id}"))
-                    
+
                     stock_movement_id = cursor.lastrowid
-                    
+
                     # Add IMEI numbers if provided
                     imei_list = item.get('imeis', [])
                     if imei_list:
@@ -1135,9 +1139,9 @@ def receive_purchase_order(id):
                         VALUES (?, ?, ?, ?, ?, ?)
                     ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
                           f"Initial stock from PO #{id}"))
-                    
+
                     stock_movement_id = cursor.lastrowid
-                    
+
                     # Add IMEI numbers if provided
                     imei_list = item.get('imeis', [])
                     if imei_list:
@@ -1177,9 +1181,9 @@ def receive_purchase_order(id):
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
                       f"Initial stock from PO #{id}"))
-                
+
                 stock_movement_id = cursor.lastrowid
-                
+
                 # Add IMEI numbers if provided
                 imei_list = item.get('imeis', [])
                 if imei_list:
@@ -1291,61 +1295,61 @@ def quick_orders():
         try:
             order_number = f"QO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             items = data.get('items', [])
-            
+
             if not items:
                 return jsonify({'success': False, 'error': 'No items in order'}), 400
-            
+
             total_items = len(items)
             total_amount = 0
-            
+
             cursor.execute('''
                 INSERT INTO quick_orders (order_number, total_items, notes, created_by)
                 VALUES (?, ?, ?, ?)
             ''', (order_number, total_items, data.get('notes', ''), session.get('username')))
-            
+
             order_id = cursor.lastrowid
-            
+
             for item in items:
                 product_id = item['product_id']
                 quantity = item['quantity']
-                
+
                 if not isinstance(quantity, int) or quantity <= 0:
                     raise ValueError(f'Invalid quantity: {quantity}. Quantity must be a positive integer')
-                
+
                 cursor.execute('SELECT name, selling_price, current_stock FROM products WHERE id = ?', (product_id,))
                 product_row = cursor.fetchone()
-                
+
                 if not product_row:
                     raise ValueError(f'Product ID {product_id} not found')
-                
+
                 product_name = product_row['name']
                 unit_price = product_row['selling_price']
                 current_stock = product_row['current_stock']
-                
+
                 if current_stock < quantity:
                     raise ValueError(f'Insufficient stock for {product_name}. Available: {current_stock}, Requested: {quantity}')
-                
+
                 item_total = unit_price * quantity
                 total_amount += item_total
-                
+
                 cursor.execute('''
                     INSERT INTO quick_order_items (order_id, product_id, product_name, quantity, unit_price, total_price)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (order_id, product_id, product_name, quantity, unit_price, item_total))
-                
+
                 new_stock = current_stock - quantity
                 cursor.execute('UPDATE products SET current_stock = ? WHERE id = ?', (new_stock, product_id))
-                
+
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ''', (product_id, 'sale', -quantity, 'quick_order', order_id, f'Quick Order {order_number}'))
-            
+
             cursor.execute('UPDATE quick_orders SET total_amount = ? WHERE id = ?', (total_amount, order_id))
-            
+
             conn.commit()
             return jsonify({'success': True, 'order_id': order_id, 'order_number': order_number})
-        
+
         except ValueError as e:
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -1354,7 +1358,7 @@ def quick_orders():
             return jsonify({'success': False, 'error': str(e)}), 500
         finally:
             conn.close()
-    
+
     else:
         cursor.execute('''
             SELECT * FROM quick_orders 
@@ -1397,45 +1401,45 @@ def get_quick_order_detail(id):
 def stock_adjustment():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         data = request.json
         product_id = data.get('product_id')
         quantity = data.get('quantity')
         notes = data.get('notes', '')
         imei_numbers = data.get('imei_numbers', [])
-        
+
         if not product_id:
             return jsonify({'success': False, 'error': 'Product ID is required'}), 400
-        
+
         if not isinstance(quantity, int) or quantity <= 0:
             return jsonify({'success': False, 'error': 'Quantity must be a positive integer'}), 400
-        
+
         cursor.execute('SELECT name, current_stock FROM products WHERE id = ?', (product_id,))
         product_row = cursor.fetchone()
-        
+
         if not product_row:
             return jsonify({'success': False, 'error': 'Product not found'}), 404
-        
+
         product_name = product_row['name']
         current_stock = product_row['current_stock'] or 0
         new_stock = current_stock + quantity
-        
+
         cursor.execute('UPDATE products SET current_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
                       (new_stock, product_id))
-        
+
         # Create stock movement record
         movement_notes = notes or 'Stock adjustment'
         if imei_numbers and len(imei_numbers) > 0:
             movement_notes += f' (with {len(imei_numbers)} IMEI numbers)'
-        
+
         cursor.execute('''
             INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
             VALUES (?, ?, ?, ?, ?)
         ''', (product_id, 'adjustment', quantity, 'manual', movement_notes))
-        
+
         movement_id = cursor.lastrowid
-        
+
         # Store IMEI numbers if provided
         if imei_numbers and len(imei_numbers) > 0:
             # Create IMEI tracking table if it doesn't exist
@@ -1451,7 +1455,7 @@ def stock_adjustment():
                     FOREIGN KEY (stock_movement_id) REFERENCES stock_movements (id)
                 )
             ''')
-            
+
             # Insert IMEI numbers
             for imei in imei_numbers:
                 try:
@@ -1463,9 +1467,9 @@ def stock_adjustment():
                     # IMEI already exists
                     conn.rollback()
                     return jsonify({'success': False, 'error': f'IMEI number {imei} already exists in the system'}), 400
-        
+
         conn.commit()
-        
+
         return jsonify({
             'success': True, 
             'product_name': product_name,
@@ -1474,7 +1478,7 @@ def stock_adjustment():
             'new_stock': new_stock,
             'imei_count': len(imei_numbers) if imei_numbers else 0
         })
-    
+
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1486,7 +1490,7 @@ def stock_adjustment():
 def get_stock_adjustments():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT 
             sm.id,
@@ -1504,10 +1508,10 @@ def get_stock_adjustments():
         GROUP BY sm.id
         ORDER BY sm.created_at DESC
     ''')
-    
+
     adjustments = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     return jsonify(adjustments)
 
 @app.route('/api/stock-adjustments/<int:id>', methods=['GET', 'DELETE'])
@@ -1515,7 +1519,7 @@ def get_stock_adjustments():
 def stock_adjustment_detail(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     if request.method == 'GET':
         cursor.execute('''
             SELECT 
@@ -1531,26 +1535,26 @@ def stock_adjustment_detail(id):
             LEFT JOIN products p ON sm.product_id = p.id
             WHERE sm.id = ? AND sm.type = 'adjustment'
         ''', (id,))
-        
+
         adjustment = cursor.fetchone()
         if not adjustment:
             conn.close()
             return jsonify({'error': 'Stock adjustment not found'}), 404
-        
+
         adjustment_dict = dict(adjustment)
-        
+
         cursor.execute('''
             SELECT imei, status, created_at
             FROM product_imei
             WHERE stock_movement_id = ?
             ORDER BY created_at
         ''', (id,))
-        
+
         adjustment_dict['imei_numbers'] = [dict(row) for row in cursor.fetchall()]
         conn.close()
-        
+
         return jsonify(adjustment_dict)
-    
+
     elif request.method == 'DELETE':
         try:
             cursor.execute('''
@@ -1558,58 +1562,58 @@ def stock_adjustment_detail(id):
                 FROM stock_movements
                 WHERE id = ? AND type = 'adjustment'
             ''', (id,))
-            
+
             movement = cursor.fetchone()
             if not movement:
                 conn.close()
                 return jsonify({'success': False, 'error': 'Adjustment not found'}), 404
-            
+
             product_id = movement['product_id']
             quantity = movement['quantity']
-            
+
             cursor.execute('SELECT current_stock FROM products WHERE id = ?', (product_id,))
             product = cursor.fetchone()
-            
+
             if not product:
                 conn.close()
                 return jsonify({'success': False, 'error': 'Product not found'}), 404
-            
+
             current_stock = product['current_stock'] or 0
-            
+
             if current_stock < quantity:
                 conn.close()
                 return jsonify({
                     'success': False, 
                     'error': f'Cannot delete adjustment: current stock ({current_stock}) is less than adjustment quantity ({quantity}). Stock may have been sold or adjusted.'
                 }), 409
-            
+
             cursor.execute('''
                 SELECT COUNT(*) as sold_count
                 FROM product_imei
                 WHERE stock_movement_id = ? AND status != 'available' AND status != 'in_stock'
             ''', (id,))
-            
+
             sold_imeis = cursor.fetchone()['sold_count']
-            
+
             if sold_imeis > 0:
                 conn.close()
                 return jsonify({
                     'success': False,
                     'error': f'Cannot delete adjustment: {sold_imeis} IMEI number(s) from this adjustment have been sold. Delete operation would corrupt sale history.'
                 }), 409
-            
+
             cursor.execute('''
                 UPDATE products 
                 SET current_stock = current_stock - ?
                 WHERE id = ?
             ''', (quantity, product_id))
-            
+
             cursor.execute('DELETE FROM product_imei WHERE stock_movement_id = ?', (id,))
             cursor.execute('DELETE FROM stock_movements WHERE id = ?', (id,))
-            
+
             conn.commit()
             conn.close()
-            
+
             return jsonify({'success': True})
         except Exception as e:
             conn.rollback()
@@ -1621,11 +1625,11 @@ def stock_adjustment_detail(id):
 def report_sales():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
     transaction_type = request.args.get('transaction_type', '')
-    
+
     query = '''
         SELECT 
             ps.sale_number,
@@ -1647,35 +1651,35 @@ def report_sales():
         WHERE 1=1
     '''
     params = []
-    
+
     if from_date:
         query += ' AND DATE(ps.sale_date) >= ?'
         params.append(from_date)
-    
+
     if to_date:
         query += ' AND DATE(ps.sale_date) <= ?'
         params.append(to_date)
-    
+
     if transaction_type:
         query += ' AND ps.transaction_type = ?'
         params.append(transaction_type)
-    
+
     query += ' GROUP BY ps.id ORDER BY ps.sale_date DESC'
-    
+
     cursor.execute(query, params)
     sales = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(sales)
     if not df.empty:
         df['sale_date'] = pd.to_datetime(df['sale_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Sales Report')
         workbook = writer.book
         worksheet = writer.sheets['Sales Report']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -1687,7 +1691,7 @@ def report_sales():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -1701,10 +1705,10 @@ def report_sales():
 def report_inventory():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     category_id = request.args.get('category_id', '')
     stock_status = request.args.get('stock_status', '')
-    
+
     query = '''
         SELECT 
             p.sku,
@@ -1732,32 +1736,32 @@ def report_inventory():
         WHERE 1=1
     '''
     params = []
-    
+
     if category_id:
         query += ' AND p.category_id = ?'
         params.append(category_id)
-    
+
     if stock_status == 'low':
         query += ' AND p.current_stock <= p.min_stock_level AND p.current_stock > 0'
     elif stock_status == 'out':
         query += ' AND p.current_stock = 0'
     elif stock_status == 'good':
         query += ' AND p.current_stock > p.min_stock_level'
-    
+
     query += ' ORDER BY p.name'
-    
+
     cursor.execute(query, params)
     inventory = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(inventory)
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Inventory Report')
         workbook = writer.book
         worksheet = writer.sheets['Inventory Report']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -1769,7 +1773,7 @@ def report_inventory():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -1783,11 +1787,11 @@ def report_inventory():
 def report_purchase_orders():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
     status = request.args.get('status', '')
-    
+
     query = '''
         SELECT 
             po.po_number,
@@ -1808,36 +1812,36 @@ def report_purchase_orders():
         WHERE 1=1
     '''
     params = []
-    
+
     if from_date:
         query += ' AND DATE(po.order_date) >= ?'
         params.append(from_date)
-    
+
     if to_date:
         query += ' AND DATE(po.order_date) <= ?'
         params.append(to_date)
-    
+
     if status:
         query += ' AND po.status = ?'
         params.append(status)
-    
+
     query += ' GROUP BY po.id ORDER BY po.order_date DESC'
-    
+
     cursor.execute(query, params)
     pos = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(pos)
     if not df.empty:
         df['order_date'] = pd.to_datetime(df['order_date']).dt.strftime('%Y-%m-%d')
         df['expected_delivery'] = pd.to_datetime(df['expected_delivery'], errors='coerce').dt.strftime('%Y-%m-%d')
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Purchase Orders')
         workbook = writer.book
         worksheet = writer.sheets['Purchase Orders']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -1849,7 +1853,7 @@ def report_purchase_orders():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -1863,11 +1867,11 @@ def report_purchase_orders():
 def report_stock_movements():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
     movement_type = request.args.get('type', '')
-    
+
     query = '''
         SELECT 
             sm.created_at,
@@ -1887,35 +1891,35 @@ def report_stock_movements():
         WHERE 1=1
     '''
     params = []
-    
+
     if from_date:
         query += ' AND DATE(sm.created_at) >= ?'
         params.append(from_date)
-    
+
     if to_date:
         query += ' AND DATE(sm.created_at) <= ?'
         params.append(to_date)
-    
+
     if movement_type:
         query += ' AND sm.type = ?'
         params.append(movement_type)
-    
+
     query += ' ORDER BY sm.created_at DESC'
-    
+
     cursor.execute(query, params)
     movements = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(movements)
     if not df.empty:
         df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Stock Movements')
         workbook = writer.book
         worksheet = writer.sheets['Stock Movements']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -1927,7 +1931,7 @@ def report_stock_movements():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -1941,11 +1945,11 @@ def report_stock_movements():
 def report_grns():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
     payment_status = request.args.get('payment_status', '')
-    
+
     query = '''
         SELECT 
             g.grn_number,
@@ -1968,35 +1972,35 @@ def report_grns():
         WHERE 1=1
     '''
     params = []
-    
+
     if from_date:
         query += ' AND DATE(g.received_date) >= ?'
         params.append(from_date)
-    
+
     if to_date:
         query += ' AND DATE(g.received_date) <= ?'
         params.append(to_date)
-    
+
     if payment_status:
         query += ' AND g.payment_status = ?'
         params.append(payment_status)
-    
+
     query += ' ORDER BY g.received_date DESC'
-    
+
     cursor.execute(query, params)
     grns = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(grns)
     if not df.empty:
         df['received_date'] = pd.to_datetime(df['received_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='GRN Report')
         workbook = writer.book
         worksheet = writer.sheets['GRN Report']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -2008,7 +2012,7 @@ def report_grns():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -2022,16 +2026,16 @@ def report_grns():
 def get_imei_tracking(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Get product name
     cursor.execute('SELECT name FROM products WHERE id = ?', (id,))
     product_row = cursor.fetchone()
     if not product_row:
         conn.close()
         return jsonify({'error': 'Product not found'}), 404
-    
+
     product_name = product_row['name']
-    
+
     # Get IMEI records with sale information
     cursor.execute('''
         SELECT 
@@ -2054,15 +2058,15 @@ def get_imei_tracking(id):
         WHERE pi.product_id = ?
         ORDER BY pi.status ASC, pi.created_at DESC
     ''', (id,))
-    
+
     imei_records = [dict(row) for row in cursor.fetchall()]
-    
+
     # Get total count
     cursor.execute('SELECT COUNT(*) as count FROM product_imei WHERE product_id = ?', (id,))
     total_count = cursor.fetchone()['count']
-    
+
     conn.close()
-    
+
     return jsonify({
         'product_name': product_name,
         'total_count': total_count,
@@ -2074,7 +2078,7 @@ def get_imei_tracking(id):
 def mark_imei_sold(id):
     conn = get_db()
     cursor = conn.cursor()
-    
+
     try:
         cursor.execute('UPDATE product_imei SET status = ? WHERE id = ?', ('sold', id))
         conn.commit()
@@ -2089,13 +2093,13 @@ def mark_imei_sold(id):
 @login_required
 def search_by_imei():
     imei = request.args.get('imei', '')
-    
+
     if not imei:
         return jsonify({'error': 'IMEI parameter required'}), 400
-    
+
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Search in product_imei table
     cursor.execute('''
         SELECT 
@@ -2116,10 +2120,10 @@ def search_by_imei():
         WHERE pi.imei LIKE ?
         LIMIT 20
     ''', (f'%{imei}%',))
-    
+
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     return jsonify(results)
 
 @app.route('/api/reports/profit', methods=['GET'])
@@ -2127,11 +2131,11 @@ def search_by_imei():
 def report_profit():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     from_date = request.args.get('from_date', '')
     to_date = request.args.get('to_date', '')
     sort_by = request.args.get('sort_by', 'margin')
-    
+
     query = '''
         SELECT 
             p.name as product_name,
@@ -2155,36 +2159,36 @@ def report_profit():
         WHERE 1=1
     '''
     params = []
-    
+
     if from_date:
         query += ' AND DATE(ps.sale_date) >= ?'
         params.append(from_date)
-    
+
     if to_date:
         query += ' AND DATE(ps.sale_date) <= ?'
         params.append(to_date)
-    
+
     query += ' GROUP BY p.id'
-    
+
     if sort_by == 'margin':
         query += ' ORDER BY profit_margin_percent DESC'
     elif sort_by == 'quantity':
         query += ' ORDER BY quantity_sold DESC'
     elif sort_by == 'revenue':
         query += ' ORDER BY total_revenue DESC'
-    
+
     cursor.execute(query, params)
     profit_data = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     df = pd.DataFrame(profit_data)
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Profit Analysis')
         workbook = writer.book
         worksheet = writer.sheets['Profit Analysis']
-        
+
         for column in worksheet.columns:
             max_length = 0
             column_letter = column[0].column_letter
@@ -2196,7 +2200,7 @@ def report_profit():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -2220,7 +2224,7 @@ def get_stock_history(id):
 
     product_name = product_row['name']
     opening_stock = product_row['opening_stock'] or 0
-    
+
     # Get stock movements with running balance
     cursor.execute('''
         SELECT 
@@ -2244,17 +2248,17 @@ def get_stock_history(id):
         WHERE sm.product_id = ?
         ORDER BY sm.created_at ASC
     ''', (id,))
-    
+
     movements = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     # Calculate running balance starting from opening stock
     running_balance = opening_stock
     history = []
-    
+
     for movement in movements:
         quantity = abs(movement['quantity'])
-        
+
         # Determine if stock is added or removed based on movement type
         if movement['type'] in ['purchase', 'opening_stock', 'adjustment']:
             if movement['quantity'] >= 0:
@@ -2279,7 +2283,7 @@ def get_stock_history(id):
                 stock_added = 0
                 stock_removed = quantity
                 running_balance -= quantity
-        
+
         history.append({
             'date_time': movement['created_at'],
             'stock_added': stock_added,
@@ -2288,7 +2292,7 @@ def get_stock_history(id):
             'received_by': movement['received_by'],
             'running_balance': max(0, running_balance)  # Ensure balance doesn't go negative
         })
-    
+
     return jsonify({
         'product_name': product_name,
         'history': history
@@ -2348,11 +2352,11 @@ def dashboard_stats():
 def dashboard_analytics():
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Total products
     cursor.execute('SELECT COUNT(*) as count FROM products WHERE status = "active"')
     total_products = cursor.fetchone()['count']
-    
+
     # Sales and profit for last 30 days
     cursor.execute('''
         SELECT 
@@ -2363,7 +2367,7 @@ def dashboard_analytics():
     ''')
     sales_data = cursor.fetchone()
     total_sales = sales_data['total_sales'] - sales_data['total_returns']
-    
+
     # Calculate profit (revenue - cost)
     cursor.execute('''
         SELECT 
@@ -2380,11 +2384,11 @@ def dashboard_analytics():
     cost = profit_data['cost'] or 0
     profit = revenue - cost
     margin_percent = (profit / revenue * 100) if revenue > 0 else 0
-    
+
     # Low stock count
     cursor.execute('SELECT COUNT(*) as count FROM products WHERE current_stock <= min_stock_level AND status = "active"')
     low_stock_count = cursor.fetchone()['count']
-    
+
     # Top 5 selling products (last 30 days)
     cursor.execute('''
         SELECT 
@@ -2408,7 +2412,7 @@ def dashboard_analytics():
         product = dict(row)
         product['product_name'] = product['current_product_name'] or product['product_name']
         top_products.append(product)
-    
+
     # Recent POS transactions
     cursor.execute('''
         SELECT 
@@ -2422,7 +2426,7 @@ def dashboard_analytics():
         LIMIT 10
     ''')
     recent_transactions = [dict(row) for row in cursor.fetchall()]
-    
+
     # Low stock items
     cursor.execute('''
         SELECT p.*, c.name as category_name, b.name as brand_name
@@ -2434,9 +2438,9 @@ def dashboard_analytics():
         LIMIT 10
     ''')
     low_stock_items = [dict(row) for row in cursor.fetchall()]
-    
+
     conn.close()
-    
+
     return jsonify({
         'total_products': total_products,
         'total_sales': total_sales,
@@ -2459,7 +2463,7 @@ def dashboard_sales_chart():
     days = int(request.args.get('days', 7))
     conn = get_db()
     cursor = conn.cursor()
-    
+
     # Get sales and profit for each day
     cursor.execute('''
         SELECT 
@@ -2470,9 +2474,9 @@ def dashboard_sales_chart():
         GROUP BY DATE(sale_date)
         ORDER BY sale_day
     ''', (days,))
-    
+
     sales_by_day = {row['sale_day']: row['daily_sales'] for row in cursor.fetchall()}
-    
+
     # Get profit for each day
     cursor.execute('''
         SELECT 
@@ -2486,24 +2490,24 @@ def dashboard_sales_chart():
         GROUP BY DATE(ps.sale_date)
         ORDER BY sale_day
     ''', (days,))
-    
+
     profit_by_day = {row['sale_day']: row['daily_profit'] for row in cursor.fetchall()}
-    
+
     conn.close()
-    
+
     # Generate labels and data for last N days
     from datetime import datetime, timedelta
     labels = []
     sales_data = []
     profit_data = []
-    
+
     for i in range(days - 1, -1, -1):
         day = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
         label = (datetime.now() - timedelta(days=i)).strftime('%b %d')
         labels.append(label)
         sales_data.append(float(sales_by_day.get(day, 0)))
         profit_data.append(float(profit_by_day.get(day, 0)))
-    
+
     return jsonify({
         'labels': labels,
         'sales': sales_data,
@@ -2514,7 +2518,7 @@ def dashboard_sales_chart():
 @login_required
 def export_template():
     format_type = request.args.get('format', 'excel')
-    
+
     # Create template with headers and sample data
     template_data = {
         'sku': ['SKU001', 'SKU002'],
@@ -2538,9 +2542,9 @@ def export_template():
         'supplier_contact': ['+1234567890', '+0987654321'],
         'status': ['active', 'active']
     }
-    
+
     df = pd.DataFrame(template_data)
-    
+
     if format_type == 'csv':
         output = io.StringIO()
         df.to_csv(output, index=False)
@@ -2557,7 +2561,7 @@ def export_template():
             df.to_excel(writer, index=False, sheet_name='Products')
             workbook = writer.book
             worksheet = writer.sheets['Products']
-            
+
             # Add instructions sheet
             instructions = workbook.create_sheet('Instructions')
             instructions['A1'] = 'Product Import Instructions'
@@ -2571,7 +2575,7 @@ def export_template():
             instructions['A11'] = '- cost_price, selling_price, mrp: Prices'
             instructions['A12'] = '- current_stock: Stock quantity'
             instructions['A13'] = '- status: active or inactive'
-            
+
         output.seek(0)
         return send_file(
             output,
@@ -2589,7 +2593,7 @@ def export_products():
     format_type = request.args.get('format', 'excel')
     columns_param = request.args.get('columns', '')
     selected_columns = columns_param.split(',') if columns_param else []
-    
+
     # Build query based on filters
     query = '''
         SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
@@ -2600,7 +2604,7 @@ def export_products():
         WHERE 1=1
     '''
     params = []
-    
+
     # Apply filters
     search = request.args.get('search', '')
     category_id = request.args.get('category_id', '')
@@ -2608,37 +2612,37 @@ def export_products():
     status = request.args.get('status', '')
     stock_status = request.args.get('stock_status', '')
     ids = request.args.get('ids', '')
-    
+
     if search:
         query += ' AND (p.name LIKE ? OR p.sku LIKE ?)'
         search_param = f'%{search}%'
         params.extend([search_param, search_param])
-    
+
     if category_id:
         query += ' AND p.category_id = ?'
         params.append(category_id)
-    
+
     if brand_id:
         query += ' AND p.brand_id = ?'
         params.append(brand_id)
-    
+
     if status:
         query += ' AND p.status = ?'
         params.append(status)
-    
+
     if stock_status == 'low':
         query += ' AND p.current_stock <= p.min_stock_level'
     elif stock_status == 'out':
         query += ' AND p.current_stock = 0'
-    
+
     if ids:
         id_list = ids.split(',')
         placeholders = ','.join('?' * len(id_list))
         query += f' AND p.id IN ({placeholders})'
         params.extend(id_list)
-    
+
     query += ' ORDER BY p.name'
-    
+
     cursor.execute(query, params)
     products = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -2656,7 +2660,7 @@ def export_products():
             'current_stock': 'current_stock',
             'status': 'status'
         }
-        
+
         filtered_products = []
         for product in products:
             filtered_product = {}
@@ -2667,7 +2671,7 @@ def export_products():
         products = filtered_products
 
     df = pd.DataFrame(products)
-    
+
     if format_type == 'csv':
         output = io.StringIO()
         df.to_csv(output, index=False)
@@ -2708,22 +2712,22 @@ def import_products_preview():
         total_rows = len(df)
         preview_rows = df.head(3).fillna('').to_dict('records')
         columns = list(df.columns)
-        
+
         # Basic validation
         errors = []
         valid_count = 0
-        
+
         for index, row in df.iterrows():
             row_errors = []
-            
+
             if pd.isna(row.get('name')) or str(row.get('name')).strip() == '':
                 row_errors.append(f"Row {index + 2}: Product name is required")
             else:
                 valid_count += 1
-            
+
             if row_errors:
                 errors.extend(row_errors)
-        
+
         return jsonify({
             'success': True,
             'total_rows': total_rows,
@@ -2765,19 +2769,19 @@ def export_grns():
         LEFT JOIN grn_items gi ON g.id = gi.grn_id
         ORDER BY g.received_date DESC, g.grn_number
     ''')
-    
+
     grn_data = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
     df = pd.DataFrame(grn_data)
-    
+
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='GRN Report')
-        
+
         workbook = writer.book
         worksheet = writer.sheets['GRN Report']
-        
+
         # Auto-adjust column widths
         for column in worksheet.columns:
             max_length = 0
@@ -2790,7 +2794,7 @@ def export_grns():
                     pass
             adjusted_width = min(max_length + 2, 50)
             worksheet.column_dimensions[column_letter].width = adjusted_width
-    
+
     output.seek(0)
     return send_file(
         output,
@@ -2993,25 +2997,25 @@ def pos_sales():
             sale_number_prefix = 'RET' if transaction_type == 'return' else 'EXC' if transaction_type == 'exchange' else 'POS'
             sale_number = f"{sale_number_prefix}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             items = data.get('items', [])
-            
+
             if not items:
                 return jsonify({'success': False, 'error': 'No items in sale'}), 400
-            
+
             # Calculate totals
             subtotal = sum(item['quantity'] * item['unit_price'] for item in items)
             discount_percentage = float(data.get('discount_percentage', 0))
             tax_percentage = float(data.get('tax_percentage', 0))
-            
+
             discount_amount = subtotal * (discount_percentage / 100)
             taxable_amount = subtotal - discount_amount
             tax_amount = taxable_amount * (tax_percentage / 100)
             total_amount = taxable_amount + tax_amount
-            
+
             # For returns, make amount negative
             if transaction_type == 'return':
                 total_amount = -abs(total_amount)
                 subtotal = -abs(subtotal)
-            
+
             # Create sale record
             cursor.execute('''
                 INSERT INTO pos_sales (
@@ -3029,65 +3033,65 @@ def pos_sales():
                 'paid', transaction_type, data.get('original_sale_id'),
                 data.get('notes'), session.get('username')
             ))
-            
+
             sale_id = cursor.lastrowid
-            
+
             # Add sale items and update stock
             for item in items:
                 product_id = item['product_id']
                 quantity = item['quantity']
                 unit_price = item['unit_price']
                 item_total = quantity * unit_price
-                
+
                 # Check stock
                 cursor.execute('SELECT current_stock, name FROM products WHERE id = ?', (product_id,))
                 product = cursor.fetchone()
                 if not product:
                     raise ValueError(f'Product ID {product_id} not found')
-                
+
                 # For regular sales, check stock availability
                 if transaction_type == 'sale' and product['current_stock'] < quantity:
                     raise ValueError(f'Insufficient stock for {product["name"]}')
-                
+
                 # Get IMEI IDs and manual IMEIs
                 imei_ids = item.get('imei_ids', [])
                 manual_imeis = item.get('manual_imeis', [])
                 imei_string = None
                 created_imei_ids = []
-                
+
                 # Handle selected IMEIs (from inventory)
                 if imei_ids:
                     if len(imei_ids) != quantity:
                         raise ValueError(f'Number of selected IMEIs ({len(imei_ids)}) must match quantity ({quantity}) for {product["name"]}')
-                    
+
                     # Validate all IMEIs exist and are available
                     placeholders = ','.join('?' * len(imei_ids))
                     cursor.execute(f'''
                         SELECT id, imei FROM product_imei 
                         WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
                     ''', (*imei_ids, product_id))
-                    
+
                     available_imeis = cursor.fetchall()
                     if len(available_imeis) != len(imei_ids):
                         raise ValueError(f'One or more selected IMEIs are not available for {product["name"]}')
-                    
+
                     # Store comma-separated IMEI numbers for display
                     imei_string = ','.join([row['imei'] for row in available_imeis])
-                
+
                 # Handle manual IMEIs (new entries)
                 elif manual_imeis:
                     if len(manual_imeis) != quantity:
                         raise ValueError(f'Number of manual IMEIs ({len(manual_imeis)}) must match quantity ({quantity}) for {product["name"]}')
-                    
+
                     # Validate IMEI format (15 digits)
                     for imei in manual_imeis:
                         if not imei or not isinstance(imei, str) or len(imei.strip()) != 15 or not imei.strip().isdigit():
                             raise ValueError(f'Invalid IMEI format: {imei}. IMEI must be exactly 15 digits.')
-                    
+
                     # Check for duplicates within the payload
                     if len(manual_imeis) != len(set(manual_imeis)):
                         raise ValueError(f'Duplicate IMEIs found in the submission for {product["name"]}')
-                    
+
                     # Create new IMEI records and mark as sold immediately
                     for imei in manual_imeis:
                         try:
@@ -3099,10 +3103,10 @@ def pos_sales():
                             created_imei_ids.append(cursor.lastrowid)
                         except sqlite3.IntegrityError:
                             raise ValueError(f'IMEI {imei} already exists in the system. Cannot use duplicate IMEI.')
-                    
+
                     # Store comma-separated IMEI numbers for display
                     imei_string = ','.join(manual_imeis)
-                
+
                 # Add sale item
                 cursor.execute('''
                     INSERT INTO pos_sale_items (
@@ -3113,7 +3117,7 @@ def pos_sales():
                     sale_id, product_id, product['name'], item.get('sku'),
                     quantity, unit_price, item_total, imei_string
                 ))
-                
+
                 # Update stock based on transaction type
                 if transaction_type == 'sale' or transaction_type == 'exchange':
                     # Deduct stock for sales and exchanges
@@ -3123,7 +3127,7 @@ def pos_sales():
                     )
                     movement_type = 'sale'
                     movement_qty = -quantity
-                    
+
                     # Mark IMEIs as sold if provided
                     if imei_ids:
                         placeholders = ','.join('?' * len(imei_ids))
@@ -3132,7 +3136,7 @@ def pos_sales():
                             SET status = 'sold', sale_id = ?, sold_date = ?
                             WHERE id IN ({placeholders}) AND product_id = ? AND status = 'available'
                         ''', (sale_id, datetime.now(), *imei_ids, product_id))
-                        
+
                         # Verify all IMEIs were updated (atomic check for race conditions)
                         if cursor.rowcount != len(imei_ids):
                             raise ValueError(f'Failed to mark all IMEIs as sold for {product["name"]}. Some IMEIs may have been sold by another transaction.')
@@ -3144,7 +3148,7 @@ def pos_sales():
                     )
                     movement_type = 'return'
                     movement_qty = quantity
-                    
+
                     # Mark IMEIs as available again if IMEI IDs provided
                     if imei_ids:
                         # Validate that these IMEIs belong to this product and are sold
@@ -3153,36 +3157,36 @@ def pos_sales():
                             SELECT id FROM product_imei 
                             WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
                         ''', (*imei_ids, product_id))
-                        
+
                         sold_imeis = cursor.fetchall()
                         if len(sold_imeis) != len(imei_ids):
                             raise ValueError(f'One or more selected IMEIs cannot be returned for {product["name"]}')
-                        
+
                         # Mark as available again
                         cursor.execute(f'''
                             UPDATE product_imei 
                             SET status = 'available', sale_id = NULL, sold_date = NULL
                             WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
                         ''', (*imei_ids, product_id))
-                        
+
                         # Verify all IMEIs were updated (atomic check for race conditions)
                         if cursor.rowcount != len(imei_ids):
                             raise ValueError(f'Failed to mark all IMEIs as available for {product["name"]}. Some IMEIs may have been modified by another transaction.')
-                
+
                 # Record stock movement
                 cursor.execute('''
                     INSERT INTO stock_movements (
                         product_id, type, quantity, reference_type, reference_id, notes
                     ) VALUES (?, ?, ?, ?, ?, ?)
                 ''', (product_id, movement_type, movement_qty, 'pos_sale', sale_id, f'POS {transaction_type.title()} {sale_number}'))
-            
+
             # Record payment
             if data.get('payment_method'):
                 cursor.execute('''
                     INSERT INTO pos_payments (sale_id, payment_method, amount, reference_number)
                     VALUES (?, ?, ?, ?)
                 ''', (sale_id, data.get('payment_method'), abs(total_amount), data.get('payment_reference')))
-            
+
             conn.commit()
             return jsonify({
                 'success': True,
@@ -3191,13 +3195,13 @@ def pos_sales():
                 'total_amount': total_amount,
                 'transaction_type': transaction_type
             })
-        
+
         except Exception as e:
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
-    
+
     else:
         # GET - List all sales
         cursor.execute('''
@@ -3217,23 +3221,23 @@ def get_pos_sale(id):
 
     cursor.execute('SELECT * FROM pos_sales WHERE id = ?', (id,))
     sale = cursor.fetchone()
-    
+
     if not sale:
         conn.close()
         return jsonify({'error': 'Sale not found'}), 404
-    
+
     sale_dict = dict(sale)
-    
+
     cursor.execute('''
         SELECT psi.*, p.sku, p.brand_id, p.category_id
         FROM pos_sale_items psi
         LEFT JOIN products p ON psi.product_id = p.id
         WHERE psi.sale_id = ?
     ''', (id,))
-    
+
     sale_dict['items'] = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    
+
     return jsonify(sale_dict)
 
 @app.route('/api/pos/products/search', methods=['GET'])
@@ -3242,7 +3246,7 @@ def pos_product_search():
     search = request.args.get('q', '')
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('''
         SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM products p
@@ -3254,7 +3258,7 @@ def pos_product_search():
         AND (p.name LIKE ? OR p.sku LIKE ? OR p.imei LIKE ?)
         LIMIT 20
     ''', (f'%{search}%', f'%{search}%', f'%{search}%'))
-    
+
     products = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify(products)
