@@ -391,20 +391,32 @@ def categories():
 
     if request.method == 'POST':
         data = request.json
+        if not data or 'name' not in data or not data['name'].strip():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Category name is required'}), 400
+        
         try:
             cursor.execute('INSERT INTO categories (name, description) VALUES (?, ?)',
-                         (data['name'], data.get('description', '')))
+                         (data['name'].strip(), data.get('description', '').strip()))
             conn.commit()
-            return jsonify({'success': True, 'id': cursor.lastrowid})
-        except sqlite3.IntegrityError:
-            return jsonify({'success': False, 'error': 'Category already exists'}), 400
-        finally:
+            category_id = cursor.lastrowid
             conn.close()
+            return jsonify({'success': True, 'id': category_id})
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Category already exists'}), 400
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:
-        cursor.execute('SELECT * FROM categories ORDER BY name')
-        categories = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return jsonify(categories)
+        try:
+            cursor.execute('SELECT * FROM categories ORDER BY name')
+            categories = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return jsonify(categories)
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/categories/<int:id>', methods=['PUT', 'DELETE'])
 @login_required
@@ -441,20 +453,32 @@ def brands():
 
     if request.method == 'POST':
         data = request.json
+        if not data or 'name' not in data or not data['name'].strip():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Brand name is required'}), 400
+        
         try:
             cursor.execute('INSERT INTO brands (name, description) VALUES (?, ?)',
-                         (data['name'], data.get('description', '')))
+                         (data['name'].strip(), data.get('description', '').strip()))
             conn.commit()
-            return jsonify({'success': True, 'id': cursor.lastrowid})
-        except sqlite3.IntegrityError:
-            return jsonify({'success': False, 'error': 'Brand already exists'}), 400
-        finally:
+            brand_id = cursor.lastrowid
             conn.close()
+            return jsonify({'success': True, 'id': brand_id})
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Brand already exists'}), 400
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
     else:
-        cursor.execute('SELECT * FROM brands ORDER BY name')
-        brands = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return jsonify(brands)
+        try:
+            cursor.execute('SELECT * FROM brands ORDER BY name')
+            brands = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            return jsonify(brands)
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/brands/<int:id>', methods=['PUT', 'DELETE'])
 @login_required
