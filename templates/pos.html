@@ -1589,6 +1589,69 @@
                 );
             }
 
+            // Customer lookup by phone number
+            let customerLookupTimeout;
+            let currentLookupRequest = null;
+            
+            $("#customerPhone").on("input", function() {
+                const phone = $(this).val().trim();
+                
+                // Clear previous timeout
+                clearTimeout(customerLookupTimeout);
+                
+                // Abort any in-flight request to prevent race conditions
+                if (currentLookupRequest) {
+                    currentLookupRequest.abort();
+                    currentLookupRequest = null;
+                }
+                
+                // Only lookup if phone has at least 10 digits
+                if (phone.length >= 10) {
+                    customerLookupTimeout = setTimeout(function() {
+                        // Call API to lookup customer
+                        currentLookupRequest = $.ajax({
+                            url: `/api/customers/lookup/${encodeURIComponent(phone)}`,
+                            method: 'GET',
+                            success: function(customer) {
+                                // Verify response matches current phone to prevent race condition
+                                const currentPhone = $("#customerPhone").val().trim();
+                                if (customer.phone === currentPhone) {
+                                    // Auto-fill customer details if found and phone still matches
+                                    $("#customerName").val(customer.name);
+                                    $("#customerEmail").val(customer.email || '');
+                                    
+                                    // Show visual feedback
+                                    $("#customerPhone").css('border-color', '#10b981');
+                                    setTimeout(() => {
+                                        $("#customerPhone").css('border-color', '');
+                                    }, 1000);
+                                }
+                                currentLookupRequest = null;
+                            },
+                            error: function(xhr) {
+                                // Only clear fields if request wasn't aborted
+                                if (xhr.statusText !== 'abort') {
+                                    // Verify phone hasn't changed before clearing
+                                    const currentPhone = $("#customerPhone").val().trim();
+                                    if (currentPhone === phone) {
+                                        // Customer not found - clear fields to prevent stale data
+                                        $("#customerName").val('');
+                                        $("#customerEmail").val('');
+                                    }
+                                    $("#customerPhone").css('border-color', '');
+                                }
+                                currentLookupRequest = null;
+                            }
+                        });
+                    }, 500); // Wait 500ms after user stops typing
+                } else {
+                    // Clear all customer fields if phone is too short
+                    $("#customerName").val('');
+                    $("#customerEmail").val('');
+                    $("#customerPhone").css('border-color', '');
+                }
+            });
+
             // Initialize
             $(document).ready(function () {
                 $("#productSearch").focus();

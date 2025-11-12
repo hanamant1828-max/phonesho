@@ -368,7 +368,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS customers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
-            phone TEXT,
+            phone TEXT UNIQUE,
             email TEXT,
             address TEXT,
             city TEXT,
@@ -3119,6 +3119,34 @@ def pos_sales():
                 total_amount = -abs(total_amount)
                 subtotal = -abs(subtotal)
 
+            # Auto-save customer to customers table if phone number is provided
+            customer_phone = data.get('customer_phone', '').strip()
+            customer_name = data.get('customer_name', '').strip()
+            customer_email = data.get('customer_email', '').strip()
+            
+            if customer_phone and customer_name:
+                try:
+                    # Check if customer already exists by phone
+                    cursor.execute('SELECT id FROM customers WHERE phone = ?', (customer_phone,))
+                    existing_customer = cursor.fetchone()
+                    
+                    if not existing_customer:
+                        # Create new customer record
+                        cursor.execute('''
+                            INSERT INTO customers (name, phone, email, status)
+                            VALUES (?, ?, ?, ?)
+                        ''', (customer_name, customer_phone, customer_email, 'active'))
+                    else:
+                        # Update existing customer (in case name or email changed)
+                        cursor.execute('''
+                            UPDATE customers 
+                            SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP
+                            WHERE phone = ?
+                        ''', (customer_name, customer_email, customer_phone))
+                except sqlite3.IntegrityError:
+                    # Phone number already exists, skip customer save
+                    pass
+
             # Create sale record
             cursor.execute('''
                 INSERT INTO pos_sales (
@@ -3426,6 +3454,21 @@ def customers():
         customers = [dict(row) for row in cursor.fetchall()]
         conn.close()
         return jsonify(customers)
+
+@app.route('/api/customers/lookup/<phone>', methods=['GET'])
+@login_required
+def customer_lookup_by_phone(phone):
+    """Lookup customer by phone number"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM customers WHERE phone = ? AND status = ?', (phone, 'active'))
+    customer = cursor.fetchone()
+    conn.close()
+    
+    if customer:
+        return jsonify(dict(customer))
+    return jsonify({'error': 'Customer not found'}), 404
 
 @app.route('/api/customers/<int:id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required
