@@ -378,10 +378,7 @@ def index():
 def pos_page():
     return render_template('pos.html')
 
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    """Explicitly serve static files"""
-    return send_from_directory(app.static_folder, filename)
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
