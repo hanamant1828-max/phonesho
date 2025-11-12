@@ -834,6 +834,40 @@ def manage_product_imeis(product_id):
         
         return jsonify(imeis)
 
+@app.route('/api/products/<int:product_id>/imeis/verify', methods=['GET'])
+@login_required
+def verify_product_imei(product_id):
+    imei = request.args.get('imei', '').strip()
+    
+    if not imei:
+        return jsonify({'error': 'IMEI parameter required'}), 400
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute('''
+            SELECT id, imei, status FROM product_imei 
+            WHERE product_id = ? AND imei = ?
+        ''', (product_id, imei))
+        
+        imei_record = cursor.fetchone()
+        
+        if imei_record:
+            return jsonify({
+                'exists': True,
+                'available': imei_record['status'] == 'available',
+                'imei_id': imei_record['id'],
+                'status': imei_record['status']
+            })
+        else:
+            return jsonify({
+                'exists': False,
+                'available': False
+            })
+    finally:
+        conn.close()
+
 @app.route('/api/imeis/<int:imei_id>', methods=['DELETE'])
 @login_required
 def delete_imei(imei_id):
@@ -2991,14 +3025,16 @@ def pos_sales():
                 if transaction_type == 'sale' and product['current_stock'] < quantity:
                     raise ValueError(f'Insufficient stock for {product["name"]}')
                 
-                # Get IMEI IDs if provided
+                # Get IMEI IDs and manual IMEIs
                 imei_ids = item.get('imei_ids', [])
+                manual_imeis = item.get('manual_imeis', [])
                 imei_string = None
+                created_imei_ids = []
                 
-                # If IMEI IDs are provided, validate them
+                # Handle selected IMEIs (from inventory)
                 if imei_ids:
                     if len(imei_ids) != quantity:
-                        raise ValueError(f'Number of IMEIs ({len(imei_ids)}) must match quantity ({quantity}) for {product["name"]}')
+                        raise ValueError(f'Number of selected IMEIs ({len(imei_ids)}) must match quantity ({quantity}) for {product["name"]}')
                     
                     # Validate all IMEIs exist and are available
                     placeholders = ','.join('?' * len(imei_ids))
@@ -3013,6 +3049,35 @@ def pos_sales():
                     
                     # Store comma-separated IMEI numbers for display
                     imei_string = ','.join([row['imei'] for row in available_imeis])
+                
+                # Handle manual IMEIs (new entries)
+                elif manual_imeis:
+                    if len(manual_imeis) != quantity:
+                        raise ValueError(f'Number of manual IMEIs ({len(manual_imeis)}) must match quantity ({quantity}) for {product["name"]}')
+                    
+                    # Validate IMEI format (15 digits)
+                    for imei in manual_imeis:
+                        if not imei or not isinstance(imei, str) or len(imei.strip()) != 15 or not imei.strip().isdigit():
+                            raise ValueError(f'Invalid IMEI format: {imei}. IMEI must be exactly 15 digits.')
+                    
+                    # Check for duplicates within the payload
+                    if len(manual_imeis) != len(set(manual_imeis)):
+                        raise ValueError(f'Duplicate IMEIs found in the submission for {product["name"]}')
+                    
+                    # Create new IMEI records and mark as sold immediately
+                    for imei in manual_imeis:
+                        try:
+                            cursor.execute('''
+                                INSERT INTO product_imei (
+                                    product_id, imei, status, sale_id, sold_date, received_date
+                                ) VALUES (?, ?, ?, ?, ?, ?)
+                            ''', (product_id, imei.strip(), 'sold', sale_id, datetime.now(), datetime.now()))
+                            created_imei_ids.append(cursor.lastrowid)
+                        except sqlite3.IntegrityError:
+                            raise ValueError(f'IMEI {imei} already exists in the system. Cannot use duplicate IMEI.')
+                    
+                    # Store comma-separated IMEI numbers for display
+                    imei_string = ','.join(manual_imeis)
                 
                 # Add sale item
                 cursor.execute('''
