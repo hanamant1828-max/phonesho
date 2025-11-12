@@ -548,6 +548,10 @@ def models():
     if request.method == 'POST':
         try:
             data = request.json
+            if not data:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+                
             name = data.get('name')
             brand_id = data.get('brand_id')
             description = data.get('description', '')
@@ -587,6 +591,10 @@ def model_detail(id):
     if request.method == 'PUT':
         try:
             data = request.json
+            if not data:
+                conn.close()
+                return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+                
             name = data.get('name')
             brand_id = data.get('brand_id')
             description = data.get('description', '')
@@ -615,6 +623,9 @@ def model_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete model with associated products'}), 400
         finally:
             conn.close()
+    
+    conn.close()
+    return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
 @app.route('/api/products', methods=['GET', 'POST'])
 @login_required
@@ -624,6 +635,10 @@ def products():
 
     if request.method == 'POST':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             cursor.execute('''
                 INSERT INTO products (
@@ -731,6 +746,10 @@ def product_detail(id):
 
     elif request.method == 'PUT':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             # Get old stock value to track changes
             cursor.execute('SELECT current_stock FROM products WHERE id = ?', (id,))
@@ -779,6 +798,9 @@ def product_detail(id):
 @login_required
 def bulk_delete_products():
     data = request.json
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+        
     ids = data.get('ids', [])
 
     conn = get_db()
@@ -795,6 +817,9 @@ def bulk_delete_products():
 @login_required
 def bulk_update_products():
     data = request.json
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+        
     ids = data.get('ids', [])
     updates = data.get('updates', {})
 
@@ -839,6 +864,10 @@ def manage_product_imeis(product_id):
 
     if request.method == 'POST':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         imei_list = data.get('imeis', [])
         grn_id = data.get('grn_id')
         stock_movement_id = data.get('stock_movement_id')
@@ -963,6 +992,10 @@ def purchase_orders():
 
     if request.method == 'POST':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             cursor.execute('''
                 INSERT INTO purchase_orders (
@@ -1035,6 +1068,9 @@ def purchase_order_detail(id):
 @login_required
 def receive_purchase_order(id):
     data = request.json
+    if not data:
+        return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+        
     conn = get_db()
     cursor = conn.cursor()
 
@@ -1326,6 +1362,10 @@ def quick_orders():
 
     if request.method == 'POST':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             order_number = f"QO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             items = data.get('items', [])
@@ -1438,6 +1478,10 @@ def stock_adjustment():
 
     try:
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         product_id = data.get('product_id')
         quantity = data.get('quantity')
         notes = data.get('notes', '')
@@ -3026,6 +3070,10 @@ def pos_sales():
 
     if request.method == 'POST':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             transaction_type = data.get('transaction_type', 'sale')
             sale_number_prefix = 'RET' if transaction_type == 'return' else 'EXC' if transaction_type == 'exchange' else 'POS'
@@ -3371,6 +3419,10 @@ def customer_detail(id):
 
     elif request.method == 'PUT':
         data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+            
         try:
             cursor.execute('''
                 UPDATE customers SET
@@ -3407,6 +3459,9 @@ def customer_detail(id):
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
+    
+    conn.close()
+    return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
 if __name__ == '__main__':
     init_db()
