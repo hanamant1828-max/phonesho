@@ -19,6 +19,12 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads/models'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching during development
 
+# Add proper CSP headers
+@app.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = "default-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net https://via.placeholder.com; img-src 'self' data: https: blob:;"
+    return response
+
 @app.route('/static/<path:filename>')
 def serve_static(filename):
     return send_from_directory('static', filename)
@@ -474,7 +480,7 @@ def category_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete category with associated products'}), 400
         finally:
             conn.close()
-    
+
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
@@ -542,7 +548,7 @@ def brand_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete brand with associated products'}), 400
         finally:
             conn.close()
-    
+
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
@@ -558,7 +564,7 @@ def models():
             if not data:
                 conn.close()
                 return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-                
+
             name = data.get('name')
             brand_id = data.get('brand_id')
             description = data.get('description', '')
@@ -601,7 +607,7 @@ def model_detail(id):
             if not data:
                 conn.close()
                 return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-                
+
             name = data.get('name')
             brand_id = data.get('brand_id')
             description = data.get('description', '')
@@ -630,7 +636,7 @@ def model_detail(id):
             return jsonify({'success': False, 'error': 'Cannot delete model with associated products'}), 400
         finally:
             conn.close()
-    
+
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
@@ -645,7 +651,7 @@ def products():
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             cursor.execute('''
                 INSERT INTO products (
@@ -756,7 +762,7 @@ def product_detail(id):
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             # Get old stock value to track changes
             cursor.execute('SELECT current_stock FROM products WHERE id = ?', (id,))
@@ -807,7 +813,7 @@ def bulk_delete_products():
     data = request.json
     if not data:
         return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-        
+
     ids = data.get('ids', [])
 
     conn = get_db()
@@ -826,7 +832,7 @@ def bulk_update_products():
     data = request.json
     if not data:
         return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-        
+
     ids = data.get('ids', [])
     updates = data.get('updates', {})
 
@@ -874,7 +880,7 @@ def manage_product_imeis(product_id):
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         imei_list = data.get('imeis', [])
         grn_id = data.get('grn_id')
         stock_movement_id = data.get('stock_movement_id')
@@ -1002,7 +1008,7 @@ def purchase_orders():
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             cursor.execute('''
                 INSERT INTO purchase_orders (
@@ -1077,7 +1083,7 @@ def receive_purchase_order(id):
     data = request.json
     if not data:
         return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-        
+
     conn = get_db()
     cursor = conn.cursor()
 
@@ -1372,7 +1378,7 @@ def quick_orders():
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             order_number = f"QO-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             items = data.get('items', [])
@@ -1488,7 +1494,7 @@ def stock_adjustment():
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         product_id = data.get('product_id')
         quantity = data.get('quantity')
         notes = data.get('notes', '')
@@ -3080,7 +3086,7 @@ def pos_sales():
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             transaction_type = data.get('transaction_type', 'sale')
             sale_number_prefix = 'RET' if transaction_type == 'return' else 'EXC' if transaction_type == 'exchange' else 'POS'
@@ -3432,7 +3438,7 @@ def customer_detail(id):
         if not data:
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
-            
+
         try:
             cursor.execute('''
                 UPDATE customers SET
@@ -3469,7 +3475,7 @@ def customer_detail(id):
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
-    
+
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
