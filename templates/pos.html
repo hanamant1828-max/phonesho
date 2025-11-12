@@ -877,9 +877,14 @@
                         </select>
                     </div>
 
-                    <button class="btn btn-success" onclick="completeSale()">
-                        <i class="bi bi-check-circle-fill"></i> Complete Sale
-                    </button>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="completeSale(false)">
+                            <i class="bi bi-check-circle-fill"></i> Complete Sale
+                        </button>
+                        <button class="btn btn-primary" onclick="completeSale(true)">
+                            <i class="bi bi-printer-fill"></i> Save and Print
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1349,7 +1354,7 @@
                 $(element).addClass("active");
             }
 
-            function completeSale() {
+            function completeSale(printReceipt = false) {
                 if (cart.length === 0) {
                     alert(
                         "Cart is empty. Please add products before completing the sale.",
@@ -1399,10 +1404,10 @@
                     return;
                 }
 
-                // Disable button to prevent double submission
-                const $btn = $(".btn-success");
-                const originalHtml = $btn.html();
-                $btn.prop("disabled", true).html(
+                // Disable buttons to prevent double submission
+                const $btn = $(".btn-success, .btn-primary");
+                $btn.prop("disabled", true);
+                $(".btn-success").html(
                     '<i class="bi bi-hourglass-split"></i> Processing...',
                 );
 
@@ -1412,9 +1417,13 @@
                     contentType: "application/json",
                     data: JSON.stringify(saleData),
                     success: function (response) {
-                        alert(
-                            `✓ ${transactionTypeText} completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you for your business!`,
-                        );
+                        if (printReceipt) {
+                            printSaleReceipt(response, saleData);
+                        } else {
+                            alert(
+                                `✓ ${transactionTypeText} completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you for your business!`,
+                            );
+                        }
 
                         // Reset everything
                         resetPOS();
@@ -1424,9 +1433,144 @@
                             xhr.responseJSON?.error ||
                             "Failed to complete sale. Please try again.";
                         alert("Error: " + errorMsg);
-                        $btn.prop("disabled", false).html(originalHtml);
+                        $btn.prop("disabled", false);
+                        $(".btn-success").html(
+                            '<i class="bi bi-check-circle-fill"></i> Complete Sale',
+                        );
                     },
                 });
+            }
+
+            function printSaleReceipt(saleResponse, saleData) {
+                const printWindow = window.open('', '', 'width=800,height=600');
+                const date = new Date();
+                
+                const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+                const discountAmount = subtotal * (saleData.discount_percentage / 100);
+                const taxableAmount = subtotal - discountAmount;
+                const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
+                const total = Math.abs(saleResponse.total_amount);
+                
+                let itemsHtml = '';
+                cart.forEach(item => {
+                    itemsHtml += `
+                        <tr>
+                            <td>${item.product_name}</td>
+                            <td>${item.quantity}</td>
+                            <td>$${item.unit_price.toFixed(2)}</td>
+                            <td>$${(item.quantity * item.unit_price).toFixed(2)}</td>
+                        </tr>
+                    `;
+                    if (item.imei_numbers.length > 0) {
+                        itemsHtml += `
+                            <tr>
+                                <td colspan="4" style="font-size: 0.85em; color: #666; padding-left: 2em;">
+                                    IMEI: ${item.imei_numbers.join(', ')}
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+                
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Receipt - ${saleResponse.sale_number}</title>
+                        <style>
+                            @media print {
+                                body { margin: 0; }
+                                .no-print { display: none; }
+                            }
+                            body {
+                                font-family: 'Courier New', monospace;
+                                max-width: 80mm;
+                                margin: 0 auto;
+                                padding: 10px;
+                            }
+                            h2 { text-align: center; margin: 10px 0; }
+                            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+                            .info { margin: 5px 0; font-size: 0.9em; }
+                            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                            th, td { padding: 5px; text-align: left; }
+                            th { border-bottom: 1px solid #000; }
+                            .totals { border-top: 2px dashed #000; margin-top: 10px; padding-top: 10px; }
+                            .total-row { display: flex; justify-content: space-between; margin: 3px 0; }
+                            .grand-total { font-size: 1.2em; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
+                            .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 2px dashed #000; font-size: 0.9em; }
+                            .print-btn { margin: 20px auto; display: block; padding: 10px 30px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 1em; }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>Mobile Shop</h2>
+                            <div>Point of Sale Receipt</div>
+                        </div>
+                        
+                        <div class="info">
+                            <div><strong>Receipt #:</strong> ${saleResponse.sale_number}</div>
+                            <div><strong>Date:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
+                            <div><strong>Transaction:</strong> ${saleData.transaction_type.toUpperCase()}</div>
+                            ${saleData.customer_name ? `<div><strong>Customer:</strong> ${saleData.customer_name}</div>` : ''}
+                            ${saleData.customer_phone ? `<div><strong>Phone:</strong> ${saleData.customer_phone}</div>` : ''}
+                            <div><strong>Payment:</strong> ${saleData.payment_method.toUpperCase()}</div>
+                        </div>
+                        
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+                        
+                        <div class="totals">
+                            <div class="total-row">
+                                <span>Subtotal:</span>
+                                <span>$${subtotal.toFixed(2)}</span>
+                            </div>
+                            ${saleData.discount_percentage > 0 ? `
+                            <div class="total-row">
+                                <span>Discount (${saleData.discount_percentage}%):</span>
+                                <span>-$${discountAmount.toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            ${saleData.tax_percentage > 0 ? `
+                            <div class="total-row">
+                                <span>Tax (${saleData.tax_percentage}%):</span>
+                                <span>+$${taxAmount.toFixed(2)}</span>
+                            </div>
+                            ` : ''}
+                            <div class="total-row grand-total">
+                                <span>TOTAL:</span>
+                                <span>$${total.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="footer">
+                            <div>Thank you for your business!</div>
+                            <div style="margin-top: 10px; font-size: 0.8em;">
+                                Please keep this receipt for warranty claims
+                            </div>
+                        </div>
+                        
+                        <button class="print-btn no-print" onclick="window.print();">Print Receipt</button>
+                    </body>
+                    </html>
+                `);
+                
+                printWindow.document.close();
+                
+                // Auto-print after a short delay
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
             }
 
             function resetPOS() {
@@ -1439,11 +1583,10 @@
                 $('.transaction-tab[data-type="sale"]').addClass("active");
                 currentTransactionType = "sale";
                 $("#productSearch").val("").focus();
-                $(".btn-success")
-                    .prop("disabled", false)
-                    .html(
-                        '<i class="bi bi-check-circle-fill"></i> Complete Sale',
-                    );
+                $(".btn-success, .btn-primary").prop("disabled", false);
+                $(".btn-success").html(
+                    '<i class="bi bi-check-circle-fill"></i> Complete Sale'
+                );
             }
 
             // Initialize

@@ -44,6 +44,11 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="#" data-page="customers">
+                            <i class="bi bi-people"></i> Customers
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="#" data-page="purchase-orders">
                             <i class="bi bi-cart-plus"></i> Purchase Orders
                         </a>
@@ -538,35 +543,87 @@
         </div>
     </div>
 
-    <div class="modal fade" id="imeiSelectionModal" tabindex="-1">
+    <!-- Customer Modal -->
+    <div class="modal fade" id="customerModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-upc-scan"></i> Select IMEI Numbers</h5>
+                    <h5 class="modal-title" id="customerModalLabel">Add Customer</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">
-                        <strong>Product:</strong> <span id="imeiProductName"></span><br>
-                        <strong>Quantity Required:</strong> <span id="imeiQuantityRequired"></span>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th width="50">Select</th>
-                                    <th>IMEI Number</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="imeiSelectionList"></tbody>
-                        </table>
-                    </div>
-                    <div id="imeiSelectionError" class="alert alert-danger" style="display:none;"></div>
+                    <form id="customerForm">
+                        <input type="hidden" id="customerId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Customer Name *</label>
+                                <input type="text" class="form-control" id="customerName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" class="form-control" id="customerPhone">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="customerEmail">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">GSTIN</label>
+                                <input type="text" class="form-control" id="customerGSTIN">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Address</label>
+                            <textarea class="form-control" id="customerAddress" rows="2"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">City</label>
+                                <input type="text" class="form-control" id="customerCity">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">State</label>
+                                <input type="text" class="form-control" id="customerState">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Pincode</label>
+                                <input type="text" class="form-control" id="customerPincode">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" id="customerNotes" rows="2"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="customerStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmImeiSelectionBtn">Confirm Selection</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer View Modal -->
+    <div class="modal fade" id="customerViewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-person-circle"></i> Customer Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="customerViewContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

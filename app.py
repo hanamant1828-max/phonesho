@@ -346,6 +346,24 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            email TEXT,
+            address TEXT,
+            city TEXT,
+            state TEXT,
+            pincode TEXT,
+            gstin TEXT,
+            notes TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -3264,6 +3282,117 @@ def pos_product_search():
     products = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return jsonify(products)
+
+@app.route('/api/customers', methods=['GET', 'POST'])
+@login_required
+def customers():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        if not data or 'name' not in data or not data['name'].strip():
+            conn.close()
+            return jsonify({'success': False, 'error': 'Customer name is required'}), 400
+
+        try:
+            cursor.execute('''
+                INSERT INTO customers (name, phone, email, address, city, state, pincode, gstin, notes, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                data['name'].strip(),
+                data.get('phone', '').strip(),
+                data.get('email', '').strip(),
+                data.get('address', '').strip(),
+                data.get('city', '').strip(),
+                data.get('state', '').strip(),
+                data.get('pincode', '').strip(),
+                data.get('gstin', '').strip(),
+                data.get('notes', '').strip(),
+                data.get('status', 'active')
+            ))
+            conn.commit()
+            customer_id = cursor.lastrowid
+            conn.close()
+            return jsonify({'success': True, 'id': customer_id})
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
+    else:
+        search = request.args.get('search', '')
+        status = request.args.get('status', '')
+
+        query = 'SELECT * FROM customers WHERE 1=1'
+        params = []
+
+        if search:
+            query += ' AND (name LIKE ? OR phone LIKE ? OR email LIKE ?)'
+            search_param = f'%{search}%'
+            params.extend([search_param, search_param, search_param])
+
+        if status:
+            query += ' AND status = ?'
+            params.append(status)
+
+        query += ' ORDER BY name'
+
+        cursor.execute(query, params)
+        customers = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(customers)
+
+@app.route('/api/customers/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def customer_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'GET':
+        cursor.execute('SELECT * FROM customers WHERE id = ?', (id,))
+        customer = cursor.fetchone()
+        conn.close()
+        if customer:
+            return jsonify(dict(customer))
+        return jsonify({'error': 'Customer not found'}), 404
+
+    elif request.method == 'PUT':
+        data = request.json
+        try:
+            cursor.execute('''
+                UPDATE customers SET
+                    name = ?, phone = ?, email = ?, address = ?, city = ?,
+                    state = ?, pincode = ?, gstin = ?, notes = ?, status = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (
+                data['name'],
+                data.get('phone', ''),
+                data.get('email', ''),
+                data.get('address', ''),
+                data.get('city', ''),
+                data.get('state', ''),
+                data.get('pincode', ''),
+                data.get('gstin', ''),
+                data.get('notes', ''),
+                data.get('status', 'active'),
+                id
+            ))
+            conn.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+
+    elif request.method == 'DELETE':
+        try:
+            cursor.execute('DELETE FROM customers WHERE id = ?', (id,))
+            conn.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
 
 if __name__ == '__main__':
     init_db()
