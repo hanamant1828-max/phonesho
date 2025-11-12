@@ -3207,7 +3207,7 @@ def pos_sales():
                         'UPDATE products SET current_stock = current_stock - ? WHERE id = ?',
                         (quantity, product_id)
                     )
-                    movement_type = 'sale'
+                    movement_type = 'sale' if transaction_type == 'sale' else 'exchange'
                     movement_qty = -quantity
 
                     # Mark IMEIs as sold if provided
@@ -3254,6 +3254,9 @@ def pos_sales():
                         # Verify all IMEIs were updated (atomic check for race conditions)
                         if cursor.rowcount != len(imei_ids):
                             raise ValueError(f'Failed to mark all IMEIs as available for {product["name"]}. Some IMEIs may have been modified by another transaction.')
+                else:
+                    # Invalid transaction type
+                    raise ValueError(f'Invalid transaction type: {transaction_type}. Must be "sale", "exchange", or "return".')
 
                 # Record stock movement
                 cursor.execute('''
