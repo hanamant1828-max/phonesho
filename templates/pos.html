@@ -1455,7 +1455,8 @@
                 const printWindow = window.open('', '', 'width=900,height=700');
                 const date = new Date();
 
-                const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+                const items = saleData.items || [];
+                const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
                 const discountAmount = subtotal * (saleData.discount_percentage / 100);
                 const taxableAmount = subtotal - discountAmount;
                 const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
@@ -1515,7 +1516,7 @@
                 let totalIgstAmount = 0;
                 let totalAmount = 0;
 
-                cart.forEach(item => {
+                items.forEach(item => {
                     // Calculate item values
                     const itemTaxableValue = item.quantity * item.unit_price;
                     
