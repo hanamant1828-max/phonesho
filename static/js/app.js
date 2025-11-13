@@ -5144,11 +5144,12 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
                 ${isIGST ? `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                 ` : `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${sgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 `}
                 <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
             </tr>
@@ -7061,11 +7062,12 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                 ${isIGST ? `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                 ` : `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${sgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 `}
                 <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
             </tr>
@@ -8970,11 +8972,12 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                 ${isIGST ? `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                 ` : `
                     <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
                     <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
                     <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${sgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                 `}
                 <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
             </tr>
