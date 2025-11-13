@@ -3078,61 +3078,6 @@ function deleteTechnician(id) {
     alert('Delete technician ' + id + ' - to be implemented');
     // TODO: Implement technician delete
 }
-        $('#serviceJobActualDelivery').val(job.actual_delivery || '');
-        $('#serviceJobStatus').val(job.status);
-        $('#serviceJobNotes').val(job.notes || '');
-
-        // Load technicians
-        $.get(`${API_BASE}/technicians`, function(techs) {
-            const select = $('#serviceJobTechnician');
-            select.empty().append('<option value="">Select Technician</option>');
-            techs.forEach(tech => {
-                const selected = tech.id === job.technician_id ? 'selected' : '';
-                select.append(`<option value="${tech.id}" ${selected}>${tech.name}</option>`);
-            });
-        });
-
-        // Load parts used
-        const partsBody = $('#partsUsedBody');
-        partsBody.empty();
-        job.parts_used.forEach(part => {
-            partsBody.append(`
-                <tr>
-                    <td>${part.part_name}</td>
-                    <td>${part.quantity}</td>
-                    <td>₹${parseFloat(part.unit_price).toFixed(2)}</td>
-                    <td>₹${parseFloat(part.total_price).toFixed(2)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteServicePart(${job.id}, ${part.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-
-        // Load labor charges
-        const laborBody = $('#laborChargesBody');
-        laborBody.empty();
-        job.labor_charges.forEach(labor => {
-            laborBody.append(`
-                <tr>
-                    <td>${labor.description}</td>
-                    <td>₹${parseFloat(labor.amount).toFixed(2)}</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" onclick="deleteServiceLabor(${job.id}, ${labor.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-
-        $('#serviceJobModalLabel').text('Edit Repair Job - ' + job.job_number);
-        const modal = new bootstrap.Modal($('#serviceJobModal'));
-        modal.show();
-    });
-}
 
 function saveServiceJob() {
     const id = $('#serviceJobId').val();
