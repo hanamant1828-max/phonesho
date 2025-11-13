@@ -147,6 +147,12 @@ function initNavigation() {
         e.preventDefault();
         loadPage('customers');
     });
+
+    // Add handler for Business Settings link
+    $('#nav-business-settings').on('click', function(e) {
+        e.preventDefault();
+        loadPage('business-settings');
+    });
 }
 
 function loadPage(page) {
@@ -189,6 +195,9 @@ function loadPage(page) {
             break;
         case 'customers': // Add case for Customer Management
             loadCustomers();
+            break;
+        case 'business-settings': // Add case for Business Settings
+            loadBusinessSettings();
             break;
     }
 }
@@ -3354,10 +3363,6 @@ function loadPOS() {
                                 <span class="input-group-text">%</span>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Tax Amount:</span>
-                            <strong id="posTaxAmount" class="text-info">+$0.00</strong>
-                        </div>
                         <hr>
                         <div class="d-flex justify-content-between">
                             <h5>Total:</h5>
@@ -3867,7 +3872,7 @@ function viewStockHistory(productId) {
         `;
 
         if (!data.history || data.history.length === 0) {
-            content += '<tr><td colspan="6" class="text-center text-muted py-4"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
+            content += '<tr><td colspan="6" class="text-center text-muted"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
         } else {
             let totalAdded = 0;
             let totalRemoved = 0;
@@ -4874,7 +4879,7 @@ function viewProductDetails(productId) {
                             <strong><i class="bi bi-truck"></i> Supplier Information</strong>
                         </div>
                         <div class="card-body">
-                            <div class="row">
+                            <divclass="row">
                                 <div class="col-md-6">
                                     <p><strong>Supplier Name:</strong> ${product.supplier_name || 'N/A'}</p>
                                 </div>
@@ -5399,4 +5404,159 @@ function completePOSSale() {
         }
     });
 }
-// End of POS functions
+
+// Dummy function for Business Settings - needs implementation
+function loadBusinessSettings() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-gear"></i> Business Settings</h2>
+            <p class="text-muted">Manage your business details for invoices, reports, and more.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Business Information</h5>
+            </div>
+            <div class="card-body">
+                <form id="businessSettingsForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="businessName" class="form-label fw-bold">Business Name</label>
+                            <input type="text" class="form-control" id="businessName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="businessGST" class="form-label fw-bold">GST Number</label>
+                            <input type="text" class="form-control" id="businessGST">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="businessAddress" class="form-label fw-bold">Business Address</label>
+                        <textarea class="form-control" id="businessAddress" rows="3"></textarea>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="businessContact" class="form-label fw-bold">Contact Information (Phone)</label>
+                            <input type="text" class="form-control" id="businessContact">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="businessEmail" class="form-label fw-bold">Contact Email</label>
+                            <input type="email" class="form-control" id="businessEmail">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="businessLogo" class="form-label fw-bold">Business Logo</label>
+                        <input type="file" class="form-control" id="businessLogo" accept="image/*">
+                        <div id="currentLogoPreview" class="mt-2"></div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="invoiceFooter" class="form-label fw-bold">Invoice Footer Text</label>
+                            <textarea class="form-control" id="invoiceFooter" rows="3" placeholder="e.g., Thank you for your business!"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reportHeader" class="form-label fw-bold">Report Header</label>
+                            <textarea class="form-control" id="reportHeader" rows="3" placeholder="Optional header for reports"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `);
+
+    loadBusinessSettingsData();
+
+    $('#businessSettingsForm').on('submit', saveBusinessSettings);
+}
+
+function loadBusinessSettingsData() {
+    $.get(`${API_BASE}/business-settings`, function(settings) {
+        $('#businessName').val(settings.name);
+        $('#businessGST').val(settings.gst_number);
+        $('#businessAddress').val(settings.address);
+        $('#businessContact').val(settings.contact_phone);
+        $('#businessEmail').val(settings.contact_email);
+        $('#invoiceFooter').val(settings.invoice_footer);
+        $('#reportHeader').val(settings.report_header);
+
+        if (settings.logo_url) {
+            $('#currentLogoPreview').html(`
+                Current Logo: <br>
+                <img src="${settings.logo_url}" style="max-height: 100px; max-width: 200px; margin-top: 5px;">
+                <button class="btn btn-sm btn-danger ms-2" onclick="removeBusinessLogo()">Remove</button>
+            `);
+        } else {
+            $('#currentLogoPreview').html('');
+        }
+    }).fail(function() {
+        alert('Error loading business settings. Please try again.');
+    });
+}
+
+function saveBusinessSettings(event) {
+    event.preventDefault();
+
+    const logoFile = $('#businessLogo')[0].files[0];
+    const formData = new FormData();
+
+    formData.append('name', $('#businessName').val());
+    formData.append('gst_number', $('#businessGST').val());
+    formData.append('address', $('#businessAddress').val());
+    formData.append('contact_phone', $('#businessContact').val());
+    formData.append('contact_email', $('#businessEmail').val());
+    formData.append('invoice_footer', $('#invoiceFooter').val());
+    formData.append('report_header', $('#reportHeader').val());
+
+    if (logoFile) {
+        formData.append('logo', logoFile);
+    }
+
+    $.ajax({
+        url: `${API_BASE}/business-settings`,
+        method: 'POST', // Use POST for create/update
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function() {
+            alert('Business settings saved successfully!');
+            loadBusinessSettingsData(); // Reload to show updated logo if changed
+        },
+        error: function(xhr) {
+            alert('Error saving business settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        }
+    });
+}
+
+function removeBusinessLogo() {
+    if (!confirm('Are you sure you want to remove the current business logo?')) return;
+
+    $.ajax({
+        url: `${API_BASE}/business-settings/logo`,
+        method: 'DELETE',
+        success: function() {
+            alert('Logo removed successfully.');
+            $('#currentLogoPreview').html('');
+        },
+        error: function(xhr) {
+            alert('Error removing logo: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        }
+    });
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}

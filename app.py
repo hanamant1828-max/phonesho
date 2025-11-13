@@ -382,6 +382,41 @@ def init_db():
         )
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS business_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            business_name TEXT,
+            gstin TEXT,
+            address TEXT,
+            city TEXT,
+            state TEXT,
+            pincode TEXT,
+            country TEXT,
+            phone TEXT,
+            email TEXT,
+            website TEXT,
+            logo_url TEXT,
+            currency TEXT DEFAULT 'INR',
+            tax_label TEXT DEFAULT 'GST',
+            invoice_prefix TEXT DEFAULT 'INV',
+            receipt_prefix TEXT DEFAULT 'RCP',
+            terms_conditions TEXT,
+            bank_name TEXT,
+            bank_account_number TEXT,
+            bank_ifsc TEXT,
+            bank_branch TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    # Insert default business settings if not exists
+    cursor.execute('SELECT COUNT(*) as count FROM business_settings')
+    if cursor.fetchone()['count'] == 0:
+        cursor.execute('''
+            INSERT INTO business_settings (business_name, currency, tax_label)
+            VALUES (?, ?, ?)
+        ''', ('My Business', 'INR', 'GST'))
+
     conn.commit()
     conn.close()
 
@@ -3529,6 +3564,80 @@ def customer_detail(id):
 
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
+
+@app.route('/api/business-settings', methods=['GET', 'PUT'])
+@login_required
+def business_settings():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'GET':
+        cursor.execute('SELECT * FROM business_settings LIMIT 1')
+        settings = cursor.fetchone()
+        conn.close()
+        if settings:
+            return jsonify(dict(settings))
+        return jsonify({'error': 'Business settings not found'}), 404
+
+    elif request.method == 'PUT':
+        data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+
+        try:
+            cursor.execute('''
+                UPDATE business_settings SET
+                    business_name = ?,
+                    gstin = ?,
+                    address = ?,
+                    city = ?,
+                    state = ?,
+                    pincode = ?,
+                    country = ?,
+                    phone = ?,
+                    email = ?,
+                    website = ?,
+                    logo_url = ?,
+                    currency = ?,
+                    tax_label = ?,
+                    invoice_prefix = ?,
+                    receipt_prefix = ?,
+                    terms_conditions = ?,
+                    bank_name = ?,
+                    bank_account_number = ?,
+                    bank_ifsc = ?,
+                    bank_branch = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = 1
+            ''', (
+                data.get('business_name', ''),
+                data.get('gstin', ''),
+                data.get('address', ''),
+                data.get('city', ''),
+                data.get('state', ''),
+                data.get('pincode', ''),
+                data.get('country', ''),
+                data.get('phone', ''),
+                data.get('email', ''),
+                data.get('website', ''),
+                data.get('logo_url', ''),
+                data.get('currency', 'INR'),
+                data.get('tax_label', 'GST'),
+                data.get('invoice_prefix', 'INV'),
+                data.get('receipt_prefix', 'RCP'),
+                data.get('terms_conditions', ''),
+                data.get('bank_name', ''),
+                data.get('bank_account_number', ''),
+                data.get('bank_ifsc', ''),
+                data.get('bank_branch', '')
+            ))
+            conn.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
 
 if __name__ == '__main__':
     init_db()
