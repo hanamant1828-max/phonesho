@@ -202,6 +202,162 @@ function loadPage(page) {
     }
 }
 
+function loadBusinessSettings() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-building"></i> Business Settings</h2>
+            <p class="text-muted">Configure your business information for invoices and receipts</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="businessSettingsForm">
+                    <h5 class="mb-3"><i class="bi bi-info-circle"></i> Basic Information</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Business Name *</label>
+                            <input type="text" class="form-control" id="businessName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">GSTIN</label>
+                            <input type="text" class="form-control" id="businessGSTIN" maxlength="15">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Address</label>
+                            <input type="text" class="form-control" id="businessAddress">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">City</label>
+                            <input type="text" class="form-control" id="businessCity">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">State</label>
+                            <input type="text" class="form-control" id="businessState">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Pincode</label>
+                            <input type="text" class="form-control" id="businessPincode">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="businessPhone">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="businessEmail">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Website</label>
+                            <input type="text" class="form-control" id="businessWebsite">
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="mb-3"><i class="bi bi-bank"></i> Bank Details</h5>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Bank Name</label>
+                            <input type="text" class="form-control" id="bankName">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch</label>
+                            <input type="text" class="form-control" id="bankBranch">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Account Number</label>
+                            <input type="text" class="form-control" id="bankAccountNumber">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">IFSC Code</label>
+                            <input type="text" class="form-control" id="bankIFSC">
+                        </div>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5 class="mb-3"><i class="bi bi-file-text"></i> Terms & Conditions</h5>
+                    <div class="mb-3">
+                        <textarea class="form-control" id="termsConditions" rows="4" placeholder="Enter terms and conditions for invoices"></textarea>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `);
+    
+    // Load existing settings
+    $.get(`${API_BASE}/business-settings`, function(settings) {
+        $('#businessName').val(settings.business_name || '');
+        $('#businessGSTIN').val(settings.gstin || '');
+        $('#businessAddress').val(settings.address || '');
+        $('#businessCity').val(settings.city || '');
+        $('#businessState').val(settings.state || '');
+        $('#businessPincode').val(settings.pincode || '');
+        $('#businessPhone').val(settings.phone || '');
+        $('#businessEmail').val(settings.email || '');
+        $('#businessWebsite').val(settings.website || '');
+        $('#bankName').val(settings.bank_name || '');
+        $('#bankBranch').val(settings.bank_branch || '');
+        $('#bankAccountNumber').val(settings.bank_account_number || '');
+        $('#bankIFSC').val(settings.bank_ifsc || '');
+        $('#termsConditions').val(settings.terms_conditions || '');
+    });
+    
+    // Form submission
+    $('#businessSettingsForm').on('submit', function(e) {
+        e.preventDefault();
+        saveBusinessSettings();
+    });
+}
+
+function saveBusinessSettings() {
+    const data = {
+        business_name: $('#businessName').val(),
+        gstin: $('#businessGSTIN').val(),
+        address: $('#businessAddress').val(),
+        city: $('#businessCity').val(),
+        state: $('#businessState').val(),
+        pincode: $('#businessPincode').val(),
+        phone: $('#businessPhone').val(),
+        email: $('#businessEmail').val(),
+        website: $('#businessWebsite').val(),
+        bank_name: $('#bankName').val(),
+        bank_branch: $('#bankBranch').val(),
+        bank_account_number: $('#bankAccountNumber').val(),
+        bank_ifsc: $('#bankIFSC').val(),
+        terms_conditions: $('#termsConditions').val()
+    };
+    
+    $.ajax({
+        url: `${API_BASE}/business-settings`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            alert('Business settings saved successfully!');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save settings'));
+        }
+    });
+}
+
 let salesChart = null;
 
 function loadDashboard() {

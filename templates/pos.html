@@ -982,11 +982,11 @@
                         : "Out of stock";
 
                     const result = $(`
-                    <div class="product-result" onclick='${isInStock ? `addToCart(${JSON.stringify(product).replace(/'/g, "\\'")})` : ""}' 
+                    <div class="product-result" onclick='${isInStock ? `addToCart(${JSON.stringify(product).replace(/'/g, "\\'")})` : ""}'
                          style="${!isInStock ? "opacity: 0.6; cursor: not-allowed;" : ""}">
                         <div class="product-name">${product.name}</div>
                         <div class="product-meta">
-                            ${product.brand_name || ""} ${product.model_name || ""} 
+                            ${product.brand_name || ""} ${product.model_name || ""}
                             ${product.sku ? `• SKU: ${product.sku}` : ""}
                         </div>
                         <div class="product-footer">
@@ -1102,8 +1102,8 @@
                                 <button class="btn btn-sm btn-outline-primary" onclick="showIMEISelection(${index})" style="margin-right: 8px;">
                                     <i class="bi bi-list-check"></i> Select from Inventory
                                 </button>
-                                <input type="text" class="imei-input" id="imeiInput${index}" 
-                                       placeholder="Or enter IMEI manually" 
+                                <input type="text" class="imei-input" id="imeiInput${index}"
+                                       placeholder="Or enter IMEI manually"
                                        onkeypress="handleIMEIKeypress(event, ${index})" style="flex: 1;">
                                 <button class="imei-add-btn" onclick="addIMEI(${index})">
                                     <i class="bi bi-plus-lg"></i> Add
@@ -1210,15 +1210,15 @@
             function showIMEISelection(cartIndex) {
                 const item = cart[cartIndex];
                 currentCartIndexForIMEI = cartIndex;
-                
+
                 // Fetch available IMEIs for this product
                 $.get(`${API_BASE}/products/${item.product_id}/imeis?status=available`, function(imeis) {
                     $('#imeiProductName').text(item.product_name);
                     $('#imeiQuantityRequired').text(item.quantity);
-                    
+
                     const listBody = $('#imeiSelectionList');
                     listBody.empty();
-                    
+
                     if (imeis.length === 0) {
                         listBody.append(`
                             <tr>
@@ -1236,7 +1236,7 @@
                                 <tr>
                                     <td>
                                         <div class="form-check">
-                                            <input class="form-check-input imei-checkbox" type="checkbox" 
+                                            <input class="form-check-input imei-checkbox" type="checkbox"
                                                    value="${imei.id}" data-imei="${imei.imei}" ${isChecked}>
                                         </div>
                                     </td>
@@ -1246,7 +1246,7 @@
                             `);
                         });
                     }
-                    
+
                     $('#imeiSelectionError').hide();
                     const modal = new bootstrap.Modal($('#imeiSelectionModal'));
                     modal.show();
@@ -1258,28 +1258,28 @@
             // Confirm IMEI Selection
             $('#confirmImeiSelectionBtn').click(function() {
                 if (currentCartIndexForIMEI === null) return;
-                
+
                 const item = cart[currentCartIndexForIMEI];
                 const selectedIMEIs = [];
                 const selectedIds = [];
-                
+
                 $('.imei-checkbox:checked').each(function() {
                     selectedIds.push(parseInt($(this).val()));
                     selectedIMEIs.push($(this).data('imei'));
                 });
-                
+
                 if (selectedIMEIs.length !== item.quantity) {
                     $('#imeiSelectionError').text(
                         `Please select exactly ${item.quantity} IMEI number(s). Currently selected: ${selectedIMEIs.length}`
                     ).show();
                     return;
                 }
-                
+
                 // Clear any manual entries and use selected IMEIs
                 item.imei_numbers = selectedIMEIs;
                 item.imei_ids = selectedIds;
                 item.manual_imeis = []; // Clear manual entries
-                
+
                 bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
                 $('#imeiSelectionError').hide();
                 updateCart();
@@ -1454,44 +1454,44 @@
             function generateGSTInvoice(saleResponse, saleData, businessSettings) {
                 const printWindow = window.open('', '', 'width=900,height=700');
                 const date = new Date();
-                
+
                 const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
                 const discountAmount = subtotal * (saleData.discount_percentage / 100);
                 const taxableAmount = subtotal - discountAmount;
                 const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
                 const total = Math.abs(saleResponse.total_amount);
-                
+
                 // Determine if IGST or CGST+SGST (simplified - you can enhance based on state matching)
                 const isIGST = false; // Set to true if inter-state
                 const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
                 const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
                 const igstRate = isIGST ? saleData.tax_percentage : 0;
-                
+
                 const cgstAmount = taxableAmount * (cgstRate / 100);
                 const sgstAmount = taxableAmount * (sgstRate / 100);
                 const igstAmount = taxableAmount * (igstRate / 100);
-                
+
                 // Number to words conversion
                 function numberToWords(num) {
                     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
                     const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
                     const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-                    
+
                     if (num === 0) return 'Zero';
-                    
+
                     const crores = Math.floor(num / 10000000);
                     const lakhs = Math.floor((num % 10000000) / 100000);
                     const thousands = Math.floor((num % 100000) / 1000);
                     const hundreds = Math.floor((num % 1000) / 100);
                     const remainder = num % 100;
-                    
+
                     let words = '';
-                    
+
                     if (crores > 0) words += ones[crores] + ' Crore ';
                     if (lakhs > 0) words += (lakhs < 10 ? ones[lakhs] : tens[Math.floor(lakhs / 10)] + ' ' + ones[lakhs % 10]) + ' Lakh ';
                     if (thousands > 0) words += (thousands < 10 ? ones[thousands] : tens[Math.floor(thousands / 10)] + ' ' + ones[thousands % 10]) + ' Thousand ';
                     if (hundreds > 0) words += ones[hundreds] + ' Hundred ';
-                    
+
                     if (remainder >= 20) {
                         words += tens[Math.floor(remainder / 10)] + ' ' + ones[remainder % 10];
                     } else if (remainder >= 10) {
@@ -1499,12 +1499,12 @@
                     } else if (remainder > 0) {
                         words += ones[remainder];
                     }
-                    
+
                     return words.trim();
                 }
-                
+
                 const totalInWords = numberToWords(Math.floor(total)) + ' Rupees Only';
-                
+
                 // Build items table
                 let itemsHtml = '';
                 let srNo = 1;
@@ -1514,7 +1514,7 @@
                     const itemSgst = itemSubtotal * (sgstRate / 100);
                     const itemIgst = itemSubtotal * (igstRate / 100);
                     const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
-                    
+
                     itemsHtml += `
                         <tr>
                             <td style="text-align: center;">${srNo++}</td>
@@ -1539,7 +1539,7 @@
                         </tr>
                     `;
                 });
-                
+
                 printWindow.document.write(`
                     <!DOCTYPE html>
                     <html>
@@ -1697,9 +1697,9 @@
                                 GSTIN: <strong>${businessSettings.gstin || 'N/A'}</strong>
                             </div>
                         </div>
-                        
+
                         <div class="invoice-title">TAX INVOICE</div>
-                        
+
                         <div class="invoice-details">
                             <div class="invoice-box">
                                 <h4>Invoice Details</h4>
@@ -1707,7 +1707,7 @@
                                 <p><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')} ${date.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}</p>
                                 <p><strong>Payment Mode:</strong> ${saleData.payment_method.toUpperCase()}</p>
                             </div>
-                            
+
                             <div class="invoice-box">
                                 <h4>Customer Details</h4>
                                 <p><strong>Name:</strong> ${saleData.customer_name || 'Walk-in Customer'}</p>
@@ -1717,7 +1717,7 @@
                                 <p><strong>Place of Supply:</strong> ${businessSettings.state || 'N/A'}</p>
                             </div>
                         </div>
-                        
+
                         <table>
                             <thead>
                                 <tr>
@@ -1737,7 +1737,7 @@
                                 ${itemsHtml}
                             </tbody>
                         </table>
-                        
+
                         <div class="totals-section">
                             <div class="bank-details">
                                 <h4 style="margin-bottom: 5px;">Bank Details</h4>
@@ -1746,7 +1746,7 @@
                                 <p><strong>A/C No:</strong> ${businessSettings.bank_account_number || 'N/A'}</p>
                                 <p><strong>IFSC Code:</strong> ${businessSettings.bank_ifsc || 'N/A'}</p>
                             </div>
-                            
+
                             <div class="amount-summary">
                                 <div class="amount-row">
                                     <span>Taxable Amount:</span>
@@ -1783,32 +1783,32 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="amount-words">
                             <strong>Amount in Words:</strong> ${totalInWords}
                         </div>
-                        
+
                         <div class="terms">
                             <strong>Terms & Conditions:</strong><br>
                             ${businessSettings.terms_conditions || '1. Goods once sold will not be taken back.<br>2. Warranty as per manufacturer terms.'}
                         </div>
-                        
+
                         <div style="font-size: 9px; font-style: italic; margin-bottom: 10px;">
                             Certified that the particulars given above are true and correct.
                         </div>
-                        
+
                         <div class="signature-section">
                             <div><strong>For ${businessSettings.business_name || 'Mobile Shop'}</strong></div>
                             <div class="signature-line">Authorized Signatory</div>
                         </div>
-                        
+
                         <button class="print-btn no-print" onclick="window.print();">Print Invoice</button>
                     </body>
                     </html>
                 `);
-                
+
                 printWindow.document.close();
-                
+
                 // Auto-print after a short delay
                 setTimeout(() => {
                     printWindow.print();
@@ -1834,19 +1834,19 @@
             // Customer lookup by phone number
             let customerLookupTimeout;
             let currentLookupRequest = null;
-            
+
             $("#customerPhone").on("input", function() {
                 const phone = $(this).val().trim();
-                
+
                 // Clear previous timeout
                 clearTimeout(customerLookupTimeout);
-                
+
                 // Abort any in-flight request to prevent race conditions
                 if (currentLookupRequest) {
                     currentLookupRequest.abort();
                     currentLookupRequest = null;
                 }
-                
+
                 // Only lookup if phone has at least 10 digits
                 if (phone.length >= 10) {
                     customerLookupTimeout = setTimeout(function() {
@@ -1861,7 +1861,7 @@
                                     // Auto-fill customer details if found and phone still matches
                                     $("#customerName").val(customer.name);
                                     $("#customerEmail").val(customer.email || '');
-                                    
+
                                     // Show visual feedback
                                     $("#customerPhone").css('border-color', '#10b981');
                                     setTimeout(() => {

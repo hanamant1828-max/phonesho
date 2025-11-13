@@ -2937,6 +2937,107 @@ def export_grns():
         download_name=f'grn_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
+@app.route('/api/business-settings', methods=['GET', 'PUT'])
+@login_required
+def business_settings():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'GET':
+        cursor.execute('SELECT * FROM business_settings ORDER BY id DESC LIMIT 1')
+        settings_row = cursor.fetchone()
+        conn.close()
+        
+        if settings_row:
+            return jsonify(dict(settings_row))
+        else:
+            # Return default settings
+            return jsonify({
+                'business_name': 'My Business',
+                'gstin': '',
+                'address': '',
+                'city': '',
+                'state': '',
+                'pincode': '',
+                'country': 'India',
+                'phone': '',
+                'email': '',
+                'website': '',
+                'logo_url': '',
+                'currency': 'INR',
+                'tax_label': 'GST',
+                'invoice_prefix': 'INV',
+                'receipt_prefix': 'RCP',
+                'terms_conditions': '',
+                'bank_name': '',
+                'bank_account_number': '',
+                'bank_ifsc': '',
+                'bank_branch': ''
+            })
+
+    elif request.method == 'PUT':
+        data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+
+        try:
+            # Check if settings exist
+            cursor.execute('SELECT id FROM business_settings ORDER BY id DESC LIMIT 1')
+            existing = cursor.fetchone()
+
+            if existing:
+                # Update existing settings
+                cursor.execute('''
+                    UPDATE business_settings SET
+                        business_name = ?, gstin = ?, address = ?, city = ?, state = ?,
+                        pincode = ?, country = ?, phone = ?, email = ?, website = ?,
+                        logo_url = ?, currency = ?, tax_label = ?, invoice_prefix = ?,
+                        receipt_prefix = ?, terms_conditions = ?, bank_name = ?,
+                        bank_account_number = ?, bank_ifsc = ?, bank_branch = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (
+                    data.get('business_name', ''), data.get('gstin', ''),
+                    data.get('address', ''), data.get('city', ''), data.get('state', ''),
+                    data.get('pincode', ''), data.get('country', 'India'),
+                    data.get('phone', ''), data.get('email', ''), data.get('website', ''),
+                    data.get('logo_url', ''), data.get('currency', 'INR'),
+                    data.get('tax_label', 'GST'), data.get('invoice_prefix', 'INV'),
+                    data.get('receipt_prefix', 'RCP'), data.get('terms_conditions', ''),
+                    data.get('bank_name', ''), data.get('bank_account_number', ''),
+                    data.get('bank_ifsc', ''), data.get('bank_branch', ''),
+                    existing['id']
+                ))
+            else:
+                # Insert new settings
+                cursor.execute('''
+                    INSERT INTO business_settings (
+                        business_name, gstin, address, city, state, pincode, country,
+                        phone, email, website, logo_url, currency, tax_label,
+                        invoice_prefix, receipt_prefix, terms_conditions, bank_name,
+                        bank_account_number, bank_ifsc, bank_branch
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data.get('business_name', ''), data.get('gstin', ''),
+                    data.get('address', ''), data.get('city', ''), data.get('state', ''),
+                    data.get('pincode', ''), data.get('country', 'India'),
+                    data.get('phone', ''), data.get('email', ''), data.get('website', ''),
+                    data.get('logo_url', ''), data.get('currency', 'INR'),
+                    data.get('tax_label', 'GST'), data.get('invoice_prefix', 'INV'),
+                    data.get('receipt_prefix', 'RCP'), data.get('terms_conditions', ''),
+                    data.get('bank_name', ''), data.get('bank_account_number', ''),
+                    data.get('bank_ifsc', ''), data.get('bank_branch', '')
+                ))
+
+            conn.commit()
+            conn.close()
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/import/products', methods=['POST'])
 @login_required
 def import_products():
