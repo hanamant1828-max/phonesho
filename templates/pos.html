@@ -1,9 +1,10 @@
+
 <!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Professional POS - Mobile Shop Manager</title>
+        <title>Point of Sale - Mobile Shop Manager</title>
 
         <!-- Bootstrap CSS -->
         <link
@@ -14,21 +15,33 @@
             rel="stylesheet"
             href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css"
         />
+        
+        <!-- Google Fonts -->
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
         <style>
             :root {
-                --primary-color: #2563eb;
-                --primary-dark: #1e40af;
-                --success-color: #10b981;
-                --danger-color: #ef4444;
-                --warning-color: #f59e0b;
-                --gray-50: #f9fafb;
-                --gray-100: #f3f4f6;
-                --gray-200: #e5e7eb;
-                --gray-300: #d1d5db;
-                --gray-600: #4b5563;
+                --primary-color: #1E6FFF;
+                --primary-dark: #1557D6;
+                --success-color: #10B981;
+                --success-dark: #059669;
+                --danger-color: #EF4444;
+                --warning-color: #F59E0B;
+                --gray-50: #F9FAFB;
+                --gray-100: #F3F4F6;
+                --gray-200: #E6E9EF;
+                --gray-300: #D1D5DB;
+                --gray-400: #9CA3AF;
+                --gray-500: #6B7280;
+                --gray-600: #4B5563;
                 --gray-700: #374151;
+                --gray-800: #1F2937;
                 --gray-900: #111827;
+                --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                --shadow-lg: 0 6px 20px rgba(16, 24, 40, 0.06);
+                --border-radius: 8px;
+                --border-radius-lg: 12px;
             }
 
             * {
@@ -38,70 +51,85 @@
             }
 
             body {
-                background: var(--gray-100);
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    "Helvetica Neue", Arial, sans-serif;
+                background: var(--gray-50);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 min-height: 100vh;
+                color: var(--gray-900);
             }
 
             /* Header */
             .pos-header {
                 background: white;
                 border-bottom: 1px solid var(--gray-200);
-                padding: 1rem 1.5rem;
-                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+                padding: 12px 24px;
+                box-shadow: var(--shadow-sm);
+                position: sticky;
+                top: 0;
+                z-index: 1000;
             }
 
-            .pos-header h1 {
-                font-size: 1.5rem;
+            .pos-header .header-content {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                max-width: 1920px;
+                margin: 0 auto;
+            }
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 16px;
+            }
+
+            .app-logo {
+                width: 36px;
+                height: 36px;
+                background: var(--primary-color);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: 700;
+                font-size: 18px;
+            }
+
+            .app-title {
+                font-size: 18px;
                 font-weight: 700;
                 color: var(--gray-900);
-                margin: 0;
             }
 
-            .pos-header .subtitle {
-                font-size: 0.875rem;
-                color: var(--gray-600);
-                margin-top: 0.25rem;
-            }
-
-            /* Main Container */
-            .pos-main {
+            .header-actions {
                 display: flex;
-                height: calc(100vh - 73px);
-            }
-
-            /* Left Panel - Products & Cart */
-            .products-panel {
-                flex: 1;
-                display: flex;
-                flex-direction: column;
-                background: white;
-                overflow: hidden;
+                gap: 8px;
             }
 
             /* Transaction Type Tabs */
             .transaction-tabs {
                 display: flex;
-                gap: 0;
-                padding: 1rem 1.5rem 0;
-                background: white;
-                border-bottom: 2px solid var(--gray-200);
+                gap: 4px;
+                background: var(--gray-100);
+                padding: 4px;
+                border-radius: var(--border-radius);
+                width: fit-content;
+                margin: 0 auto;
             }
 
             .transaction-tab {
-                flex: 1;
-                padding: 0.75rem 1rem;
+                padding: 8px 20px;
                 border: none;
                 background: transparent;
                 color: var(--gray-600);
                 font-weight: 600;
+                font-size: 14px;
                 cursor: pointer;
-                border-bottom: 3px solid transparent;
-                transition: all 0.2s;
-                position: relative;
-                top: 2px;
+                border-radius: 6px;
+                transition: all 0.16s ease;
+                display: flex;
+                align-items: center;
+                gap: 6px;
             }
 
             .transaction-tab:hover {
@@ -110,125 +138,165 @@
             }
 
             .transaction-tab.active {
-                color: var(--primary-color);
-                border-bottom-color: var(--primary-color);
-                background: transparent;
+                color: white;
+                background: var(--primary-color);
+                box-shadow: var(--shadow-sm);
             }
 
-            .transaction-tab i {
-                margin-right: 0.5rem;
-                font-size: 1.125rem;
+            /* Main Container */
+            .pos-main {
+                display: flex;
+                height: calc(100vh - 73px);
+                max-width: 1920px;
+                margin: 0 auto;
+            }
+
+            /* Left Panel */
+            .left-panel {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                background: white;
+                overflow: hidden;
             }
 
             /* Search Section */
             .search-section {
-                padding: 1.5rem;
-                background: white;
+                padding: 24px;
                 border-bottom: 1px solid var(--gray-200);
+                background: white;
             }
 
             .search-box {
                 position: relative;
+                max-width: 720px;
+                margin: 0 auto;
             }
 
             .search-box input {
                 width: 100%;
-                padding: 0.875rem 1rem 0.875rem 3rem;
-                font-size: 1rem;
-                border: 2px solid var(--gray-300);
-                border-radius: 0.5rem;
-                transition: all 0.2s;
+                padding: 14px 48px 14px 48px;
+                font-size: 15px;
+                border: 2px solid var(--gray-200);
+                border-radius: var(--border-radius-lg);
+                transition: all 0.16s ease;
+                background: var(--gray-50);
             }
 
             .search-box input:focus {
                 outline: none;
                 border-color: var(--primary-color);
-                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                background: white;
+                box-shadow: 0 0 0 4px rgba(30, 111, 255, 0.1);
             }
 
-            .search-box i {
+            .search-box .search-icon {
                 position: absolute;
-                left: 1rem;
+                left: 16px;
                 top: 50%;
                 transform: translateY(-50%);
-                font-size: 1.25rem;
-                color: var(--gray-600);
+                font-size: 20px;
+                color: var(--gray-400);
+            }
+
+            .search-box .scan-btn {
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: var(--primary-color);
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.16s ease;
+            }
+
+            .search-box .scan-btn:hover {
+                background: var(--primary-dark);
             }
 
             /* Search Results */
             .search-results {
-                padding: 1rem 1.5rem;
-                max-height: 250px;
+                max-height: 320px;
                 overflow-y: auto;
-                background: var(--gray-50);
+                padding: 0 24px 24px;
             }
 
             .product-result {
+                display: flex;
+                align-items: center;
+                gap: 16px;
                 background: white;
                 border: 1px solid var(--gray-200);
-                border-radius: 0.5rem;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
+                border-radius: var(--border-radius);
+                padding: 12px;
+                margin-bottom: 8px;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.16s ease;
             }
 
             .product-result:hover {
                 border-color: var(--primary-color);
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-                transform: translateY(-2px);
+                box-shadow: var(--shadow-md);
+                transform: translateY(-1px);
             }
 
-            .product-result:active {
-                transform: translateY(0);
+            .product-result img {
+                width: 56px;
+                height: 56px;
+                object-fit: cover;
+                border-radius: 8px;
+                background: var(--gray-100);
+            }
+
+            .product-info {
+                flex: 1;
             }
 
             .product-name {
                 font-weight: 600;
                 color: var(--gray-900);
-                margin-bottom: 0.25rem;
+                margin-bottom: 4px;
+                font-size: 14px;
             }
 
             .product-meta {
-                font-size: 0.875rem;
-                color: var(--gray-600);
-                margin-bottom: 0.5rem;
-            }
-
-            .product-footer {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
+                font-size: 12px;
+                color: var(--gray-500);
             }
 
             .product-price {
-                font-size: 1.25rem;
+                font-size: 18px;
                 font-weight: 700;
                 color: var(--success-color);
             }
 
             .stock-badge {
-                padding: 0.25rem 0.75rem;
-                border-radius: 9999px;
-                font-size: 0.75rem;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-size: 11px;
                 font-weight: 600;
             }
 
             .stock-badge.in-stock {
-                background: #d1fae5;
-                color: #065f46;
+                background: #D1FAE5;
+                color: #065F46;
             }
 
             .stock-badge.out-of-stock {
-                background: #fee2e2;
-                color: #991b1b;
+                background: #FEE2E2;
+                color: #991B1B;
             }
 
             /* Cart Section */
             .cart-section {
                 flex: 1;
                 overflow-y: auto;
-                padding: 1.5rem;
+                padding: 24px;
                 background: var(--gray-50);
             }
 
@@ -236,92 +304,102 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 1rem;
+                margin-bottom: 16px;
             }
 
             .cart-title {
-                font-size: 1.125rem;
+                font-size: 16px;
                 font-weight: 700;
                 color: var(--gray-900);
                 display: flex;
                 align-items: center;
-                gap: 0.5rem;
+                gap: 8px;
             }
 
             .cart-count {
                 background: var(--primary-color);
                 color: white;
-                padding: 0.125rem 0.5rem;
-                border-radius: 9999px;
-                font-size: 0.75rem;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 12px;
                 font-weight: 600;
             }
 
             .cart-item {
                 background: white;
                 border: 1px solid var(--gray-200);
-                border-radius: 0.5rem;
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-                box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+                border-radius: var(--border-radius);
+                padding: 16px;
+                margin-bottom: 12px;
+                box-shadow: var(--shadow-sm);
+                transition: all 0.16s ease;
+            }
+
+            .cart-item:hover {
+                box-shadow: var(--shadow-md);
             }
 
             .cart-item-header {
                 display: flex;
                 justify-content: space-between;
-                margin-bottom: 0.75rem;
+                margin-bottom: 12px;
             }
 
             .cart-item-name {
                 font-weight: 600;
                 color: var(--gray-900);
+                font-size: 14px;
             }
 
             .cart-item-sku {
-                font-size: 0.75rem;
-                color: var(--gray-600);
-                margin-top: 0.125rem;
+                font-size: 12px;
+                color: var(--gray-500);
+                margin-top: 2px;
             }
 
             .cart-item-controls {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 0.75rem;
+                margin-bottom: 12px;
             }
 
             .qty-control {
                 display: flex;
                 align-items: center;
-                gap: 0.75rem;
+                gap: 8px;
+                background: var(--gray-50);
+                padding: 4px;
+                border-radius: 8px;
             }
 
             .qty-btn {
-                width: 2rem;
-                height: 2rem;
-                border-radius: 0.375rem;
-                border: 1px solid var(--gray-300);
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                border: none;
                 background: white;
                 color: var(--gray-700);
                 font-weight: 600;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.16s ease;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                box-shadow: var(--shadow-sm);
             }
 
             .qty-btn:hover {
                 background: var(--primary-color);
                 color: white;
-                border-color: var(--primary-color);
             }
 
             .qty-value {
                 font-weight: 700;
                 color: var(--gray-900);
-                min-width: 2rem;
+                min-width: 32px;
                 text-align: center;
+                font-size: 14px;
             }
 
             .cart-item-price {
@@ -329,21 +407,21 @@
             }
 
             .cart-item-unit-price {
-                font-size: 0.75rem;
-                color: var(--gray-600);
+                font-size: 12px;
+                color: var(--gray-500);
             }
 
             .cart-item-total {
-                font-size: 1.125rem;
+                font-size: 16px;
                 font-weight: 700;
                 color: var(--success-color);
             }
 
             /* IMEI Section */
             .imei-section {
-                padding: 0.75rem;
+                padding: 12px;
                 background: var(--gray-50);
-                border-radius: 0.375rem;
+                border-radius: 8px;
                 border: 1px solid var(--gray-200);
             }
 
@@ -351,61 +429,62 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 0.5rem;
+                margin-bottom: 8px;
             }
 
             .imei-label {
-                font-size: 0.875rem;
+                font-size: 13px;
                 font-weight: 600;
                 color: var(--gray-700);
             }
 
             .imei-status {
-                padding: 0.125rem 0.5rem;
-                border-radius: 0.25rem;
-                font-size: 0.75rem;
+                padding: 2px 8px;
+                border-radius: 6px;
+                font-size: 11px;
                 font-weight: 600;
             }
 
             .imei-status.complete {
-                background: #d1fae5;
-                color: #065f46;
+                background: #D1FAE5;
+                color: #065F46;
             }
 
             .imei-status.incomplete {
-                background: #fef3c7;
-                color: #92400e;
+                background: #FEF3C7;
+                color: #92400E;
             }
 
             .imei-input-group {
                 display: flex;
-                gap: 0.5rem;
+                gap: 8px;
             }
 
             .imei-input {
                 flex: 1;
-                padding: 0.5rem;
+                padding: 8px 12px;
                 border: 1px solid var(--gray-300);
-                border-radius: 0.375rem;
+                border-radius: 6px;
                 font-family: "Courier New", monospace;
-                font-size: 0.875rem;
+                font-size: 13px;
             }
 
             .imei-input:focus {
                 outline: none;
                 border-color: var(--primary-color);
-                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                box-shadow: 0 0 0 3px rgba(30, 111, 255, 0.1);
             }
 
             .imei-add-btn {
-                padding: 0.5rem 1rem;
+                padding: 8px 16px;
                 background: var(--primary-color);
                 color: white;
                 border: none;
-                border-radius: 0.375rem;
+                border-radius: 6px;
                 font-weight: 600;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.16s ease;
+                font-size: 13px;
             }
 
             .imei-add-btn:hover {
@@ -413,21 +492,22 @@
             }
 
             .imei-list {
-                margin-top: 0.5rem;
+                margin-top: 8px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
             }
 
             .imei-tag {
                 display: inline-flex;
                 align-items: center;
-                gap: 0.5rem;
-                padding: 0.375rem 0.75rem;
+                gap: 6px;
+                padding: 6px 10px;
                 background: white;
                 border: 1px solid var(--gray-200);
-                border-radius: 0.375rem;
+                border-radius: 6px;
                 font-family: "Courier New", monospace;
-                font-size: 0.75rem;
-                margin-right: 0.5rem;
-                margin-bottom: 0.5rem;
+                font-size: 11px;
             }
 
             .imei-tag button {
@@ -442,18 +522,18 @@
 
             .empty-cart {
                 text-align: center;
-                padding: 3rem 1rem;
-                color: var(--gray-600);
+                padding: 64px 24px;
+                color: var(--gray-500);
             }
 
             .empty-cart i {
-                font-size: 4rem;
-                margin-bottom: 1rem;
+                font-size: 64px;
+                margin-bottom: 16px;
                 color: var(--gray-300);
             }
 
-            /* Right Panel - Billing */
-            .billing-panel {
+            /* Right Panel */
+            .right-panel {
                 width: 420px;
                 background: white;
                 border-left: 1px solid var(--gray-200);
@@ -463,45 +543,45 @@
             }
 
             .billing-section {
-                padding: 1.5rem;
+                padding: 24px;
                 border-bottom: 1px solid var(--gray-200);
             }
 
             .section-title {
-                font-size: 1rem;
+                font-size: 14px;
                 font-weight: 700;
                 color: var(--gray-900);
-                margin-bottom: 1rem;
+                margin-bottom: 16px;
                 display: flex;
                 align-items: center;
-                gap: 0.5rem;
+                gap: 8px;
             }
 
             .form-group {
-                margin-bottom: 0.75rem;
+                margin-bottom: 16px;
             }
 
             .form-label {
-                font-size: 0.875rem;
+                font-size: 13px;
                 font-weight: 600;
                 color: var(--gray-700);
-                margin-bottom: 0.375rem;
+                margin-bottom: 6px;
                 display: block;
             }
 
             .form-input {
                 width: 100%;
-                padding: 0.625rem 0.75rem;
+                padding: 10px 12px;
                 border: 1px solid var(--gray-300);
-                border-radius: 0.375rem;
-                font-size: 0.875rem;
-                transition: all 0.2s;
+                border-radius: var(--border-radius);
+                font-size: 14px;
+                transition: all 0.16s ease;
             }
 
             .form-input:focus {
                 outline: none;
                 border-color: var(--primary-color);
-                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                box-shadow: 0 0 0 3px rgba(30, 111, 255, 0.1);
             }
 
             /* Summary */
@@ -509,8 +589,8 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 0.75rem;
-                font-size: 0.875rem;
+                margin-bottom: 12px;
+                font-size: 14px;
             }
 
             .summary-label {
@@ -532,44 +612,45 @@
             }
 
             .summary-row.total {
-                padding-top: 0.75rem;
+                padding-top: 16px;
                 border-top: 2px solid var(--gray-200);
-                margin-top: 0.5rem;
+                margin-top: 8px;
             }
 
             .summary-row.total .summary-label {
-                font-size: 1.125rem;
+                font-size: 16px;
                 font-weight: 700;
                 color: var(--gray-900);
             }
 
             .summary-row.total .summary-value {
-                font-size: 1.75rem;
+                font-size: 24px;
                 color: var(--success-color);
             }
 
             .input-group {
                 display: flex;
                 align-items: center;
-                gap: 0.5rem;
+                gap: 8px;
             }
 
             .input-group input {
-                width: 80px;
+                width: 70px;
             }
 
             /* Buttons */
             .btn {
-                padding: 0.75rem 1.5rem;
-                border-radius: 0.5rem;
+                padding: 12px 20px;
+                border-radius: var(--border-radius);
                 font-weight: 600;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.16s ease;
                 border: none;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                gap: 0.5rem;
+                gap: 8px;
+                font-size: 14px;
             }
 
             .btn-primary {
@@ -580,19 +661,19 @@
             .btn-primary:hover {
                 background: var(--primary-dark);
                 transform: translateY(-1px);
-                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                box-shadow: var(--shadow-md);
             }
 
             .btn-success {
                 background: var(--success-color);
                 color: white;
                 width: 100%;
-                padding: 1rem;
-                font-size: 1.125rem;
+                padding: 16px;
+                font-size: 16px;
             }
 
             .btn-success:hover {
-                background: #059669;
+                background: var(--success-dark);
                 transform: translateY(-1px);
                 box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
             }
@@ -600,20 +681,20 @@
             .btn-danger {
                 background: var(--danger-color);
                 color: white;
-                padding: 0.5rem 1rem;
-                font-size: 0.875rem;
+                padding: 8px 16px;
+                font-size: 13px;
             }
 
             .btn-danger:hover {
-                background: #dc2626;
+                background: #DC2626;
             }
 
             .btn-outline {
                 background: white;
                 color: var(--gray-700);
                 border: 1px solid var(--gray-300);
-                padding: 0.5rem 1rem;
-                font-size: 0.875rem;
+                padding: 8px 16px;
+                font-size: 13px;
             }
 
             .btn-outline:hover {
@@ -622,28 +703,28 @@
             }
 
             .btn-icon {
-                width: 2rem;
-                height: 2rem;
+                width: 36px;
+                height: 36px;
                 padding: 0;
-                border-radius: 0.375rem;
+                border-radius: 8px;
             }
 
             /* Select */
             .form-select {
                 width: 100%;
-                padding: 0.75rem;
+                padding: 12px;
                 border: 1px solid var(--gray-300);
-                border-radius: 0.5rem;
-                font-size: 1rem;
+                border-radius: var(--border-radius);
+                font-size: 14px;
                 font-weight: 600;
                 cursor: pointer;
-                transition: all 0.2s;
+                transition: all 0.16s ease;
             }
 
             .form-select:focus {
                 outline: none;
                 border-color: var(--primary-color);
-                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+                box-shadow: 0 0 0 3px rgba(30, 111, 255, 0.1);
             }
 
             /* Scrollbar */
@@ -666,7 +747,7 @@
 
             /* Responsive */
             @media (max-width: 1024px) {
-                .billing-panel {
+                .right-panel {
                     width: 360px;
                 }
             }
@@ -677,7 +758,7 @@
                     height: auto;
                 }
 
-                .billing-panel {
+                .right-panel {
                     width: 100%;
                 }
             }
@@ -686,66 +767,73 @@
     <body>
         <!-- Header -->
         <div class="pos-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1><i class="bi bi-shop"></i> Point of Sale</h1>
-                    <div class="subtitle">Mobile Shop Management System</div>
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="app-logo">
+                        <i class="bi bi-shop"></i>
+                    </div>
+                    <div>
+                        <div class="app-title">Point of Sale</div>
+                    </div>
+                    <div class="transaction-tabs">
+                        <button
+                            class="transaction-tab active"
+                            data-type="sale"
+                            onclick="selectTransactionType('sale', this)"
+                        >
+                            <i class="bi bi-cart-check-fill"></i> Sale
+                        </button>
+                        <button
+                            class="transaction-tab"
+                            data-type="return"
+                            onclick="selectTransactionType('return', this)"
+                        >
+                            <i class="bi bi-arrow-counterclockwise"></i> Return
+                        </button>
+                        <button
+                            class="transaction-tab"
+                            data-type="exchange"
+                            onclick="selectTransactionType('exchange', this)"
+                        >
+                            <i class="bi bi-arrow-left-right"></i> Exchange
+                        </button>
+                    </div>
                 </div>
-                <button
-                    class="btn btn-outline"
-                    onclick="window.location.href='/'"
-                >
-                    <i class="bi bi-arrow-left"></i> Dashboard
-                </button>
+                <div class="header-actions">
+                    <button
+                        class="btn btn-outline"
+                        onclick="window.location.href='/'"
+                    >
+                        <i class="bi bi-arrow-left"></i> Dashboard
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Main Content -->
         <div class="pos-main">
-            <!-- Left Panel - Products & Cart -->
-            <div class="products-panel">
-                <!-- Transaction Type Tabs -->
-                <div class="transaction-tabs">
-                    <button
-                        class="transaction-tab active"
-                        data-type="sale"
-                        onclick="selectTransactionType('sale', this)"
-                    >
-                        <i class="bi bi-cart-check-fill"></i> Sale
-                    </button>
-                    <button
-                        class="transaction-tab"
-                        data-type="return"
-                        onclick="selectTransactionType('return', this)"
-                    >
-                        <i class="bi bi-arrow-counterclockwise"></i> Return
-                    </button>
-                    <button
-                        class="transaction-tab"
-                        data-type="exchange"
-                        onclick="selectTransactionType('exchange', this)"
-                    >
-                        <i class="bi bi-arrow-left-right"></i> Exchange
-                    </button>
-                </div>
-
-                <!-- Product Search -->
+            <!-- Left Panel -->
+            <div class="left-panel">
+                <!-- Search -->
                 <div class="search-section">
                     <div class="search-box">
-                        <i class="bi bi-search"></i>
+                        <i class="bi bi-search search-icon"></i>
                         <input
                             type="text"
                             id="productSearch"
-                            placeholder="Search by product name, SKU, or scan barcode..."
+                            placeholder="Search product name, SKU or scan barcode..."
                             autofocus
                         />
+                        <button class="scan-btn">
+                            <i class="bi bi-upc-scan"></i> Scan
+                        </button>
                     </div>
                 </div>
 
                 <!-- Search Results -->
                 <div class="search-results" id="searchResults"></div>
 
-                <!-- Shopping Cart -->
+                <!-- Cart -->
                 <div class="cart-section">
                     <div class="cart-header">
                         <div class="cart-title">
@@ -753,7 +841,7 @@
                             <span class="cart-count" id="cartCount">0</span>
                         </div>
                         <button class="btn btn-outline" onclick="clearCart()">
-                            <i class="bi bi-trash"></i> Clear Cart
+                            <i class="bi bi-trash"></i> Clear
                         </button>
                     </div>
                     <div id="cartItems">
@@ -766,44 +854,38 @@
                 </div>
             </div>
 
-            <!-- Right Panel - Billing -->
-            <div class="billing-panel">
+            <!-- Right Panel -->
+            <div class="right-panel">
                 <!-- Customer Information -->
                 <div class="billing-section">
                     <div class="section-title">
                         <i class="bi bi-person-circle"></i> Customer Information
                     </div>
                     <div class="form-group">
-                        <label class="form-label"
-                            >Customer Name (Optional)</label
-                        >
+                        <label class="form-label">Customer Name</label>
                         <input
                             type="text"
                             id="customerName"
                             class="form-input"
-                            placeholder="Enter customer name"
+                            placeholder="Enter customer name (optional)"
                         />
                     </div>
                     <div class="form-group">
-                        <label class="form-label"
-                            >Phone Number (Optional)</label
-                        >
+                        <label class="form-label">Phone Number</label>
                         <input
                             type="tel"
                             id="customerPhone"
                             class="form-input"
-                            placeholder="Enter phone number"
+                            placeholder="Enter phone number (optional)"
                         />
                     </div>
                     <div class="form-group">
-                        <label class="form-label"
-                            >Email Address (Optional)</label
-                        >
+                        <label class="form-label">Email Address</label>
                         <input
                             type="email"
                             id="customerEmail"
                             class="form-input"
-                            placeholder="Enter email address"
+                            placeholder="Enter email address (optional)"
                         />
                     </div>
                 </div>
@@ -816,7 +898,7 @@
 
                     <div class="summary-row">
                         <span class="summary-label">Subtotal</span>
-                        <span class="summary-value" id="subtotal">$0.00</span>
+                        <span class="summary-value" id="subtotal">₹0.00</span>
                     </div>
 
                     <div class="summary-row">
@@ -834,9 +916,7 @@
                             />
                             <span class="summary-label">%</span>
                         </div>
-                        <span class="summary-value discount" id="discountAmount"
-                            >-$0.00</span
-                        >
+                        <span class="summary-value discount" id="discountAmount">-₹0.00</span>
                     </div>
 
                     <div class="summary-row">
@@ -854,14 +934,12 @@
                             />
                             <span class="summary-label">%</span>
                         </div>
-                        <span class="summary-value tax" id="taxAmount"
-                            >+$0.00</span
-                        >
+                        <span class="summary-value tax" id="taxAmount">+₹0.00</span>
                     </div>
 
                     <div class="summary-row total">
                         <span class="summary-label">Total Amount</span>
-                        <span class="summary-value" id="total">$0.00</span>
+                        <span class="summary-value" id="total">₹0.00</span>
                     </div>
                 </div>
 
@@ -984,15 +1062,16 @@
                     const result = $(`
                     <div class="product-result" onclick='${isInStock ? `addToCart(${JSON.stringify(product).replace(/'/g, "\\'")})` : ""}'
                          style="${!isInStock ? "opacity: 0.6; cursor: not-allowed;" : ""}">
-                        <div class="product-name">${product.name}</div>
-                        <div class="product-meta">
-                            ${product.brand_name || ""} ${product.model_name || ""}
-                            ${product.sku ? `• SKU: ${product.sku}` : ""}
+                        <img src="${product.image_url || '/static/img/placeholder.png'}" alt="${product.name}">
+                        <div class="product-info">
+                            <div class="product-name">${product.name}</div>
+                            <div class="product-meta">
+                                ${product.brand_name || ""} ${product.model_name || ""}
+                                ${product.sku ? `• SKU: ${product.sku}` : ""}
+                            </div>
                         </div>
-                        <div class="product-footer">
-                            <div class="product-price">$${parseFloat(product.selling_price).toFixed(2)}</div>
-                            <span class="stock-badge ${stockClass}">${stockText}</span>
-                        </div>
+                        <div class="product-price">₹${parseFloat(product.selling_price).toFixed(2)}</div>
+                        <span class="stock-badge ${stockClass}">${stockText}</span>
                     </div>
                 `);
                     container.append(result);
@@ -1012,7 +1091,6 @@
                 if (existingIndex >= 0) {
                     if (cart[existingIndex].quantity < product.current_stock) {
                         cart[existingIndex].quantity++;
-                        // Don't reset IMEIs on quantity increase
                     } else {
                         alert("Cannot add more than available stock");
                         return;
@@ -1086,8 +1164,8 @@
                                 </button>
                             </div>
                             <div class="cart-item-price">
-                                <div class="cart-item-unit-price">$${item.unit_price.toFixed(2)} each</div>
-                                <div class="cart-item-total">$${(item.quantity * item.unit_price).toFixed(2)}</div>
+                                <div class="cart-item-unit-price">₹${item.unit_price.toFixed(2)} each</div>
+                                <div class="cart-item-total">₹${(item.quantity * item.unit_price).toFixed(2)}</div>
                             </div>
                         </div>
 
@@ -1116,7 +1194,6 @@
 
                     container.append(cartItem);
 
-                    // Display existing IMEIs
                     item.imei_numbers.forEach((imei, imeiIndex) => {
                         $(`#imeiList${index}`).append(`
                         <span class="imei-tag">
@@ -1150,39 +1227,32 @@
                     return;
                 }
 
-                // Validate IMEI format (15 digits)
                 if (!/^\d{15}$/.test(imei)) {
                     alert("IMEI must be exactly 15 digits");
                     return;
                 }
 
-                // Check if already added
                 if (item.imei_numbers.includes(imei)) {
                     alert("This IMEI has already been added");
                     return;
                 }
 
-                // Check if we've reached the quantity limit
                 if (item.imei_numbers.length >= item.quantity) {
                     alert(`Maximum ${item.quantity} IMEI number(s) allowed`);
                     return;
                 }
 
-                // Verify IMEI availability via API
                 $.get(
                     `${API_BASE}/products/${item.product_id}/imeis/verify?imei=${imei}`,
                     function (response) {
                         if (response.available) {
-                            // IMEI exists in inventory and is available
                             item.imei_numbers.push(imei);
                             item.imei_ids.push(response.imei_id);
                             input.val("");
                             updateCart();
                         } else if (response.exists && !response.available) {
-                            // IMEI exists but is already sold
                             alert("This IMEI is already sold or not available");
                         } else {
-                            // IMEI doesn't exist in inventory - add as manual entry
                             item.imei_numbers.push(imei);
                             if (!item.manual_imeis) item.manual_imeis = [];
                             item.manual_imeis.push(imei);
@@ -1191,7 +1261,6 @@
                         }
                     },
                 ).fail(function () {
-                    // If API fails, add as manual entry (will be created on server)
                     item.imei_numbers.push(imei);
                     if (!item.manual_imeis) item.manual_imeis = [];
                     item.manual_imeis.push(imei);
@@ -1206,12 +1275,10 @@
                 updateCart();
             }
 
-            // IMEI Selection from Inventory
             function showIMEISelection(cartIndex) {
                 const item = cart[cartIndex];
                 currentCartIndexForIMEI = cartIndex;
 
-                // Fetch available IMEIs for this product
                 $.get(`${API_BASE}/products/${item.product_id}/imeis?status=available`, function(imeis) {
                     $('#imeiProductName').text(item.product_name);
                     $('#imeiQuantityRequired').text(item.quantity);
@@ -1229,7 +1296,6 @@
                             </tr>
                         `);
                     } else {
-                        // Show available IMEIs with checkboxes
                         imeis.forEach(imei => {
                             const isChecked = item.imei_ids && item.imei_ids.includes(imei.id) ? 'checked' : '';
                             listBody.append(`
@@ -1255,7 +1321,6 @@
                 });
             }
 
-            // Confirm IMEI Selection
             $('#confirmImeiSelectionBtn').click(function() {
                 if (currentCartIndexForIMEI === null) return;
 
@@ -1275,10 +1340,9 @@
                     return;
                 }
 
-                // Clear any manual entries and use selected IMEIs
                 item.imei_numbers = selectedIMEIs;
                 item.imei_ids = selectedIds;
-                item.manual_imeis = []; // Clear manual entries
+                item.manual_imeis = [];
 
                 bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
                 $('#imeiSelectionError').hide();
@@ -1300,7 +1364,6 @@
                     return;
                 }
 
-                // Adjust IMEI list if quantity decreases
                 if (
                     newQty < item.quantity &&
                     item.imei_numbers.length > newQty
@@ -1342,10 +1405,10 @@
                 const taxAmount = taxableAmount * (taxPercent / 100);
                 const total = taxableAmount + taxAmount;
 
-                $("#subtotal").text("$" + subtotal.toFixed(2));
-                $("#discountAmount").text("-$" + discountAmount.toFixed(2));
-                $("#taxAmount").text("+$" + taxAmount.toFixed(2));
-                $("#total").text("$" + total.toFixed(2));
+                $("#subtotal").text("₹" + subtotal.toFixed(2));
+                $("#discountAmount").text("-₹" + discountAmount.toFixed(2));
+                $("#taxAmount").text("+₹" + taxAmount.toFixed(2));
+                $("#total").text("₹" + total.toFixed(2));
             }
 
             function selectTransactionType(type, element) {
@@ -1362,7 +1425,6 @@
                     return;
                 }
 
-                // Validate IMEI numbers
                 for (let item of cart) {
                     if (item.imei_numbers.length < item.quantity) {
                         alert(
@@ -1404,7 +1466,6 @@
                     return;
                 }
 
-                // Disable buttons to prevent double submission
                 const $btn = $(".btn-success, .btn-primary");
                 $btn.prop("disabled", true);
                 $(".btn-success").html(
@@ -1421,11 +1482,10 @@
                             printSaleReceipt(response, saleData);
                         } else {
                             alert(
-                                `✓ ${transactionTypeText} completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you for your business!`,
+                                `✓ ${transactionTypeText} completed successfully!\n\nSale Number: ${response.sale_number}\nTotal Amount: ₹${Math.abs(response.total_amount).toFixed(2)}\n\nThank you for your business!`,
                             );
                         }
 
-                        // Reset everything
                         resetPOS();
                     },
                     error: function (xhr) {
@@ -1442,11 +1502,9 @@
             }
 
             function printSaleReceipt(saleResponse, saleData) {
-                // Fetch business settings first
                 $.get(`${API_BASE}/business-settings`, function(businessSettings) {
                     generateGSTInvoice(saleResponse, saleData, businessSettings);
                 }).fail(function() {
-                    // Fallback to simple receipt if business settings not available
                     alert('Could not load business settings. Please configure Business Settings first.');
                 });
             }
@@ -1462,7 +1520,6 @@
                 const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
                 const total = Math.abs(saleResponse.total_amount);
 
-                // Determine if IGST or CGST+SGST based on state matching
                 const customerState = saleData.customer_address || '';
                 const businessState = businessSettings.state || '';
                 const isIGST = customerState && businessState && !customerState.toLowerCase().includes(businessState.toLowerCase());
@@ -1474,7 +1531,6 @@
                 const sgstAmount = taxableAmount * (sgstRate / 100);
                 const igstAmount = taxableAmount * (igstRate / 100);
 
-                // Number to words conversion
                 function numberToWords(num) {
                     const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
                     const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -1508,7 +1564,6 @@
 
                 const totalInWords = numberToWords(Math.floor(total)) + ' Rupees Only';
 
-                // Calculate tax breakdown for each item
                 let itemsHtml = '';
                 let srNo = 1;
                 let totalQuantity = 0;
@@ -1519,10 +1574,8 @@
                 let totalAmount = 0;
 
                 items.forEach(item => {
-                    // Calculate item values
                     const itemTaxableValue = item.quantity * item.unit_price;
                     
-                    // Calculate tax amounts based on whether IGST or CGST+SGST
                     let itemCgstAmount = 0;
                     let itemSgstAmount = 0;
                     let itemIgstAmount = 0;
@@ -1537,7 +1590,6 @@
                     const itemTotalTax = itemIgstAmount + itemCgstAmount + itemSgstAmount;
                     const itemTotal = itemTaxableValue + itemTotalTax;
                     
-                    // Accumulate totals
                     totalQuantity += item.quantity;
                     totalTaxableValue += itemTaxableValue;
                     totalCgstAmount += itemCgstAmount;
@@ -1545,7 +1597,6 @@
                     totalIgstAmount += itemIgstAmount;
                     totalAmount += itemTotal;
                     
-                    // Format IMEI display - one per line if multiple
                     let imeiDisplay = '';
                     if (item.imei_numbers && item.imei_numbers.length > 0) {
                         imeiDisplay = '<br><span style="font-size: 9px; color: #333; font-family: monospace;">IMEI: ' + item.imei_numbers.join('<br>IMEI: ') + '</span>';
@@ -1575,7 +1626,6 @@
                     `;
                 });
 
-                // Add totals row
                 itemsHtml += `
                     <tr style="font-weight: bold; background: #f0f0f0;">
                         <td colspan="3" style="text-align: right; padding: 8px; border: 1px solid #000;">Total</td>
@@ -1620,36 +1670,6 @@
                             .header-section {
                                 border: 2px solid #000;
                                 margin-bottom: 2px;
-                            }
-                            .top-bar {
-                                background: #1e40af;
-                                padding: 8px 12px;
-                                display: flex;
-                                justify-content: space-between;
-                                align-items: center;
-                                color: white;
-                            }
-                            .shop-name {
-                                font-size: 18px;
-                                font-weight: bold;
-                                color: #1e40af;
-                            }
-                            .brand-logos {
-                                display: flex;
-                                gap: 8px;
-                                align-items: center;
-                            }
-                            .brand-logo {
-                                width: 32px;
-                                height: 32px;
-                                background: white;
-                                border-radius: 4px;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                font-size: 8px;
-                                font-weight: bold;
-                                border: 1px solid #ddd;
                             }
                             .company-info {
                                 padding: 8px 12px;
@@ -1964,27 +1984,27 @@
                                 <div class="bank-section">
                                     <div class="bank-header">Bank Details</div>
                                     <div class="bank-details">
-                                <div class="info-row">
-                                    <span class="info-label">Name</span>
-                                    <span>${businessSettings.bank_name || 'ICICI'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Branch</span>
-                                    <span>${businessSettings.bank_branch || 'Surat'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">Acc. Number</span>
-                                    <span>${businessSettings.bank_account_number || '271550'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">IFSC</span>
-                                    <span>${businessSettings.bank_ifsc || 'ICIC045F'}</span>
-                                </div>
-                                <div class="info-row" style="margin-top: 8px;">
-                                    <span class="info-label">UPI ID</span>
-                                    <span>ifox@icici</span>
-                                </div>
-                            </div>
+                                        <div class="info-row">
+                                            <span class="info-label">Name</span>
+                                            <span>${businessSettings.bank_name || 'ICICI'}</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="info-label">Branch</span>
+                                            <span>${businessSettings.bank_branch || 'Surat'}</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="info-label">Acc. Number</span>
+                                            <span>${businessSettings.bank_account_number || '271550'}</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="info-label">IFSC</span>
+                                            <span>${businessSettings.bank_ifsc || 'ICIC045F'}</span>
+                                        </div>
+                                        <div class="info-row" style="margin-top: 8px;">
+                                            <span class="info-label">UPI ID</span>
+                                            <span>ifox@icici</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             <div class="right-section">
@@ -2020,7 +2040,7 @@
                                 <div class="certified-text">
                                     (E & O.E)<br>
                                     Certified that the particulars given above are true and correct.<br>
-                                    <strong>For Go GST Bill Demo</strong>
+                                    <strong>For ${businessSettings.business_name || 'Mobile Shop'}</strong>
                                 </div>
                             </div>
                         </div>
@@ -2045,7 +2065,6 @@
 
                 printWindow.document.close();
 
-                // Auto-print after a short delay
                 setTimeout(() => {
                     printWindow.print();
                 }, 500);
@@ -2067,38 +2086,30 @@
                 );
             }
 
-            // Customer lookup by phone number
             let customerLookupTimeout;
             let currentLookupRequest = null;
 
             $("#customerPhone").on("input", function() {
                 const phone = $(this).val().trim();
 
-                // Clear previous timeout
                 clearTimeout(customerLookupTimeout);
 
-                // Abort any in-flight request to prevent race conditions
                 if (currentLookupRequest) {
                     currentLookupRequest.abort();
                     currentLookupRequest = null;
                 }
 
-                // Only lookup if phone has at least 10 digits
                 if (phone.length >= 10) {
                     customerLookupTimeout = setTimeout(function() {
-                        // Call API to lookup customer
                         currentLookupRequest = $.ajax({
                             url: `/api/customers/lookup/${encodeURIComponent(phone)}`,
                             method: 'GET',
                             success: function(customer) {
-                                // Verify response matches current phone to prevent race condition
                                 const currentPhone = $("#customerPhone").val().trim();
                                 if (customer.phone === currentPhone) {
-                                    // Auto-fill customer details if found and phone still matches
                                     $("#customerName").val(customer.name);
                                     $("#customerEmail").val(customer.email || '');
 
-                                    // Show visual feedback
                                     $("#customerPhone").css('border-color', '#10b981');
                                     setTimeout(() => {
                                         $("#customerPhone").css('border-color', '');
@@ -2107,12 +2118,9 @@
                                 currentLookupRequest = null;
                             },
                             error: function(xhr) {
-                                // Only clear fields if request wasn't aborted
                                 if (xhr.statusText !== 'abort') {
-                                    // Verify phone hasn't changed before clearing
                                     const currentPhone = $("#customerPhone").val().trim();
                                     if (currentPhone === phone) {
-                                        // Customer not found - clear fields to prevent stale data
                                         $("#customerName").val('');
                                         $("#customerEmail").val('');
                                     }
@@ -2121,36 +2129,30 @@
                                 currentLookupRequest = null;
                             }
                         });
-                    }, 500); // Wait 500ms after user stops typing
+                    }, 500);
                 } else {
-                    // Clear all customer fields if phone is too short
                     $("#customerName").val('');
                     $("#customerEmail").val('');
                     $("#customerPhone").css('border-color', '');
                 }
             });
 
-            // Initialize
             $(document).ready(function () {
                 $("#productSearch").focus();
                 calculateTotals();
             });
 
-            // Keyboard shortcuts
             $(document).on("keydown", function (e) {
-                // F9 - Focus search
                 if (e.key === "F9") {
                     e.preventDefault();
                     $("#productSearch").focus();
                 }
 
-                // F12 - Complete sale
                 if (e.key === "F12") {
                     e.preventDefault();
                     completeSale();
                 }
 
-                // Esc - Clear search or cart
                 if (e.key === "Escape") {
                     if ($("#productSearch").val()) {
                         $("#productSearch").val("");
