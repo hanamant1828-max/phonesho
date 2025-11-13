@@ -2421,6 +2421,294 @@ def report_profit():
         download_name=f'profit_analysis_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     )
 
+@app.route('/api/reports/gst', methods=['GET'])
+@login_required
+def report_gst():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+
+    query = '''
+        SELECT 
+            ps.sale_number,
+            ps.sale_date,
+            ps.customer_name,
+            ps.customer_phone,
+            ps.transaction_type,
+            ps.subtotal,
+            ps.discount_amount,
+            ps.tax_percentage,
+            ps.tax_amount,
+            ps.total_amount,
+            (ps.tax_amount / 2) as cgst_amount,
+            (ps.tax_amount / 2) as sgst_amount,
+            (ps.tax_percentage / 2) as cgst_rate,
+            (ps.tax_percentage / 2) as sgst_rate,
+            ps.payment_method
+        FROM pos_sales ps
+        WHERE ps.transaction_type = 'sale'
+    '''
+    params = []
+
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+
+    query += ' ORDER BY ps.sale_date DESC'
+
+    cursor.execute(query, params)
+    gst_data = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    df = pd.DataFrame(gst_data)
+    if not df.empty:
+        df['sale_date'] = pd.to_datetime(df['sale_date']).dt.strftime('%Y-%m-%d %H:%M:%S')
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='GST Report')
+        workbook = writer.book
+        worksheet = writer.sheets['GST Report']
+
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'gst_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/brand-performance', methods=['GET'])
+@login_required
+def report_brand_performance():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+
+    query = '''
+        SELECT 
+            b.name as brand_name,
+            COUNT(DISTINCT p.id) as total_products,
+            COALESCE(SUM(psi.quantity), 0) as total_units_sold,
+            COALESCE(SUM(psi.total_price), 0) as total_revenue,
+            COALESCE(SUM(psi.quantity * p.cost_price), 0) as total_cost,
+            COALESCE(SUM(psi.total_price) - SUM(psi.quantity * p.cost_price), 0) as total_profit,
+            COALESCE(AVG((p.selling_price - p.cost_price) / p.cost_price * 100), 0) as avg_margin_percent
+        FROM brands b
+        LEFT JOIN products p ON b.id = p.brand_id
+        LEFT JOIN pos_sale_items psi ON p.id = psi.product_id
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id AND ps.transaction_type = 'sale'
+        WHERE 1=1
+    '''
+    params = []
+
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+
+    query += ' GROUP BY b.id ORDER BY total_revenue DESC'
+
+    cursor.execute(query, params)
+    brand_data = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    df = pd.DataFrame(brand_data)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Brand Performance')
+        workbook = writer.book
+        worksheet = writer.sheets['Brand Performance']
+
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'brand_performance_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/top-selling', methods=['GET'])
+@login_required
+def report_top_selling():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+    limit = request.args.get('limit', '20')
+
+    query = '''
+        SELECT 
+            p.name as product_name,
+            p.sku,
+            c.name as category,
+            b.name as brand,
+            m.name as model,
+            SUM(psi.quantity) as total_quantity_sold,
+            SUM(psi.total_price) as total_revenue,
+            SUM(psi.quantity * p.cost_price) as total_cost,
+            SUM(psi.total_price) - SUM(psi.quantity * p.cost_price) as total_profit,
+            AVG(psi.unit_price) as avg_selling_price,
+            COUNT(DISTINCT ps.id) as number_of_transactions
+        FROM pos_sale_items psi
+        LEFT JOIN products p ON psi.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN models m ON p.model_id = m.id
+        LEFT JOIN pos_sales ps ON psi.sale_id = ps.id
+        WHERE ps.transaction_type = 'sale'
+    '''
+    params = []
+
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+
+    query += ' GROUP BY psi.product_id ORDER BY total_quantity_sold DESC LIMIT ?'
+    params.append(limit)
+
+    cursor.execute(query, params)
+    top_selling = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    df = pd.DataFrame(top_selling)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Top Selling Products')
+        workbook = writer.book
+        worksheet = writer.sheets['Top Selling Products']
+
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'top_selling_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
+@app.route('/api/reports/staff-performance', methods=['GET'])
+@login_required
+def report_staff_performance():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    from_date = request.args.get('from_date', '')
+    to_date = request.args.get('to_date', '')
+
+    query = '''
+        SELECT 
+            ps.cashier_name,
+            COUNT(DISTINCT ps.id) as total_transactions,
+            SUM(CASE WHEN ps.transaction_type = 'sale' THEN 1 ELSE 0 END) as total_sales,
+            SUM(CASE WHEN ps.transaction_type = 'return' THEN 1 ELSE 0 END) as total_returns,
+            SUM(CASE WHEN ps.transaction_type = 'exchange' THEN 1 ELSE 0 END) as total_exchanges,
+            SUM(CASE WHEN ps.transaction_type = 'sale' THEN ps.total_amount ELSE 0 END) as total_sales_amount,
+            SUM(CASE WHEN ps.transaction_type = 'return' THEN ABS(ps.total_amount) ELSE 0 END) as total_returns_amount,
+            AVG(CASE WHEN ps.transaction_type = 'sale' THEN ps.total_amount ELSE NULL END) as avg_transaction_value,
+            SUM(CASE WHEN ps.payment_method = 'cash' THEN 1 ELSE 0 END) as cash_transactions,
+            SUM(CASE WHEN ps.payment_method = 'card' THEN 1 ELSE 0 END) as card_transactions,
+            SUM(CASE WHEN ps.payment_method = 'upi' THEN 1 ELSE 0 END) as upi_transactions
+        FROM pos_sales ps
+        WHERE ps.cashier_name IS NOT NULL
+    '''
+    params = []
+
+    if from_date:
+        query += ' AND DATE(ps.sale_date) >= ?'
+        params.append(from_date)
+
+    if to_date:
+        query += ' AND DATE(ps.sale_date) <= ?'
+        params.append(to_date)
+
+    query += ' GROUP BY ps.cashier_name ORDER BY total_sales_amount DESC'
+
+    cursor.execute(query, params)
+    staff_data = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    df = pd.DataFrame(staff_data)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Staff Performance')
+        workbook = writer.book
+        worksheet = writer.sheets['Staff Performance']
+
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'staff_performance_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
+
 @app.route('/api/products/<int:id>/stock-history', methods=['GET'])
 @login_required
 def get_stock_history(id):
