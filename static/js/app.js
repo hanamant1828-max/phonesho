@@ -1684,11 +1684,15 @@ function loadModels() {
             const date = new Date(model.created_at);
             const imageUrl = model.image_data || 'https://via.placeholder.com/50x50?text=No+Image';
             const escapedImageData = model.image_data ? model.image_data.replace(/'/g, "\\'") : '';
+            // Escape HTML entities for safe rendering
+            const safeDescription = (model.description || '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            const safeName = model.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            
             tbody.append(`
                 <tr>
                     <td>
                         <img src="${imageUrl}"
-                             alt="${model.name}"
+                             alt="${safeName}"
                              style="width: 50px; height: 50px; object-fit: cover; border-radius: 5px;"
                              onerror="this.src='https://via.placeholder.com/50x50?text=No+Image'; this.title='Image failed to load';">
                     </td>
@@ -1697,7 +1701,13 @@ function loadModels() {
                     <td>${model.description || '-'}</td>
                     <td>${date.toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary action-btn" data-model-id="${model.id}" data-model-name="${model.name}" data-brand-id="${model.brand_id}" data-description="${(model.description || '').replace(/"/g, '&quot;')}" data-image="${escapedImageData}" onclick="editModelFromData(this)">
+                        <button class="btn btn-sm btn-primary action-btn" 
+                                data-model-id="${model.id}" 
+                                data-model-name="${safeName}" 
+                                data-brand-id="${model.brand_id}" 
+                                data-description="${safeDescription}" 
+                                data-image="${escapedImageData}" 
+                                onclick="editModelFromData(this)">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteModel(${model.id})">
@@ -1718,7 +1728,12 @@ function editModelFromData(button) {
     const brandId = $(button).data('brand-id');
     const description = $(button).data('description');
     const imageData = $(button).data('image');
-    editModel(id, name, brandId, description, imageData);
+    
+    // Decode HTML entities back to normal text
+    const decodedName = $('<div/>').html(name).text();
+    const decodedDescription = $('<div/>').html(description).text();
+    
+    editModel(id, decodedName, brandId, decodedDescription, imageData);
 }
 
 function showAddModel() {
