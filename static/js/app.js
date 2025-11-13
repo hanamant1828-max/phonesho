@@ -4122,6 +4122,41 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
     // Convert total amount to words
     const totalInWords = convertNumberToWords(total); // Assuming convertNumberToWords function exists
 
+    // Build items table HTML
+    let itemsHtml = '';
+    let srNo = 1;
+    cart.forEach(item => {
+        const itemSubtotal = item.quantity * item.unit_price;
+        const itemCgst = itemSubtotal * (cgstRate / 100);
+        const itemSgst = itemSubtotal * (sgstRate / 100);
+        const itemIgst = itemSubtotal * (igstRate / 100);
+        const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
+
+        itemsHtml += `
+            <tr>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
+                <td style="vertical-align: top; padding: 5px;">
+                    <strong>${item.product_name}</strong>
+                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                </td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${item.unit_price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSubtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                ${isIGST ? `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                ` : `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                `}
+                <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    });
+
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -4336,7 +4371,7 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
                         </tr>
                         <tr>
                             <td class="customer-label">Name</td>
-                            <td>${saleData.customer_name || 'Walk-in Customer'}</td>
+                            <td>${saleData.customer_name || ''}</td>
                             <td class="customer-label">PHONE</td>
                             <td>${saleData.customer_phone || '-'}</td>
                         </tr>
@@ -4469,7 +4504,14 @@ function extractStateFromAddress(address) {
     if (!address) return '';
     const parts = address.split(',');
     if (parts.length > 1) {
-        return parts[parts.length - 2].trim(); // Assuming state is the second to last part
+        // Try to find a state-like pattern, e.g., "Maharashtra", "MH", "Delhi", "DL"
+        // This is a very basic approach and might need refinement based on address variations.
+        const potentialState = parts[parts.length - 2].trim();
+        // Simple check for common state abbreviations or names.
+        // A more robust solution would involve a lookup list or more complex regex.
+        if (potentialState.length <= 2 || potentialState.length > 2 && potentialState.length < 20) {
+            return potentialState;
+        }
     }
     return ''; // Return empty if state cannot be determined
 }
@@ -4478,12 +4520,63 @@ function extractStateFromAddress(address) {
 function convertNumberToWords(num) {
     // This is a placeholder. Implement a proper number-to-words conversion function.
     // Example: 1234.56 -> "One Thousand Two Hundred Thirty Four Rupees and Fifty Six Paise Only"
-    return num.toLocaleString('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        useGrouping: true,
-        currencyDisplay: 'code'
-    }).replace('INR', '').trim() + ' Only'; // Basic formatting
+
+    // Basic implementation for demonstration:
+    const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const thousands = ["", "Thousand", "Million", "Billion"]; // Extend if needed
+
+    if (num === 0) return "Zero Rupees";
+
+    let numStr = num.toString();
+    let decimalPart = '';
+    if (numStr.includes('.')) {
+        const parts = numStr.split('.');
+        numStr = parts[0];
+        const paise = parseInt(parts[1] || '00');
+        if (paise > 0) {
+            decimalPart = " and " + units[Math.floor(paise / 10)] + (paise % 10 ? "-" + units[paise % 10] : "") + " Paise";
+        }
+    }
+
+    let word = '';
+    let i = 0; // Index for thousands array
+
+    while (numStr.length > 0) {
+        let chunk = parseInt(numStr.substring(numStr.length - 3));
+        numStr = numStr.substring(0, numStr.length - 3);
+
+        if (chunk > 0) {
+            let chunkWord = '';
+            // Handle hundreds
+            if (Math.floor(chunk / 100) > 0) {
+                chunkWord += units[Math.floor(chunk / 100)] + " Hundred";
+                chunk %= 100;
+            }
+            // Handle tens and units
+            if (chunk > 0) {
+                if (chunkWord.length > 0) chunkWord += " ";
+                if (chunk < 10) {
+                    chunkWord += units[chunk];
+                } else if (chunk < 20) {
+                    chunkWord += teens[chunk - 10];
+                } else {
+                    chunkWord += tens[Math.floor(chunk / 10)];
+                    if (chunk % 10 > 0) {
+                        chunkWord += "-" + units[chunk % 10];
+                    }
+                }
+            }
+            word = chunkWord + (thousands[i] ? " " + thousands[i] : "") + " " + word;
+        }
+        i++;
+    }
+
+    word = word.trim();
+    if (!word) word = "Zero"; // Fallback if something went wrong
+
+    return word + " Rupees" + decimalPart;
 }
 
 function viewStockHistory(productId) {
@@ -4608,7 +4701,7 @@ function viewStockHistory(productId) {
                     <tr class="table-light fw-bold">
                         <td class="text-end">SUMMARY:</td>
                         <td class="text-center text-success">+${totalAdded}</td>
-                        <td class="text-center text-danger">-${totalremoved}</td>
+                        <td class="text-center text-danger">-${totalRemoved}</td>
                         <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
                         <td class="text-center text-primary" style="font-size: 1.1em;">${currentBalance}</td>
                     </tr>
@@ -5575,6 +5668,7 @@ function viewProductDetails(productId) {
         $('#productDetailsContent').html(`
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
             </div>
         `);
     });
@@ -6192,7 +6286,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                         </tr>
                         <tr>
                             <td class="customer-label">Name</td>
-                            <td>${saleData.customer_name || 'Walk-in Customer'}</td>
+                            <td>${saleData.customer_name || ''}</td>
                             <td class="customer-label">PHONE</td>
                             <td>${saleData.customer_phone || '-'}</td>
                         </tr>
@@ -6550,4 +6644,1751 @@ function viewStockHistory(productId) {
             </div>
         `);
     });
+}
+
+function loadReports() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-file-earmark-bar-graph"></i> Business Reports & Analytics</h2>
+            <p class="text-muted">Generate comprehensive reports to track your business performance</p>
+        </div>
+
+        <!-- Quick Stats Summary -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-calendar-range"></i> Reporting Period</h6>
+                        <p class="card-text mb-0">Current Month</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-file-earmark-check"></i> Available Reports</h6>
+                        <p class="card-text mb-0">6 Report Types</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-download"></i> Export Format</h6>
+                        <p class="card-text mb-0">Excel (XLSX)</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="bi bi-clock-history"></i> Quick Access</h6>
+                        <p class="card-text mb-0">Real-time Data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Categories -->
+        <ul class="nav nav-tabs mb-4" id="reportTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="sales-reports-tab" data-bs-toggle="tab" data-bs-target="#sales-reports" type="button">
+                    <i class="bi bi-cart-check"></i> Sales & Transactions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="inventory-reports-tab" data-bs-toggle="tab" data-bs-target="#inventory-reports" type="button">
+                    <i class="bi bi-box-seam"></i> Inventory & Stock
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="procurement-reports-tab" data-bs-toggle="tab" data-bs-target="#procurement-reports" type="button">
+                    <i class="bi bi-cart-plus"></i> Procurement
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="financial-reports-tab" data-bs-toggle="tab" data-bs-target="#financial-reports" type="button">
+                    <i class="bi bi-graph-up"></i> Financial Analysis
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="reportTabContent">
+            <!-- Sales & Transactions Reports -->
+            <div class="tab-pane fade show active" id="sales-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-cart-check"></i> POS Sales Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Detailed sales transactions with customer information, payment methods, and transaction types.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="salesReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="salesReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Transaction Type</label>
+                                    <select class="form-select" id="salesReportType">
+                                        <option value="">All Types</option>
+                                        <option value="sale">Sales</option>
+                                        <option value="return">Returns</option>
+                                        <option value="exchange">Exchanges</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-info">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Sale number, customer details, items sold, payment info, timestamps</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-primary w-100" onclick="generateSalesReport()">
+                                    <i class="bi bi-download"></i> Download Sales Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory & Stock Reports -->
+            <div class="tab-pane fade" id="inventory-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Current Inventory Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Complete inventory snapshot with stock levels, values, and low stock alerts.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Category Filter</label>
+                                    <select class="form-select" id="inventoryReportCategory">
+                                        <option value="">All Categories</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Stock Status</label>
+                                    <select class="form-select" id="inventoryReportStatus">
+                                        <option value="">All</option>
+                                        <option value="low">Low Stock</option>
+                                        <option value="out">Out of Stock</option>
+                                        <option value="good">Good Stock</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-success">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> SKU, product name, stock levels, pricing, stock value, status</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-success w-100" onclick="generateInventoryReport()">
+                                    <i class="bi bi-download"></i> Download Inventory Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-warning text-dark">
+                                <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Stock Movement Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Track all inventory movements including purchases, sales, adjustments, and returns.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="movementReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="movementReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Movement Type</label>
+                                    <select class="form-select" id="movementReportType">
+                                        <option value="">All Types</option>
+                                        <option value="purchase">Purchases</option>
+                                        <option value="sale">Sales</option>
+                                        <option value="adjustment">Adjustments</option>
+                                        <option value="return">Returns</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-warning">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Product, movement type, quantity, reference, date/time</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-warning w-100" onclick="generateMovementReport()">
+                                    <i class="bi bi-download"></i> Download Movement Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Procurement Reports -->
+            <div class="tab-pane fade" id="procurement-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="bi bi-cart-plus"></i> Purchase Orders Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Complete PO history with supplier details, quantities, and receiving status.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="poReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="poReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Status</label>
+                                    <select class="form-select" id="poReportStatus">
+                                        <option value="">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-info">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> PO number, supplier, items, quantities, amounts, status</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-info w-100" onclick="generatePOReport()">
+                                    <i class="bi bi-download"></i> Download PO Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0"><i class="bi bi-receipt"></i> GRN Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Goods Receipt Notes with received quantities, damaged items, and payment status.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="grnReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="grnReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Payment Status</label>
+                                    <select class="form-select" id="grnReportPayment">
+                                        <option value="">All Status</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="partial">Partial</option>
+                                        <option value="unpaid">Unpaid</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-secondary">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> GRN number, PO details, received/damaged quantities, payment info</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-secondary w-100" onclick="generateGRNReport()">
+                                    <i class="bi bi-download"></i> Download GRN Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Analysis Reports -->
+            <div class="tab-pane fade" id="financial-reports" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0"><i class="bi bi-graph-up"></i> Profit Analysis Report</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">Analyze profit margins, identify top-performing products, and track financial performance.</p>
+                                <hr>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Date Range</label>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="profitReportFrom">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="profitReportTo">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Sort By</label>
+                                    <select class="form-select" id="profitReportSort">
+                                        <option value="margin">Profit Margin %</option>
+                                        <option value="quantity">Quantity Sold</option>
+                                        <option value="revenue">Total Revenue</option>
+                                    </select>
+                                </div>
+                                <div class="alert alert-danger">
+                                    <small><i class="bi bi-info-circle"></i> <strong>Includes:</strong> Product details, cost/selling price, profit margins, sales data</small>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-danger w-100" onclick="generateProfitReport()">
+                                    <i class="bi bi-download"></i> Download Profit Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="card mt-4 bg-light">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-question-circle"></i> How to Use Reports</h6>
+                <ul class="mb-0">
+                    <li>Select the report category tab that matches your needs</li>
+                    <li>Configure the date range and filters for each report</li>
+                    <li>Click the download button to generate an Excel file</li>
+                    <li>All reports are generated in real-time with current data</li>
+                    <li>Downloaded files can be opened in Excel, Google Sheets, or any spreadsheet application</li>
+                </ul>
+            </div>
+        </div>
+    `);
+
+    // Load categories for inventory report filter
+    $.get(`${API_BASE}/categories`, function(categories) {
+        const select = $('#inventoryReportCategory');
+        categories.forEach(cat => {
+            select.append(`<option value="${cat.id}">${cat.name}</option>`);
+        });
+    });
+
+    // Set default date ranges to current month
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const todayStr = today.toISOString().split('T')[0];
+    const firstDayStr = firstDay.toISOString().split('T')[0];
+
+    $('#salesReportFrom, #poReportFrom, #movementReportFrom, #grnReportFrom, #profitReportFrom').val(firstDayStr);
+    $('#salesReportTo, #poReportTo, #movementReportTo, #grnReportTo, #profitReportTo').val(todayStr);
+}
+
+function generateSalesReport() {
+    const fromDate = $('#salesReportFrom').val();
+    const toDate = $('#salesReportTo').val();
+    const transactionType = $('#salesReportType').val();
+
+    let url = `${API_BASE}/reports/sales?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (transactionType) url += `&transaction_type=${transactionType}`;
+
+    window.location.href = url;
+}
+
+function generateInventoryReport() {
+    const category = $('#inventoryReportCategory').val();
+    const status = $('#inventoryReportStatus').val();
+
+    let url = `${API_BASE}/reports/inventory?format=excel`;
+    if (category) url += `&category_id=${category}`;
+    if (status) url += `&stock_status=${status}`;
+
+    window.location.href = url;
+}
+
+function generatePOReport() {
+    const fromDate = $('#poReportFrom').val();
+    const toDate = $('#poReportTo').val();
+    const status = $('#poReportStatus').val();
+
+    let url = `${API_BASE}/reports/purchase-orders?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (status) url += `&status=${status}`;
+
+    window.location.href = url;
+}
+
+function generateMovementReport() {
+    const fromDate = $('#movementReportFrom').val();
+    const toDate = $('#movementReportTo').val();
+    const movementType = $('#movementReportType').val();
+
+    let url = `${API_BASE}/reports/stock-movements?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (movementType) url += `&type=${movementType}`;
+
+    window.location.href = url;
+}
+
+// function generateGRNReport() { // Already defined in loadGRNs
+//     const fromDate = $('#grnReportFrom').val();
+//     const toDate = $('#grnReportTo').val();
+//     const paymentStatus = $('#grnReportPayment').val();
+
+//     let url = `${API_BASE}/reports/grns?format=excel`;
+//     if (fromDate) url += `&from_date=${fromDate}`;
+//     if (toDate) url += `&to_date=${toDate}`;
+//     if (paymentStatus) url += `&payment_status=${paymentStatus}`;
+
+//     window.location.href = url;
+// }
+
+function generateProfitReport() {
+    const fromDate = $('#profitReportFrom').val();
+    const toDate = $('#profitReportTo').val();
+    const sortBy = $('#profitReportSort').val();
+
+    let url = `${API_BASE}/reports/profit?format=excel`;
+    if (fromDate) url += `&from_date=${fromDate}`;
+    if (toDate) url += `&to_date=${toDate}`;
+    if (sortBy) url += `&sort_by=${sortBy}`;
+
+    window.location.href = url;
+}
+
+function viewIMEITracking(productId) {
+    $.get(`${API_BASE}/products/${productId}/imei-tracking`, function(data) {
+        let content = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-upc-scan"></i> IMEI Tracking - ${data.product_name}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <strong>Total IMEI Records:</strong> ${data.total_count}
+                        <span class="ms-3">
+                            <i class="bi bi-check-circle text-success"></i> Available: ${data.imei_records.filter(r => r.status === 'available').length}
+                        </span>
+                        <span class="ms-3">
+                            <i class="bi bi-cart-x text-danger"></i> Sold: ${data.imei_records.filter(r => r.status === 'sold').length}
+                        </span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>IMEI Number</th>
+                                    <th>Status</th>
+                                    <th>Added Date</th>
+                                    <th>Reference</th>
+                                    <th>Sale Details</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+        `;
+
+        if (data.imei_records.length === 0) {
+            content += '<tr><td colspan="6" class="text-center text-muted">No IMEI records found</td></tr>';
+        } else {
+            data.imei_records.forEach(record => {
+                const statusBadge = record.status === 'available' ? 'success' :
+                                   record.status === 'sold' ? 'danger' : 'warning';
+                const addedDate = new Date(record.created_at).toLocaleString();
+
+                // Sale details for sold items
+                let saleDetails = '<span class="text-muted">-</span>';
+                if (record.status === 'sold' && record.sale_number) {
+                    const soldDate = record.sold_date ? new Date(record.sold_date).toLocaleDateString() : 'N/A';
+                    const soldTime = record.sold_date ? new Date(record.sold_date).toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : '';
+
+                    saleDetails = `
+                        <div class="small">
+                            <div><strong class="text-primary"><i class="bi bi-receipt"></i> ${record.sale_number}</strong></div>
+                            ${record.customer_name ? `<div class="text-muted"><i class="bi bi-person-fill"></i> ${record.customer_name}</div>` : '<div class="text-muted"><i class="bi bi-person"></i> Walk-in Customer</div>'}
+                            <div class="text-muted"><i class="bi bi-calendar3"></i> ${soldDate} ${soldTime}</div>
+                            <div class="mt-1"><span class="badge bg-success bg-opacity-10 text-success"><i class="bi bi-upc-scan"></i> IMEI: ${record.imei}</span></div>
+                        </div>
+                    `;
+                }
+
+                // Action buttons - store record id in a variable to avoid scope issues
+                const recordId = record.id;
+                const saleId = record.sale_id;
+
+                let actionButtons = '<span class="text-muted">-</span>';
+                if (record.status === 'available') {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-danger" onclick="deleteIMEI(${recordId}, '${record.imei}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    `;
+                } else if (record.status === 'sold' && saleId) {
+                    actionButtons = `
+                        <button class="btn btn-sm btn-info" onclick="viewSaleDetails(${saleId})" title="View Sale">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    `;
+                }
+
+                content += `
+                    <tr class="${record.status === 'sold' ? 'table-light' : ''}">
+                        <td><strong>${record.imei}</strong></td>
+                        <td><span class="badge bg-${statusBadge}">${record.status.toUpperCase()}</span></td>
+                        <td><small>${addedDate}</small></td>
+                        <td><small>${record.reference || 'Manual Entry'}</small></td>
+                        <td>${saleDetails}</td>
+                        <td>${actionButtons}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        content += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#imeiTrackingContent').html(content);
+        $('#imeiTrackingModal').data('product-id', productId);
+        const modal = new bootstrap.Modal($('#imeiTrackingModal'));
+        modal.show();
+    }).fail(function(xhr) {
+        alert('Error loading IMEI tracking: ' + (xhr.responseJSON?.error || 'Unknown error'));
+    });
+}
+
+function markIMEISold(imeiId, imeiNumber) {
+    if (!confirm(`Mark IMEI ${imeiNumber} as sold?`)) return;
+
+    $.ajax({
+        url: `${API_BASE}/imei/${imeiId}/mark-sold`,
+        method: 'POST',
+        success: function() {
+            alert('IMEI marked as sold');
+            $('#imeiTrackingModal').modal('hide');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update IMEI status'));
+        }
+    });
+}
+
+function deleteIMEI(imeiId, imeiNumber) {
+    if (!confirm(`Are you sure you want to delete IMEI ${imeiNumber}?\n\nThis action cannot be undone.`)) return;
+
+    $.ajax({
+        url: `${API_BASE}/imeis/${imeiId}`,
+        method: 'DELETE',
+        success: function() {
+            alert('IMEI deleted successfully');
+            // Refresh the IMEI tracking modal
+            const productId = $('#imeiTrackingModal').data('product-id');
+            if (productId) {
+                viewIMEITracking(productId);
+            } else {
+                $('#imeiTrackingModal').modal('hide');
+            }
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to delete IMEI'));
+        }
+    });
+}
+
+function viewSaleDetails(saleId) {
+    if (!saleId) {
+        alert('Sale information not available');
+        return;
+    }
+
+    $.get(`${API_BASE}/pos/sales/${saleId}`, function(sale) {
+        const saleDate = new Date(sale.sale_date).toLocaleString();
+
+        let content = `
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-receipt"></i> Sale Details - ${sale.sale_number}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Sale Number:</strong> ${sale.sale_number}</p>
+                            <p><strong>Date:</strong> ${saleDate}</p>
+                            <p><strong>Transaction Type:</strong> <span class="badge bg-${sale.transaction_type === 'sale' ? 'success' : 'warning'}">${sale.transaction_type.toUpperCase()}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Customer:</strong> ${sale.customer_name || 'Walk-in'}</p>
+                            ${sale.customer_phone ? `<p><strong>Phone:</strong> ${sale.customer_phone}</p>` : ''}
+                            <p><strong>Payment Method:</strong> ${sale.payment_method || 'N/A'}</p>
+                        </div>
+                    </div>
+
+                    <h6>Items</h6>
+                    <table class="table table-sm table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                                <th>IMEI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        sale.items.forEach(item => {
+            content += `
+                <tr>
+                    <td>${item.product_name}</td>
+                    <td>${item.quantity}</td>
+                    <td>$${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td>$${parseFloat(item.total_price).toFixed(2)}</td>
+                    <td>${item.imei || '-'}</td>
+                </tr>
+            `;
+        });
+
+        content += `
+                        </tbody>
+                    </table>
+
+                    <div class="row mt-3">
+                        <div class="col-md-6 offset-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td class="text-end"><strong>Subtotal:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.subtotal).toFixed(2)}</td>
+                                </tr>
+                                ${sale.discount_amount > 0 ? `
+                                <tr>
+                                    <td class="text-end"><strong>Discount:</strong></td>
+                                    <td class="text-end text-danger">-$${parseFloat(sale.discount_amount).toFixed(2)}</td>
+                                </tr>
+                                ` : ''}
+                                ${sale.tax_amount > 0 ? `
+                                <tr>
+                                    <td class="text-end"><strong>Tax:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.tax_amount).toFixed(2)}</td>
+                                </tr>
+                                ` : ''}
+                                <tr class="fw-bold">
+                                    <td class="text-end"><strong>Total:</strong></td>
+                                    <td class="text-end">$${parseFloat(sale.total_amount).toFixed(2)}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    ${sale.notes ? `<p class="mt-3"><strong>Notes:</strong> ${sale.notes}</p>` : ''}
+                </div>
+            </div>
+        `;
+
+        // Create a new modal for sale details
+        const modal = $(`
+            <div class="modal fade" id="saleDetailsModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Sale Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">${content}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+
+        $('body').append(modal);
+        const modalInstance = new bootstrap.Modal($('#saleDetailsModal'));
+        modalInstance.show();
+
+        $('#saleDetailsModal').on('hidden.bs.modal', function() {
+            $(this).remove();
+        });
+    }).fail(function(xhr) {
+        alert('Error loading sale details: ' + (xhr.responseJSON?.error || 'Unknown error'));
+    });
+}
+
+function viewProductDetails(productId) {
+    try {
+        // Show loading state
+        $('#productDetailsContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading product details...</p></div>');
+
+        const modal = new bootstrap.Modal($('#productDetailsModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error showing product details modal:', error);
+        alert('Error opening product details. Please refresh the page and try again.');
+        return;
+    }
+
+    // Fetch product and model data
+    Promise.all([
+        $.get(`${API_BASE}/products/${productId}`),
+        $.get(`${API_BASE}/models`)
+    ]).then(([product, models]) => {
+        // Helper function to safely escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        const costPrice = parseFloat(product.cost_price || 0);
+        const sellingPrice = parseFloat(product.selling_price || 0);
+        const profitMargin = costPrice > 0 ? ((sellingPrice - costPrice) / costPrice * 100).toFixed(2) : 0;
+        const profitColor = profitMargin > 30 ? 'success' : profitMargin > 15 ? 'warning' : 'danger';
+
+        const stockStatus = product.current_stock === 0 ? 'Out of Stock' :
+                           product.current_stock <= product.min_stock_level ? 'Low Stock' : 'In Stock';
+        const stockBadgeClass = product.current_stock === 0 ? 'danger' :
+                               product.current_stock <= product.min_stock_level ? 'warning' : 'success';
+
+        // Find the model image from models array
+        let modelImage = 'https://via.placeholder.com/300x300?text=No+Image';
+        if (product.model_id) {
+            const model = models.find(m => m.id === product.model_id);
+            if (model && model.image_data) {
+                modelImage = model.image_data;
+            }
+        }
+
+        // Use model image if available, otherwise fall back to product image_url
+        const displayImage = modelImage !== 'https://via.placeholder.com/300x300?text=No+Image' ? modelImage : (product.image_url || 'https://via.placeholder.com/300x300?text=No+Image');
+
+        let content = `
+            <div class="row">
+                <!-- Left Column: Image Gallery -->
+                <div class="col-md-4">
+                    <div class="card mb-3">
+                        <div class="card-body text-center">
+                            <img src="${displayImage}"
+                                 class="img-fluid rounded mb-2" style="max-height: 300px;" alt="${escapeHtml(product.name)}"
+                                 onerror="this.src='https://via.placeholder.com/300x300?text=No+Image';">
+                            <div class="d-flex justify-content-center gap-2">
+                                <button class="btn btn-sm btn-outline-primary" onclick="changeProductImage(${product.id})">
+                                    <i class="bi bi-image"></i> Change Image
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="zoomProductImage('${displayImage}')">
+                                    <i class="bi bi-zoom-in"></i> Zoom
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="card">
+                        <div class="card-header">
+                            <strong><i class="bi bi-lightning-charge"></i> Quick Actions</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-primary btn-sm" onclick="editProduct(${product.id})">
+                                    <i class="bi bi-pencil"></i> Edit Product
+                                </button>
+                                <button class="btn btn-info btn-sm" onclick="adjustStock(${product.id})">
+                                    <i class="bi bi-plus-slash-minus"></i> Adjust Stock
+                                </button>
+                                <button class="btn btn-secondary btn-sm" onclick="viewIMEITracking(${product.id})">
+                                    <i class="bi bi-list-ul"></i> IMEI Tracking
+                                </button>
+                                <button class="btn btn-warning btn-sm" onclick="generateBarcode(${product.id})">
+                                    <i class="bi bi-upc-scan"></i> Print Barcode
+                                </button>
+                                <button class="btn btn-success btn-sm" onclick="reorderProduct(${product.id})">
+                                    <i class="bi bi-cart-plus"></i> Reorder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Details -->
+                <div class="col-md-8">
+                    <!-- Basic Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-info-circle"></i> Basic Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Product Name:</strong> ${escapeHtml(product.name)}</p>
+                                    <p><strong>SKU:</strong> ${escapeHtml(product.sku) || 'N/A'}
+                                        ${product.sku ? `<button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard('${escapeHtml(product.sku)}')"><i class="bi bi-clipboard"></i></button>` : ''}
+                                    </p>
+                                    <p><strong>Category:</strong> ${escapeHtml(product.category_name) || 'N/A'}</p>
+                                    <p><strong>Brand:</strong> ${escapeHtml(product.brand_name) || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Model:</strong> ${escapeHtml(product.model_name) || 'N/A'}</p>
+                                    <p><strong>Status:</strong> <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${escapeHtml(product.status)}</span></p>
+                                    <p><strong>IMEI:</strong> ${escapeHtml(product.imei) || 'N/A'}</p>
+                                    <p><strong>Color:</strong> ${escapeHtml(product.color) || 'N/A'}</p>
+                                </div>
+                            </div>
+                            ${product.description ? `<p class="mb-0"><strong>Description:</strong><br>${escapeHtml(product.description)}</p>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Pricing Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-currency-dollar"></i> Pricing Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <p><strong>Cost Price:</strong><br><span class="h5 text-primary">$${costPrice.toFixed(2)}</span></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>Selling Price:</strong><br><span class="h5 text-success">$${sellingPrice.toFixed(2)}</span></p>
+                                </div>
+                                <div class="col-md-4">
+                                    <p><strong>MRP:</strong><br><span class="h5 text-info">$${parseFloat(product.mrp || 0).toFixed(2)}</span></p>
+                                </div>
+                            </div>
+                            <div class="alert alert-${profitColor} mb-0">
+                                <strong>Profit Margin:</strong> ${profitMargin}%
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stock Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-box"></i> Stock Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <p><strong>Current Stock:</strong><br>
+                                        <span class="h4 text-${stockBadgeClass}">${product.current_stock}</span>
+                                        <button class="btn btn-sm btn-link" onclick="adjustStock(${product.id})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                    </p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Min Level:</strong><br><span class="h6">${product.min_stock_level}</span></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Opening Stock:</strong><br><span class="h6">${product.opening_stock || 0}</span></p>
+                                </div>
+                                <div class="col-md-3">
+                                    <p><strong>Status:</strong><br><span class="badge bg-${stockBadgeClass}">${stockStatus}</span></p>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <p><strong>Storage Location:</strong> ${product.storage_location || 'Not specified'}</p>
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewStockHistory(${product.id})">
+                                    <i class="bi bi-clock-history"></i> View Stock History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supplier Information -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-truck"></i> Supplier Information</strong>
+                        </div>
+                        <div class="card-body">
+                            <divclass="row">
+                                <div class="col-md-6">
+                                    <p><strong>Supplier Name:</strong> ${product.supplier_name || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Contact:</strong> ${product.supplier_contact || 'N/A'}
+                                        ${product.supplier_contact ? `
+                                            <button class="btn btn-sm btn-outline-primary" onclick="window.location.href='tel:${product.supplier_contact}'">
+                                                <i class="bi bi-telephone"></i>
+                                            </button>
+                                        ` : ''}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Specifications -->
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <strong><i class="bi bi-list-ul"></i> Specifications</strong>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    ${product.storage_capacity ? `<tr><td><strong>Storage:</strong></td><td>${product.storage_capacity}</td></tr>` : ''}
+                                    ${product.ram ? `<tr><td><strong>RAM:</strong></td><td>${product.ram}</td></tr>` : ''}
+                                    ${product.warranty_period ? `<tr><td><strong>Warranty:</strong></td><td>${product.warranty_period}</td></tr>` : ''}
+                                    ${!product.storage_capacity && !product.ram && !product.warranty_period ? '<tr><td colspan="2" class="text-muted">No specifications available</td></tr>' : ''}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $('#productDetailsContent').html(content);
+    }).catch(function(error) {
+        console.error('Error loading product details:', error);
+        const errorMsg = error.responseJSON?.error || 'Failed to load product details.';
+        $('#productDetailsContent').html(`
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
+            </div>
+        `);
+    });
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Copied to clipboard: ' + text);
+    });
+}
+
+function changeProductImage(productId) {
+    const newUrl = prompt('Enter new image URL:');
+    if (newUrl) {
+        $.ajax({
+            url: `${API_BASE}/products/${productId}`,
+            method: 'GET',
+            success: function(product) {
+                product.image_url = newUrl;
+                $.ajax({
+                    url: `${API_BASE}/products/${productId}`,
+                    method: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.JSON.stringify(product),
+                    success: function() {
+                        alert('Image updated successfully');
+                        viewProductDetails(productId);
+                    }
+                });
+            }
+        });
+    }
+}
+
+function zoomProductImage(imageUrl) {
+    if (!imageUrl || imageUrl.includes('placeholder')) {
+        alert('No image available to zoom');
+        return;
+    }
+    window.open(imageUrl, '_blank');
+}
+
+function adjustStock(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const adjustment = prompt(`Current stock: ${product.current_stock}\n\nEnter adjustment amount (use + or - prefix):`);
+        if (adjustment) {
+            const newStock = product.current_stock + parseInt(adjustment);
+            if (newStock < 0) {
+                alert('Stock cannot be negative');
+                return;
+            }
+
+            $.ajax({
+                url: `${API_BASE}/products/${productId}`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    ...product,
+                    current_stock: newStock
+                }),
+                success: function() {
+                    alert('Stock adjusted successfully');
+                    viewProductDetails(productId);
+                    if (currentPage === 'inventory') {
+                        loadInventoryData();
+                    }
+                }
+            });
+        }
+    });
+}
+
+function generateBarcode(productId) {
+    alert('Barcode generation feature - Coming soon!\n\nThis will allow you to:\n- Generate barcodes in various formats\n- Print labels with product details\n- Customize label templates');
+}
+
+function reorderProduct(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        const recommended = Math.max(product.min_stock_level * 2, 10);
+        const quantity = prompt(`Reorder ${product.name}\n\nCurrent Stock: ${product.current_stock}\nMin Level: ${product.min_stock_level}\nRecommended Quantity: ${recommended}\n\nEnter quantity to order:`, recommended);
+
+        if (quantity && parseInt(quantity) > 0) {
+            alert('Creating purchase order...\n\nThis will create a PO for ' + quantity + ' units of ' + product.name);
+            // Future: Automatically create PO
+        }
+    });
+}
+
+// POS functions (already defined above, no need to redefine)
+
+// Customer Management Functions (New)
+function loadCustomers() {
+    $('#content-area').html(`
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-people"></i> Customer Management</h2>
+            <button class="btn btn-success" onclick="showAddCustomer()"><i class="bi bi-plus-circle"></i> Add Customer</button>
+        </div>
+
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchCustomer" placeholder="Search by name, phone, or email...">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterCustomerStatus">
+                        <option value="">All</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" onclick="applyCustomerFilters()">Filter</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover" id="customersTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>City</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `);
+
+    loadCustomersData();
+
+    $('#searchCustomer').on('keyup', function() {
+        applyCustomerFilters();
+    });
+
+    $('#filterCustomerStatus').on('change', function() {
+        applyCustomerFilters();
+    });
+}
+
+function loadCustomersData() {
+    const params = new URLSearchParams();
+    const search = $('#searchCustomer').val();
+    const status = $('#filterCustomerStatus').val();
+
+    if (search) params.append('search', search);
+    if (status) params.append('status', status);
+
+    $.get(`${API_BASE}/customers?${params.toString()}`, function(data) {
+        const tbody = $('#customersTable tbody');
+        tbody.empty();
+
+        if (data.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center text-muted">No customers found</td></tr>');
+            return;
+        }
+
+        data.forEach(customer => {
+            tbody.append(`
+                <tr>
+                    <td><strong>${customer.name}</strong></td>
+                    <td>${customer.phone || '-'}</td>
+                    <td>${customer.email || '-'}</td>
+                    <td>${customer.city || '-'}</td>
+                    <td><span class="badge bg-${customer.status === 'active' ? 'success' : 'secondary'}">${customer.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-info action-btn" onclick="viewCustomer(${customer.id})" title="View Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-primary action-btn" onclick="editCustomer(${customer.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteCustomer(${customer.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        if ($.fn.DataTable.isDataTable('#customersTable')) {
+            $('#customersTable').DataTable().destroy();
+        }
+        $('#customersTable').DataTable({
+            order: [[0, 'asc']],
+            pageLength: 25
+        });
+    }).fail(function() {
+        alert('Error loading customers. Please try again.');
+    });
+}
+
+function applyCustomerFilters() {
+    if (window.customerFilterTimeout) {
+        clearTimeout(window.customerFilterTimeout);
+    }
+    window.customerFilterTimeout = setTimeout(function() {
+        loadCustomersData();
+    }, 300);
+}
+
+function showAddCustomer() {
+    $('#customerForm')[0].reset();
+    $('#customerId').val('');
+    $('#customerModalLabel').text('Add Customer');
+    const modal = new bootstrap.Modal($('#customerModal'));
+    modal.show();
+}
+
+function editCustomer(id) {
+    $.get(`${API_BASE}/customers/${id}`, function(customer) {
+        $('#customerId').val(customer.id);
+        $('#customerName').val(customer.name);
+        $('#customerPhone').val(customer.phone);
+        $('#customerEmail').val(customer.email);
+        $('#customerAddress').val(customer.address);
+        $('#customerCity').val(customer.city);
+        $('#customerState').val(customer.state);
+        $('#customerPincode').val(customer.pincode);
+        $('#customerGSTIN').val(customer.gstin);
+        $('#customerNotes').val(customer.notes);
+        $('#customerStatus').val(customer.status);
+        $('#customerModalLabel').text('Edit Customer');
+        const modal = new bootstrap.Modal($('#customerModal'));
+        modal.show();
+    });
+}
+
+function viewCustomer(id) {
+    $.get(`${API_BASE}/customers/${id}`, function(customer) {
+        const content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-person"></i> Name:</strong> ${customer.name}</p>
+                    <p><strong><i class="bi bi-telephone"></i> Phone:</strong> ${customer.phone || 'N/A'}</p>
+                    <p><strong><i class="bi bi-envelope"></i> Email:</strong> ${customer.email || 'N/A'}</p>
+                    <p><strong><i class="bi bi-credit-card"></i> GSTIN:</strong> ${customer.gstin || 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong><i class="bi bi-geo-alt"></i> Address:</strong> ${customer.address || 'N/A'}</p>
+                    <p><strong><i class="bi bi-building"></i> City:</strong> ${customer.city || 'N/A'}</p>
+                    <p><strong><i class="bi bi-map"></i> State:</strong> ${customer.state || 'N/A'}</p>
+                    <p><strong><i class="bi bi-mailbox"></i> Pincode:</strong> ${customer.pincode || 'N/A'}</p>
+                </div>
+            </div>
+            <hr>
+            <p><strong><i class="bi bi-sticky"></i> Notes:</strong></p>
+            <p>${customer.notes || 'No notes'}</p>
+            <p><strong>Status:</strong> <span class="badge bg-${customer.status === 'active' ? 'success' : 'secondary'}">${customer.status}</span></p>
+            <p class="text-muted"><small>Created: ${new Date(customer.created_at).toLocaleString()}</small></p>
+        `;
+        $('#customerViewContent').html(content);
+        const modal = new bootstrap.Modal($('#customerViewModal'));
+        modal.show();
+    });
+}
+
+function deleteCustomer(id) {
+    if (!confirm('Are you sure you want to delete this customer?')) return;
+
+    $.ajax({
+        url: `${API_BASE}/customers/${id}`,
+        method: 'DELETE',
+        success: function() {
+            alert('Customer deleted successfully');
+            loadCustomersData();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to delete customer'));
+        }
+    });
+}
+
+function saveCustomer() {
+    const id = $('#customerId').val();
+    const data = {
+        name: $('#customerName').val(),
+        phone: $('#customerPhone').val(),
+        email: $('#customerEmail').val(),
+        address: $('#customerAddress').val(),
+        city: $('#customerCity').val(),
+        state: $('#customerState').val(),
+        pincode: $('#customerPincode').val(),
+        gstin: $('#customerGSTIN').val(),
+        notes: $('#customerNotes').val(),
+        status: $('#customerStatus').val()
+    };
+
+    if (!data.name.trim()) {
+        alert('Customer name is required');
+        return;
+    }
+
+    const url = id ? `${API_BASE}/customers/${id}` : `${API_BASE}/customers`;
+    const method = id ? 'PUT' : 'POST';
+
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            alert('Customer saved successfully');
+            bootstrap.Modal.getInstance($('#customerModal')).hide();
+            loadCustomersData();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save customer'));
+        }
+    });
+}
+
+// Add the "Save and Print" functionality to the POS system
+function printReceipt(saleResponse, saleData) {
+    const printWindow = window.open('', '', 'width=900,height=700');
+    const date = new Date();
+
+    // Use business settings to dynamically populate invoice details
+    $.get(`${API_BASE}/business-settings`, function(businessSettings) {
+        // Generate GST Invoice HTML
+        const gstInvoiceHtml = generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date);
+        printWindow.document.write(gstInvoiceHtml);
+        printWindow.document.close();
+
+        // Attempt to print after a short delay
+        setTimeout(() => {
+            printWindow.print();
+            // Optionally close the window after printing
+            // printWindow.close();
+        }, 500);
+
+    }).fail(function() {
+        alert('Could not load business settings. Please configure Business Settings first.');
+        printWindow.close(); // Close the empty window
+    });
+}
+
+function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) {
+    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const discountAmount = subtotal * (saleData.discount_percentage / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
+    const total = Math.abs(saleResponse.total_amount);
+
+    // Determine if IGST or CGST+SGST based on state matching
+    const customerState = saleData.customer_address ? extractStateFromAddress(saleData.customer_address) : '';
+    const businessState = businessSettings.state || '';
+    const isIGST = customerState && businessState && customerState !== businessState;
+
+    const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const igstRate = isIGST ? saleData.tax_percentage : 0;
+
+    const cgstAmount = taxableAmount * (cgstRate / 100);
+    const sgstAmount = taxableAmount * (sgstRate / 100);
+    const igstAmount = taxableAmount * (igstRate / 100);
+
+    // Convert total amount to words
+    const totalInWords = convertNumberToWords(total);
+
+    // Build items table HTML
+    let itemsHtml = '';
+    let srNo = 1;
+    cart.forEach(item => {
+        const itemSubtotal = item.quantity * item.unit_price;
+        const itemCgst = itemSubtotal * (cgstRate / 100);
+        const itemSgst = itemSubtotal * (sgstRate / 100);
+        const itemIgst = itemSubtotal * (igstRate / 100);
+        const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
+
+        itemsHtml += `
+            <tr>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
+                <td style="vertical-align: top; padding: 5px;">
+                    <strong>${item.product_name}</strong>
+                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                </td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${item.unit_price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSubtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                ${isIGST ? `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                ` : `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                `}
+                <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    });
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tax Invoice - ${saleResponse.sale_number}</title>
+            <style>
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                    @page { margin: 8mm; }
+                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 10px;
+                    line-height: 1.3;
+                    color: #000;
+                    max-width: 210mm;
+                    margin: 0 auto;
+                    padding: 8px;
+                }
+                .invoice-header {
+                    border: 2px solid #000;
+                    padding: 12px;
+                    margin-bottom: 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .header-left {
+                    flex: 1;
+                }
+                .company-logo {
+                    width: 80px;
+                    height: 80px;
+                    object-fit: contain;
+                }
+                .company-name {
+                    font-size: 22px;
+                    font-weight: bold;
+                    color: #1a5490;
+                    margin-bottom: 3px;
+                }
+                .company-tagline {
+                    font-size: 9px;
+                    color: #666;
+                    font-style: italic;
+                    margin-bottom: 5px;
+                }
+                .company-details {
+                    font-size: 9px;
+                    line-height: 1.4;
+                }
+                .brand-logos {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 5px;
+                    margin-top: 5px;
+                }
+                .brand-logo {
+                    width: 35px;
+                    height: 20px;
+                    object-fit: contain;
+                    border: 1px solid #ddd;
+                    padding: 2px;
+                }
+                .gstin-row {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 1px solid #000;
+                    padding: 5px 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .invoice-title {
+                    text-align: center;
+                    font-size: 16px;
+                    font-weight: bold;
+                    background: #e8f4f8;
+                    padding: 6px;
+                    flex: 1;
+                    margin: 0 10px;
+                }
+                .original-label {
+                    font-size: 9px;
+                    font-weight: normal;
+                }
+                .customer-section {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 2px solid #000;
+                }
+                .customer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .customer-table td {
+                    padding: 4px 8px;
+                    border: 1px solid #000;
+                    font-size: 9px;
+                }
+                .customer-label {
+                    font-weight: bold;
+                    background: #f5f5f5;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    border: 2px solid #000;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 4px;
+                    font-size: 9px;
+                }
+                th {
+                    background: #f0f0f0;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 5px 4px;
+                }
+                thead tr:first-child th {
+                    background: #d0e8f2;
+                }
+                .totals-section {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                }
+                .bank-details {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                .amount-summary {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    min-width: 300px;
+                }
+                .amount-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 3px 0;
+                }
+                .amount-row.total {
+                    font-weight: bold;
+                    border-top: 2px solid #000;
+                    margin-top: 5px;
+                    padding-top: 5px;
+                }
+                .amount-words {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-weight: bold;
+                }
+                .terms {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-size: 9px;
+                }
+                .signature-section {
+                    text-align: right;
+                    margin-top: 30px;
+                    padding-right: 20px;
+                }
+                .signature-line {
+                    margin-top: 50px;
+                    border-top: 1px solid #000;
+                    display: inline-block;
+                    padding-top: 5px;
+                    min-width: 200px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <div class="header-left">
+                        ${businessSettings.logo_url ? `<img src="${businessSettings.logo_url}" alt="Logo" class="company-logo">` : ''}
+                        <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
+                        <div class="company-tagline">${businessSettings.address || ''}</div>
+                        <div class="company-details">
+                            ${businessSettings.city || ''}${businessSettings.city && businessSettings.state ? ', ' : ''}${businessSettings.state || ''} - ${businessSettings.pincode || ''}<br>
+                            Ph: ${businessSettings.phone || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="brand-logos">
+                        <!-- Placeholder for brand logos - can be enhanced later -->
+                    </div>
+                </div>
+
+                <div class="gstin-row">
+                    <div><strong>GSTIN:</strong> ${businessSettings.gstin || 'N/A'}</div>
+                    <div class="invoice-title">
+                        TAX INVOICE
+                        <div class="original-label">ORIGINAL FOR RECIPIENT</div>
+                    </div>
+                    <div><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')}</div>
+                </div>
+
+                <div class="customer-section">
+                    <table class="customer-table">
+                        <tr>
+                            <td class="customer-label" style="width: 15%;">Invoice No.</td>
+                            <td style="width: 35%;">${saleResponse.sale_number}</td>
+                            <td class="customer-label" style="width: 15%;">Invoice Date</td>
+                            <td style="width: 35%;">${date.toLocaleDateString('en-IN')}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Name</td>
+                            <td>${saleData.customer_name || ''}</td>
+                            <td class="customer-label">PHONE</td>
+                            <td>${saleData.customer_phone || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Address</td>
+                            <td>${saleData.customer_address || '-'}</td>
+                            <td class="customer-label">GSTIN</td>
+                            <td>${saleData.customer_gstin || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Place of Supply</td>
+                            <td colspan="3">${businessSettings.state || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 30px; vertical-align: middle;">Sr.<br>No.</th>
+                            <th rowspan="2" style="vertical-align: middle;">Name of Product / Service</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">HSN/<br>SAC</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">Qty</th>
+                            <th rowspan="2" style="width: 80px; vertical-align: middle;">Rate</th>
+                            <th rowspan="2" style="width: 90px; vertical-align: middle;">Taxable<br>Value</th>
+                            ${isIGST ? `
+                                <th colspan="2" style="background: #e8f4f8;">IGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            ` : `
+                                <th rowspan="2" style="width: 40px; vertical-align: middle;">IGST</th>
+                                <th colspan="2" style="background: #e8f4f8;">CGST</th>
+                                <th colspan="2" style="background: #ffe8e8;">SGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            `}
+                        </tr>
+                        <tr>
+                            ${isIGST ? `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                            ` : `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                                <th style="width: 40px; background: #ffe8e8;">%</th>
+                                <th style="width: 70px; background: #ffe8e8;">Amount</th>
+                            `}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                        <tr>
+                            <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="display: flex; border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000;">
+                    <div style="flex: 1; border-right: 1px solid #000; padding: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Total in words</div>
+                        <div style="padding: 5px 0; font-weight: bold; text-transform: uppercase;">${totalInWords}</div>
+
+                        <div style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
+                        <table style="width: 100%; font-size: 9px;">
+                            <tr><td style="padding: 2px 0;"><strong>Name</strong></td><td>${businessSettings.bank_name || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Branch</strong></td><td>${businessSettings.bank_branch || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Acc. Number</strong></td><td>${businessSettings.bank_account_number || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>IFSC</strong></td><td>${businessSettings.bank_ifsc || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>UPI ID</strong></td><td>${businessSettings.email ? businessSettings.email.split('@')[0] + '@icici' : 'N/A'}</td></tr>
+                        </table>
+
+                        <div style="text-align: center; margin-top: 10px; padding: 10px; border: 1px solid #000;">
+                            <div style="width: 120px; height: 120px; margin: 0 auto; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 9px;">
+                                QR Code<br>Placeholder
+                            </div>
+                            <div style="margin-top: 5px; font-weight: bold; font-size: 9px;">Pay using UPI</div>
+                        </div>
+                    </div>
+
+                    <div style="width: 40%; padding: 8px;">
+                        <table style="width: 100%; font-size: 10px;">
+                            <tr><td style="padding: 3px 0;"><strong>Taxable Amount</strong></td><td style="text-align: right;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ${isIGST ? `
+                                <tr><td style="padding: 3px 0;"><strong>Add: IGST</strong></td><td style="text-align: right;">${igstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ` : `
+                                <tr><td style="padding: 3px 0;"><strong>Add: CGST</strong></td><td style="text-align: right;">${cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                                <tr><td style="padding: 3px 0;"><strong>Add: SGST</strong></td><td style="text-align: right;">${sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            `}
+                            <tr><td style="padding: 3px 0;"><strong>Total Tax</strong></td><td style="text-align: right;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            <tr style="border-top: 2px solid #000;"><td style="padding: 8px 0; font-size: 12px;"><strong>Total Amount After Tax</strong></td><td style="text-align: right; font-size: 14px; font-weight: bold;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                        </table>
+
+                        <div style="margin-top: 15px; padding: 5px; border: 1px solid #000; text-align: center; font-size: 8px;">
+                            Certified that the particulars given above are true and correct.<br>
+                            <strong>E & O.E</strong>
+                        </div>
+
+                        <div style="margin-top: 30px; text-align: right;">
+                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 150px; font-size: 9px;">
+                                <strong>Authorised Signatory</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px;">Terms and Conditions</div>
+                    <div style="font-size: 8px; line-height: 1.5;">
+                        ${businessSettings.terms_conditions || 'Subject to Maharashtra Jurisdiction.<br>Our Responsibility Ceases as soon as goods leaves our Premises.<br>Goods once sold will not taken back.<br>Delivery Ex-Premises.'}
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+// Helper function to extract state from address string (basic implementation)
+function extractStateFromAddress(address) {
+    if (!address) return '';
+    const parts = address.split(',');
+    if (parts.length > 1) {
+        // Try to find a state-like pattern, e.g., "Maharashtra", "MH", "Delhi", "DL"
+        // This is a very basic approach and might need refinement based on address variations.
+        const potentialState = parts[parts.length - 2].trim();
+        // Simple check for common state abbreviations or names.
+        // A more robust solution would involve a lookup list or more complex regex.
+        if (potentialState.length <= 2 || potentialState.length > 2 && potentialState.length < 20) {
+            return potentialState;
+        }
+    }
+    return ''; // Return empty if state cannot be determined
+}
+
+// Dummy function for number to words conversion (implement as needed)
+function convertNumberToWords(num) {
+    // This is a placeholder. Implement a proper number-to-words conversion function.
+    // Example: 1234.56 -> "One Thousand Two Hundred Thirty Four Rupees and Fifty Six Paise Only"
+
+    // Basic implementation for demonstration:
+    const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const thousands = ["", "Thousand", "Million", "Billion"]; // Extend if needed
+
+    if (num === 0) return "Zero Rupees";
+
+    let numStr = num.toString();
+    let decimalPart = '';
+    if (numStr.includes('.')) {
+        const parts = numStr.split('.');
+        numStr = parts[0];
+        const paise = parseInt(parts[1] || '00');
+        if (paise > 0) {
+            decimalPart = " and " + units[Math.floor(paise / 10)] + (paise % 10 ? "-" + units[paise % 10] : "") + " Paise";
+        }
+    }
+
+    let word = '';
+    let i = 0; // Index for thousands array
+
+    while (numStr.length > 0) {
+        let chunk = parseInt(numStr.substring(numStr.length - 3));
+        numStr = numStr.substring(0, numStr.length - 3);
+
+        if (chunk > 0) {
+            let chunkWord = '';
+            // Handle hundreds
+            if (Math.floor(chunk / 100) > 0) {
+                chunkWord += units[Math.floor(chunk / 100)] + " Hundred";
+                chunk %= 100;
+            }
+            // Handle tens and units
+            if (chunk > 0) {
+                if (chunkWord.length > 0) chunkWord += " ";
+                if (chunk < 10) {
+                    chunkWord += units[chunk];
+                } else if (chunk < 20) {
+                    chunkWord += teens[chunk - 10];
+                } else {
+                    chunkWord += tens[Math.floor(chunk / 10)];
+                    if (chunk % 10 > 0) {
+                        chunkWord += "-" + units[chunk % 10];
+                    }
+                }
+            }
+            word = chunkWord + (thousands[i] ? " " + thousands[i] : "") + " " + word;
+        }
+        i++;
+    }
+
+    word = word.trim();
+    if (!word) word = "Zero"; // Fallback if something went wrong
+
+    return word + " Rupees" + decimalPart;
 }
