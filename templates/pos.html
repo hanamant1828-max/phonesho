@@ -1462,8 +1462,10 @@
                 const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
                 const total = Math.abs(saleResponse.total_amount);
 
-                // Determine if IGST or CGST+SGST (simplified - you can enhance based on state matching)
-                const isIGST = false; // Set to true if inter-state
+                // Determine if IGST or CGST+SGST based on state matching
+                const customerState = saleData.customer_address || '';
+                const businessState = businessSettings.state || '';
+                const isIGST = customerState && businessState && !customerState.toLowerCase().includes(businessState.toLowerCase());
                 const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
                 const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
                 const igstRate = isIGST ? saleData.tax_percentage : 0;
@@ -1559,8 +1561,15 @@
                             <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${item.quantity} NOS</td>
                             <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${item.unit_price.toFixed(2)}</td>
                             <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${itemTaxableValue.toFixed(2)}</td>
-                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${isIGST && igstRate > 0 ? igstRate.toFixed(2) : ''}</td>
-                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemIgstAmount > 0 ? '₹' + itemIgstAmount.toFixed(2) : ''}</td>
+                            ${isIGST ? `
+                                <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${igstRate.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${itemIgstAmount.toFixed(2)}</td>
+                            ` : `
+                                <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${cgstRate.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${itemCgstAmount.toFixed(2)}</td>
+                                <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${sgstRate.toFixed(2)}</td>
+                                <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${itemSgstAmount.toFixed(2)}</td>
+                            `}
                             <td style="text-align: right; padding: 6px 8px; font-weight: bold; border: 1px solid #000;">₹${itemTotal.toFixed(2)}</td>
                         </tr>
                     `;
@@ -1573,8 +1582,15 @@
                         <td style="text-align: center; padding: 8px; border: 1px solid #000;">${totalQuantity}</td>
                         <td style="border: 1px solid #000;"></td>
                         <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalTaxableValue.toFixed(2)}</td>
-                        <td style="border: 1px solid #000;"></td>
-                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalIgstAmount > 0 ? '₹' + totalIgstAmount.toFixed(2) : ''}</td>
+                        ${isIGST ? `
+                            <td style="border: 1px solid #000;"></td>
+                            <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalIgstAmount.toFixed(2)}</td>
+                        ` : `
+                            <td style="border: 1px solid #000;"></td>
+                            <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalCgstAmount.toFixed(2)}</td>
+                            <td style="border: 1px solid #000;"></td>
+                            <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalSgstAmount.toFixed(2)}</td>
+                        `}
                         <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalAmount.toFixed(2)}</td>
                     </tr>
                 `;
@@ -1889,7 +1905,7 @@
                                 <div class="info-header">Customer Detail</div>
                                 <div class="info-row">
                                     <span class="info-label">Name</span>
-                                    <span>${saleData.customer_name || 'Walk-in Customer'}</span>
+                                    <span>${saleData.customer_name && saleData.customer_name.trim() !== '' ? saleData.customer_name : 'Walk-in Customer'}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">Address</span>
@@ -1929,13 +1945,25 @@
                                     <th style="width: 60px; padding: 8px 4px; border: 1px solid #000; font-size: 10px; text-align: center;">Qty</th>
                                     <th style="width: 90px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Rate</th>
                                     <th style="width: 100px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Taxable Value</th>
-                                    <th colspan="2" style="width: 140px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">IGST</th>
+                                    ${isIGST ? `
+                                        <th colspan="2" style="width: 140px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center; background: #dbeafe;">IGST</th>
+                                    ` : `
+                                        <th colspan="2" style="padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center; background: #dbeafe;">CGST</th>
+                                        <th colspan="2" style="padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center; background: #fecaca;">SGST</th>
+                                    `}
                                     <th style="width: 100px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Total</th>
                                 </tr>
                                 <tr style="background: #e5e7eb;">
                                     <th colspan="6" style="border: 1px solid #000;"></th>
-                                    <th style="width: 50px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center;">%</th>
-                                    <th style="width: 90px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center;">Amount</th>
+                                    ${isIGST ? `
+                                        <th style="width: 50px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #dbeafe;">%</th>
+                                        <th style="width: 90px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #dbeafe;">Amount</th>
+                                    ` : `
+                                        <th style="width: 40px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #dbeafe;">%</th>
+                                        <th style="width: 70px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #dbeafe;">Amount</th>
+                                        <th style="width: 40px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #fecaca;">%</th>
+                                        <th style="width: 70px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center; background: #fecaca;">Amount</th>
+                                    `}
                                     <th style="border: 1px solid #000;"></th>
                                 </tr>
                             </thead>
