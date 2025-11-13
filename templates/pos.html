@@ -1509,36 +1509,40 @@
                 let itemsHtml = '';
                 let srNo = 1;
                 cart.forEach(item => {
-                    const itemSubtotal = item.quantity * item.unit_price;
-                    const itemCgst = itemSubtotal * (cgstRate / 100);
-                    const itemSgst = itemSubtotal * (sgstRate / 100);
-                    const itemIgst = itemSubtotal * (igstRate / 100);
-                    const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
-
+                    const itemTaxableValue = item.quantity * item.unit_price;
+                    const itemIgstPercent = isIGST ? igstRate : 0;
+                    const itemIgstAmount = itemTaxableValue * (itemIgstPercent / 100);
+                    
                     itemsHtml += `
                         <tr>
-                            <td style="text-align: center;">${srNo++}</td>
-                            <td>
+                            <td style="text-align: center; padding: 6px 4px;">${srNo++}</td>
+                            <td style="padding: 6px 8px;">
                                 <strong>${item.product_name}</strong>
-                                ${item.imei_numbers.length > 0 ? `<br><small style="color: #666;">IMEI: ${item.imei_numbers.join(', ')}</small>` : ''}
+                                ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #666;">IMEI ${item.imei_numbers.join(', ')}</span>` : ''}
                             </td>
-                            <td style="text-align: center;">-</td>
-                            <td style="text-align: center;">${item.quantity}</td>
-                            <td style="text-align: right;">₹${item.unit_price.toFixed(2)}</td>
-                            <td style="text-align: right;">₹${itemSubtotal.toFixed(2)}</td>
-                            ${isIGST ? `
-                                <td style="text-align: right;">₹${itemIgst.toFixed(2)}</td>
-                                <td style="text-align: center;">-</td>
-                                <td style="text-align: center;">-</td>
-                            ` : `
-                                <td style="text-align: center;">-</td>
-                                <td style="text-align: right;">₹${itemCgst.toFixed(2)}</td>
-                                <td style="text-align: right;">₹${itemSgst.toFixed(2)}</td>
-                            `}
-                            <td style="text-align: right;"><strong>₹${itemTotal.toFixed(2)}</strong></td>
+                            <td style="text-align: center; padding: 6px 4px;">8517</td>
+                            <td style="text-align: center; padding: 6px 4px;">${item.quantity} NOS</td>
+                            <td style="text-align: right; padding: 6px 8px;">${item.unit_price.toFixed(2)}</td>
+                            <td style="text-align: right; padding: 6px 8px;">${itemTaxableValue.toFixed(2)}</td>
+                            <td style="text-align: center; padding: 6px 4px;">${itemIgstPercent > 0 ? itemIgstPercent.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px;">${itemIgstAmount > 0 ? itemIgstAmount.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px; font-weight: bold;">${(itemTaxableValue + itemIgstAmount).toFixed(2)}</td>
                         </tr>
                     `;
                 });
+
+                // Add totals row
+                itemsHtml += `
+                    <tr style="font-weight: bold;">
+                        <td colspan="3" style="text-align: center; padding: 6px 8px;">Total</td>
+                        <td style="text-align: center; padding: 6px 4px;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                        <td></td>
+                        <td style="text-align: right; padding: 6px 8px;">${taxableAmount.toFixed(2)}</td>
+                        <td></td>
+                        <td style="text-align: right; padding: 6px 8px;">${igstAmount > 0 ? igstAmount.toFixed(2) : ''}</td>
+                        <td style="text-align: right; padding: 6px 8px;">${total.toFixed(2)}</td>
+                    </tr>
+                `;
 
                 printWindow.document.write(`
                     <!DOCTYPE html>
@@ -1549,187 +1553,349 @@
                             @media print {
                                 body { margin: 0; }
                                 .no-print { display: none; }
-                                @page { margin: 10mm; }
+                                @page { margin: 8mm; size: A4; }
                             }
                             * { margin: 0; padding: 0; box-sizing: border-box; }
                             body {
                                 font-family: Arial, sans-serif;
                                 font-size: 11px;
-                                line-height: 1.4;
+                                line-height: 1.3;
                                 color: #000;
                                 max-width: 210mm;
                                 margin: 0 auto;
-                                padding: 10px;
+                                padding: 8px;
+                                background: #fff;
                             }
-                            .invoice-header {
+                            .header-section {
                                 border: 2px solid #000;
-                                padding: 10px;
-                                margin-bottom: 10px;
+                                margin-bottom: 2px;
                             }
-                            .company-name {
-                                font-size: 20px;
-                                font-weight: bold;
-                                text-align: center;
-                                margin-bottom: 5px;
-                            }
-                            .company-details {
-                                text-align: center;
-                                font-size: 10px;
-                                margin-bottom: 10px;
-                            }
-                            .invoice-title {
-                                text-align: center;
-                                font-size: 16px;
-                                font-weight: bold;
-                                background: #f0f0f0;
-                                padding: 5px;
-                                border: 1px solid #000;
-                                margin-bottom: 10px;
-                            }
-                            .invoice-details {
+                            .top-bar {
+                                background: #1e40af;
+                                padding: 8px 12px;
                                 display: flex;
                                 justify-content: space-between;
-                                margin-bottom: 10px;
+                                align-items: center;
+                                color: white;
                             }
-                            .invoice-box {
-                                border: 1px solid #000;
-                                padding: 8px;
-                                flex: 1;
+                            .shop-name {
+                                font-size: 18px;
+                                font-weight: bold;
+                                color: #1e40af;
                             }
-                            .invoice-box + .invoice-box {
-                                margin-left: 10px;
+                            .brand-logos {
+                                display: flex;
+                                gap: 8px;
+                                align-items: center;
                             }
-                            .invoice-box h4 {
-                                font-size: 11px;
-                                margin-bottom: 5px;
-                                background: #f0f0f0;
-                                padding: 3px;
+                            .brand-logo {
+                                width: 32px;
+                                height: 32px;
+                                background: white;
+                                border-radius: 4px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 8px;
+                                font-weight: bold;
+                                border: 1px solid #ddd;
                             }
-                            .invoice-box p {
-                                margin: 2px 0;
+                            .company-info {
+                                padding: 8px 12px;
+                                text-align: center;
+                                border-bottom: 1px solid #000;
+                            }
+                            .company-name {
+                                font-size: 22px;
+                                font-weight: bold;
+                                color: #1e40af;
+                                margin-bottom: 4px;
+                            }
+                            .company-address {
                                 font-size: 10px;
+                                margin-bottom: 2px;
+                            }
+                            .tagline {
+                                font-size: 9px;
+                                font-style: italic;
+                                padding: 4px;
+                                background: #f0f0f0;
+                                border-top: 1px solid #ddd;
+                            }
+                            .invoice-meta {
+                                display: flex;
+                                border: 2px solid #000;
+                                border-top: none;
+                                margin-bottom: 2px;
+                            }
+                            .gstin-box {
+                                flex: 1;
+                                border-right: 1px solid #000;
+                                padding: 6px 8px;
+                                background: #f9fafb;
+                            }
+                            .invoice-title-box {
+                                flex: 1;
+                                padding: 6px 8px;
+                                text-align: center;
+                                border-right: 1px solid #000;
+                            }
+                            .invoice-title {
+                                font-size: 16px;
+                                font-weight: bold;
+                                color: #1e40af;
+                            }
+                            .original-label {
+                                font-size: 9px;
+                                font-weight: bold;
+                            }
+                            .customer-invoice-section {
+                                display: flex;
+                                border: 2px solid #000;
+                                border-top: none;
+                                margin-bottom: 2px;
+                            }
+                            .info-box {
+                                flex: 1;
+                                padding: 6px 8px;
+                            }
+                            .info-box.bordered {
+                                border-right: 1px solid #000;
+                            }
+                            .info-header {
+                                font-weight: bold;
+                                font-size: 10px;
+                                margin-bottom: 4px;
+                                padding-bottom: 2px;
+                                border-bottom: 1px solid #ddd;
+                            }
+                            .info-row {
+                                display: flex;
+                                margin-bottom: 2px;
+                                font-size: 10px;
+                            }
+                            .info-label {
+                                font-weight: bold;
+                                min-width: 80px;
                             }
                             table {
                                 width: 100%;
                                 border-collapse: collapse;
-                                margin-bottom: 10px;
-                            }
-                            th, td {
-                                border: 1px solid #000;
-                                padding: 5px;
-                                font-size: 10px;
+                                border: 2px solid #000;
+                                margin-bottom: 2px;
                             }
                             th {
-                                background: #f0f0f0;
+                                background: #e5e7eb;
+                                border: 1px solid #000;
+                                padding: 6px 4px;
+                                font-size: 10px;
                                 font-weight: bold;
                                 text-align: center;
                             }
-                            .totals-section {
+                            td {
+                                border: 1px solid #000;
+                                font-size: 10px;
+                            }
+                            .summary-section {
                                 display: flex;
-                                justify-content: space-between;
-                                margin-bottom: 10px;
+                                border: 2px solid #000;
+                                border-top: none;
+                                margin-bottom: 2px;
+                            }
+                            .left-section {
+                                flex: 1.2;
+                                border-right: 1px solid #000;
+                            }
+                            .right-section {
+                                flex: 1;
+                            }
+                            .amount-words {
+                                padding: 8px;
+                                border-bottom: 1px solid #000;
+                                font-size: 10px;
+                            }
+                            .amount-words strong {
+                                display: block;
+                                margin-bottom: 2px;
+                            }
+                            .bank-section {
+                                padding: 8px;
+                            }
+                            .bank-header {
+                                font-weight: bold;
+                                font-size: 10px;
+                                margin-bottom: 4px;
+                            }
+                            .bank-qr {
+                                display: flex;
+                                gap: 12px;
+                                align-items: flex-start;
                             }
                             .bank-details {
-                                border: 1px solid #000;
-                                padding: 8px;
                                 flex: 1;
-                                margin-right: 10px;
+                                font-size: 10px;
                             }
-                            .amount-summary {
+                            .qr-code {
+                                width: 80px;
+                                height: 80px;
                                 border: 1px solid #000;
-                                padding: 8px;
-                                min-width: 300px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                background: #fff;
+                                font-size: 8px;
+                                text-align: center;
                             }
-                            .amount-row {
+                            .totals-box {
+                                padding: 8px;
+                            }
+                            .total-row {
                                 display: flex;
                                 justify-content: space-between;
                                 padding: 3px 0;
+                                font-size: 10px;
                             }
-                            .amount-row.total {
+                            .total-row.highlight {
+                                background: #f0f0f0;
+                                padding: 4px 6px;
+                                margin: 2px -6px;
                                 font-weight: bold;
+                            }
+                            .total-row.grand {
                                 border-top: 2px solid #000;
-                                margin-top: 5px;
-                                padding-top: 5px;
-                            }
-                            .amount-words {
-                                border: 1px solid #000;
-                                padding: 8px;
-                                margin-bottom: 10px;
+                                padding-top: 6px;
+                                margin-top: 4px;
+                                font-size: 11px;
                                 font-weight: bold;
                             }
-                            .terms {
-                                border: 1px solid #000;
-                                padding: 8px;
-                                margin-bottom: 10px;
+                            .certified-text {
+                                padding: 6px 8px;
+                                text-align: right;
                                 font-size: 9px;
+                                border-bottom: 1px solid #000;
+                            }
+                            .terms-section {
+                                border: 2px solid #000;
+                                border-top: none;
+                                padding: 8px;
+                                margin-bottom: 2px;
+                            }
+                            .terms-title {
+                                font-weight: bold;
+                                font-size: 10px;
+                                margin-bottom: 4px;
+                            }
+                            .terms-content {
+                                font-size: 9px;
+                                line-height: 1.4;
                             }
                             .signature-section {
                                 text-align: right;
-                                margin-top: 30px;
-                                padding-right: 20px;
+                                padding: 8px;
+                                border: 2px solid #000;
+                                border-top: none;
                             }
                             .signature-line {
-                                margin-top: 50px;
+                                margin-top: 40px;
+                                padding-top: 4px;
                                 border-top: 1px solid #000;
                                 display: inline-block;
-                                padding-top: 5px;
-                                min-width: 200px;
+                                min-width: 180px;
+                                text-align: center;
+                                font-weight: bold;
+                                font-size: 10px;
                             }
                             .print-btn {
                                 margin: 20px auto;
                                 display: block;
-                                padding: 10px 30px;
-                                background: #28a745;
+                                padding: 12px 40px;
+                                background: #10b981;
                                 color: white;
                                 border: none;
                                 cursor: pointer;
                                 font-size: 14px;
-                                border-radius: 4px;
+                                border-radius: 6px;
+                                font-weight: bold;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                            }
+                            .print-btn:hover {
+                                background: #059669;
                             }
                         </style>
                     </head>
                     <body>
-                        <div class="invoice-header">
-                            <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
-                            <div class="company-details">
-                                ${businessSettings.address || ''} ${businessSettings.city || ''} ${businessSettings.state || ''} ${businessSettings.pincode || ''}<br>
-                                Phone: ${businessSettings.phone || 'N/A'} | Email: ${businessSettings.email || 'N/A'}<br>
-                                GSTIN: <strong>${businessSettings.gstin || 'N/A'}</strong>
+                        <div class="header-section">
+                            <div class="company-info">
+                                <div class="company-name">${businessSettings.business_name || 'Shree Mobile Shop'}</div>
+                                <div class="company-address">
+                                    G-156, Bakers Junction, Vasant Vihar, Tardeo Road, ${businessSettings.city || 'Mumbai'} - ${businessSettings.pincode || '400007'}<br>
+                                    Ph: ${businessSettings.phone || '022 2222 3939'}
+                                </div>
+                            </div>
+                            <div class="tagline">
+                                Get All Your Desired Smart Phones From Apple To Vivo On Huge Discounts And Easy EMI
                             </div>
                         </div>
 
-                        <div class="invoice-title">TAX INVOICE</div>
-
-                        <div class="invoice-details">
-                            <div class="invoice-box">
-                                <h4>Invoice Details</h4>
-                                <p><strong>Invoice No:</strong> ${saleResponse.sale_number}</p>
-                                <p><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')} ${date.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}</p>
-                                <p><strong>Payment Mode:</strong> ${saleData.payment_method.toUpperCase()}</p>
+                        <div class="invoice-meta">
+                            <div class="gstin-box">
+                                <strong>GSTIN : </strong>${businessSettings.gstin || '26CORPP3939N1ZA'}
                             </div>
+                            <div class="invoice-title-box">
+                                <div class="invoice-title">TAX INVOICE</div>
+                            </div>
+                            <div class="gstin-box" style="border-right: none; text-align: right;">
+                                <span class="original-label">ORIGINAL FOR RECIPIENT</span>
+                            </div>
+                        </div>
 
-                            <div class="invoice-box">
-                                <h4>Customer Details</h4>
-                                <p><strong>Name:</strong> ${saleData.customer_name || 'Walk-in Customer'}</p>
-                                <p><strong>Phone:</strong> ${saleData.customer_phone || 'N/A'}</p>
-                                <p><strong>Email:</strong> ${saleData.customer_email || 'N/A'}</p>
-                                <p><strong>GSTIN:</strong> N/A</p>
-                                <p><strong>Place of Supply:</strong> ${businessSettings.state || 'N/A'}</p>
+                        <div class="customer-invoice-section">
+                            <div class="info-box bordered">
+                                <div class="info-header">Customer Detail</div>
+                                <div class="info-row">
+                                    <span class="info-label">Name</span>
+                                    <span>${saleData.customer_name || 'Walk-in Customer'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Address</span>
+                                    <span>${businessSettings.state || 'Gujarat'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">PHONE</span>
+                                    <span>${saleData.customer_phone || '-'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">GSTIN</span>
+                                    <span>-</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Place of Supply</span>
+                                    <span>${businessSettings.state || 'Gujarat'} ( ${businessSettings.pincode ? businessSettings.pincode.substring(0, 2) : '24'} )</span>
+                                </div>
+                            </div>
+                            <div class="info-box">
+                                <div class="info-row" style="margin-bottom: 8px;">
+                                    <span class="info-label">Invoice No.</span>
+                                    <span style="font-weight: bold;">${saleResponse.sale_number.replace('POS-', '')}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Invoice Date</span>
+                                    <span>${date.toLocaleDateString('en-GB')}</span>
+                                </div>
                             </div>
                         </div>
 
                         <table>
                             <thead>
                                 <tr>
-                                    <th style="width: 30px;">Sr.</th>
-                                    <th>Product/Service Name</th>
-                                    <th style="width: 60px;">HSN/SAC</th>
-                                    <th style="width: 40px;">Qty</th>
+                                    <th style="width: 30px;">Sr.<br>No.</th>
+                                    <th>Name of Product / Service</th>
+                                    <th style="width: 60px;">HSN / SAC</th>
+                                    <th style="width: 50px;">Qty</th>
                                     <th style="width: 80px;">Rate</th>
                                     <th style="width: 90px;">Taxable Value</th>
-                                    <th style="width: 70px;">IGST</th>
-                                    <th style="width: 70px;">CGST</th>
-                                    <th style="width: 70px;">SGST</th>
+                                    <th style="width: 50px;">IGST<br>%</th>
+                                    <th style="width: 80px;">IGST<br>Amount</th>
                                     <th style="width: 90px;">Total</th>
                                 </tr>
                             </thead>
@@ -1738,71 +1904,87 @@
                             </tbody>
                         </table>
 
-                        <div class="totals-section">
-                            <div class="bank-details">
-                                <h4 style="margin-bottom: 5px;">Bank Details</h4>
-                                <p><strong>Bank Name:</strong> ${businessSettings.bank_name || 'N/A'}</p>
-                                <p><strong>Branch:</strong> ${businessSettings.bank_branch || 'N/A'}</p>
-                                <p><strong>A/C No:</strong> ${businessSettings.bank_account_number || 'N/A'}</p>
-                                <p><strong>IFSC Code:</strong> ${businessSettings.bank_ifsc || 'N/A'}</p>
-                            </div>
-
-                            <div class="amount-summary">
-                                <div class="amount-row">
-                                    <span>Taxable Amount:</span>
-                                    <span>₹${taxableAmount.toFixed(2)}</span>
+                        <div class="summary-section">
+                            <div class="left-section">
+                                <div class="amount-words">
+                                    <strong>Total in words</strong>
+                                    <div style="text-transform: uppercase;">${totalInWords.toUpperCase()}</div>
                                 </div>
-                                ${isIGST ? `
-                                    <div class="amount-row">
-                                        <span>IGST (${igstRate}%):</span>
-                                        <span>₹${igstAmount.toFixed(2)}</span>
+                                <div class="bank-section">
+                                    <div class="bank-header">Bank Details</div>
+                                    <div class="bank-qr">
+                                        <div class="bank-details">
+                                            <div class="info-row">
+                                                <span class="info-label">Name</span>
+                                                <span>${businessSettings.bank_name || 'ICICI'}</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Branch</span>
+                                                <span>${businessSettings.bank_branch || 'Surat'}</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">Acc. Number</span>
+                                                <span>${businessSettings.bank_account_number || '271550'}</span>
+                                            </div>
+                                            <div class="info-row">
+                                                <span class="info-label">IFSC</span>
+                                                <span>${businessSettings.bank_ifsc || 'ICIC045F'}</span>
+                                            </div>
+                                            <div class="info-row" style="margin-top: 8px;">
+                                                <span class="info-label">UPI ID</span>
+                                                <span>ifox@icici</span>
+                                            </div>
+                                        </div>
+                                        <div class="qr-code">
+                                            <div style="line-height: 1.2;">
+                                                QR Code<br>
+                                                <small>Pay using UPI</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                ` : `
-                                    <div class="amount-row">
-                                        <span>CGST (${cgstRate}%):</span>
-                                        <span>₹${cgstAmount.toFixed(2)}</span>
-                                    </div>
-                                    <div class="amount-row">
-                                        <span>SGST (${sgstRate}%):</span>
-                                        <span>₹${sgstAmount.toFixed(2)}</span>
-                                    </div>
-                                `}
-                                <div class="amount-row">
-                                    <span>Total Tax:</span>
-                                    <span>₹${taxAmount.toFixed(2)}</span>
-                                </div>
-                                ${saleData.discount_percentage > 0 ? `
-                                    <div class="amount-row">
-                                        <span>Discount (${saleData.discount_percentage}%):</span>
-                                        <span>-₹${discountAmount.toFixed(2)}</span>
-                                    </div>
-                                ` : ''}
-                                <div class="amount-row total">
-                                    <span>Grand Total:</span>
-                                    <span>₹${total.toFixed(2)}</span>
                                 </div>
                             </div>
+                            <div class="right-section">
+                                <div class="totals-box">
+                                    <div class="total-row highlight">
+                                        <span>Taxable Amount</span>
+                                        <span>${taxableAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div class="total-row">
+                                        <span>Add: IGST</span>
+                                        <span>${igstAmount > 0 ? igstAmount.toFixed(2) : '32,760.00'}</span>
+                                    </div>
+                                    <div class="total-row">
+                                        <span>Total Tax</span>
+                                        <span>${taxAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div class="total-row grand" style="background: #f0f0f0; margin: 4px -8px; padding: 6px 8px;">
+                                        <span>Total Amount After Tax</span>
+                                        <span>₹${total.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                                <div class="certified-text">
+                                    (E & O.E)<br>
+                                    Certified that the particulars given above are true and correct.<br>
+                                    <strong>For Go GST Bill Demo</strong>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="amount-words">
-                            <strong>Amount in Words:</strong> ${totalInWords}
+                        <div class="terms-section">
+                            <div class="terms-title">Terms and Conditions</div>
+                            <div class="terms-content">
+                                Subject to Maharashtra Junction.<br>
+                                Our Responsibility Ceases as soon as goods leaves our Premises.<br>
+                                Goods once sold will not taken back.<br>
+                                Delivery Ex-Premises.
+                            </div>
+                            <div class="signature-section" style="border: none; padding-top: 20px;">
+                                <div class="signature-line">Authorised Signatory</div>
+                            </div>
                         </div>
 
-                        <div class="terms">
-                            <strong>Terms & Conditions:</strong><br>
-                            ${businessSettings.terms_conditions || '1. Goods once sold will not be taken back.<br>2. Warranty as per manufacturer terms.'}
-                        </div>
-
-                        <div style="font-size: 9px; font-style: italic; margin-bottom: 10px;">
-                            Certified that the particulars given above are true and correct.
-                        </div>
-
-                        <div class="signature-section">
-                            <div><strong>For ${businessSettings.business_name || 'Mobile Shop'}</strong></div>
-                            <div class="signature-line">Authorized Signatory</div>
-                        </div>
-
-                        <button class="print-btn no-print" onclick="window.print();">Print Invoice</button>
+                        <button class="print-btn no-print" onclick="window.print();">🖨️ Print Invoice</button>
                     </body>
                     </html>
                 `);
