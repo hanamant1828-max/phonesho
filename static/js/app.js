@@ -2971,7 +2971,112 @@ function loadQuickOrder() {
     quickOrderItems = [];
 
     $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-bag-plus"></i> Quick Order</h2>
+            <p class="text-muted">Simple order entry - Select products and quantities</p>
+        </div>
 
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h5 class="mb-0">Add Items to Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Select Product</label>
+                                <select class="form-select" id="quickOrderProduct">
+                                    <option value="">-- Choose a product --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="quickOrderQuantity" min="1" value="1">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" onclick="addQuickOrderItem()">
+                                    <i class="bi bi-plus-circle"></i> Add Item
+                                </button>
+                            </div>
+                        </div>
+                        <div id="productInfo" class="alert alert-info d-none">
+                            <strong>Product Info:</strong>
+                            <div id="productInfoContent"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Order Items</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered" id="quickOrderItemsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Unit Price</th>
+                                        <th>Total</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot>
+                                    <tr class="table-primary">
+                                        <td colspan="3" class="text-end"><strong>Total Amount:</strong></td>
+                                        <td><strong id="orderTotalAmount">$0.00</strong></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <div id="emptyOrderMessage" class="text-center text-muted py-4">
+                            No items added yet. Select products above to start your order.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">Submit Order</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Notes (Optional)</label>
+                            <textarea class="form-control" id="quickOrderNotes" rows="3" placeholder="Add any notes about this order..."></textarea>
+                        </div>
+                        <button class="btn btn-success w-100" onclick="submitQuickOrder()">
+                            <i class="bi bi-check-circle"></i> Submit Order
+                        </button>
+                    </div>
+                    <div class="card-footer">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> Stock will be automatically reduced when order is submitted
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    loadProductsForQuickOrder();
+    updateQuickOrderTable();
+
+    $('#quickOrderProduct').on('change', function() {
+        const productId = $(this).val();
+        if (productId) {
+            showProductInfo(productId);
+        } else {
+            $('#productInfo').addClass('d-none');
+        }
+    });
+}
 
 function loadBusinessSettings() {
     $('#content-area').html(`
@@ -3182,113 +3287,6 @@ function loadBusinessSettings() {
                 alert('Error saving settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
             }
         });
-    });
-}
-
-        <div class="page-header">
-            <h2><i class="bi bi-bag-plus"></i> Quick Order</h2>
-            <p class="text-muted">Simple order entry - Select products and quantities</p>
-        </div>
-
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h5 class="mb-0">Add Items to Order</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Select Product</label>
-                                <select class="form-select" id="quickOrderProduct">
-                                    <option value="">-- Choose a product --</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">Quantity</label>
-                                <input type="number" class="form-control" id="quickOrderQuantity" min="1" value="1">
-                            </div>
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">&nbsp;</label>
-                                <button class="btn btn-primary w-100" onclick="addQuickOrderItem()">
-                                    <i class="bi bi-plus-circle"></i> Add Item
-                                </button>
-                            </div>
-                        </div>
-                        <div id="productInfo" class="alert alert-info d-none">
-                            <strong>Product Info:</strong>
-                            <div id="productInfoContent"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="mb-0">Order Items</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table class="table table-bordered" id="quickOrderItemsTable">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Quantity</th>
-                                        <th>Unit Price</th>
-                                        <th>Total</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                                <tfoot>
-                                    <tr class="table-primary">
-                                        <td colspan="3" class="text-end"><strong>Total Amount:</strong></td>
-                                        <td><strong id="orderTotalAmount">$0.00</strong></td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <div id="emptyOrderMessage" class="text-center text-muted py-4">
-                            No items added yet. Select products above to start your order.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Submit Order</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label">Notes (Optional)</label>
-                            <textarea class="form-control" id="quickOrderNotes" rows="3" placeholder="Add any notes about this order..."></textarea>
-                        </div>
-                        <button class="btn btn-success w-100" onclick="submitQuickOrder()">
-                            <i class="bi bi-check-circle"></i> Submit Order
-                        </button>
-                    </div>
-                    <div class="card-footer">
-                        <small class="text-muted">
-                            <i class="bi bi-info-circle"></i> Stock will be automatically reduced when order is submitted
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `);
-
-    loadProductsForQuickOrder();
-    updateQuickOrderTable();
-
-    $('#quickOrderProduct').on('change', function() {
-        const productId = $(this).val();
-        if (productId) {
-            showProductInfo(productId);
-        } else {
-            $('#productInfo').addClass('d-none');
-        }
     });
 }
 
