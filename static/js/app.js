@@ -1697,7 +1697,7 @@ function loadModels() {
                     <td>${model.description || '-'}</td>
                     <td>${date.toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary action-btn" onclick='editModel(${model.id}, "${model.name}", ${model.brand_id}, "${(model.description || '').replace(/"/g, '&quot;')}", "${escapedImageData}")'>
+                        <button class="btn btn-sm btn-primary action-btn" onclick="editModel(${model.id}, \`${model.name}\`, ${model.brand_id}, \`${(model.description || '').replace(/`/g, '\\`')}\`, \`${escapedImageData}\`)">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteModel(${model.id})">
