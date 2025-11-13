@@ -5038,7 +5038,7 @@ function completePOSSale() {
     const saleDate = now.toISOString().slice(0, 19).replace('T', ' ');
 
     const saleData = {
-        items: posCart,
+        items: posCart.map(item => ({ ...item })), // Clone the cart items to prevent mutation
         customer_name: $('#customerName').val(),
         customer_phone: $('#customerPhone').val(),
         customer_email: $('#customerEmail').val(),
