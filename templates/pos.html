@@ -1516,33 +1516,34 @@
                 cart.forEach(item => {
                     const itemTaxableValue = item.quantity * item.unit_price;
                     const itemIgstPercent = isIGST ? igstRate : 0;
-                    const itemCgstPercent = !isIGST ? cgstRate : 0;
-                    const itemSgstPercent = !isIGST ? sgstRate : 0;
                     
                     const itemIgstAmount = itemTaxableValue * (itemIgstPercent / 100);
-                    const itemCgstAmount = itemTaxableValue * (itemCgstPercent / 100);
-                    const itemSgstAmount = itemTaxableValue * (itemSgstPercent / 100);
-                    const itemTotal = itemTaxableValue + itemIgstAmount + itemCgstAmount + itemSgstAmount;
+                    const itemTotal = itemTaxableValue + itemIgstAmount;
                     
                     totalQuantity += item.quantity;
                     totalTaxableValue += itemTaxableValue;
                     totalIgstAmount += itemIgstAmount;
                     totalAmount += itemTotal;
                     
+                    // Format IMEI display - one per line if multiple
+                    let imeiDisplay = '';
+                    if (item.imei_numbers && item.imei_numbers.length > 0) {
+                        imeiDisplay = '<br><span style="font-size: 9px; color: #333; font-family: monospace;">IMEI ' + item.imei_numbers.join('<br>IMEI ') + '</span>';
+                    }
+                    
                     itemsHtml += `
                         <tr>
-                            <td style="text-align: center; padding: 6px 4px;">${srNo++}</td>
-                            <td style="padding: 6px 8px;">
-                                <strong>${item.product_name}</strong>
-                                ${item.imei_numbers && item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #666;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${srNo++}</td>
+                            <td style="padding: 6px 8px; border: 1px solid #000;">
+                                <strong>${item.product_name}</strong>${imeiDisplay}
                             </td>
-                            <td style="text-align: center; padding: 6px 4px;">8517</td>
-                            <td style="text-align: center; padding: 6px 4px;">${item.quantity} NOS</td>
-                            <td style="text-align: right; padding: 6px 8px;">₹${item.unit_price.toFixed(2)}</td>
-                            <td style="text-align: right; padding: 6px 8px;">₹${itemTaxableValue.toFixed(2)}</td>
-                            <td style="text-align: center; padding: 6px 4px;">${itemIgstPercent > 0 ? itemIgstPercent.toFixed(2) : '-'}</td>
-                            <td style="text-align: right; padding: 6px 8px;">${itemIgstAmount > 0 ? '₹' + itemIgstAmount.toFixed(2) : '-'}</td>
-                            <td style="text-align: right; padding: 6px 8px; font-weight: bold;">₹${itemTotal.toFixed(2)}</td>
+                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">8517</td>
+                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${item.quantity} NOS</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${item.unit_price.toFixed(2)}</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemTaxableValue.toFixed(2)}</td>
+                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${itemIgstPercent > 0 ? itemIgstPercent.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemIgstAmount > 0 ? itemIgstAmount.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px; font-weight: bold; border: 1px solid #000;">${itemTotal.toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -1550,13 +1551,13 @@
                 // Add totals row
                 itemsHtml += `
                     <tr style="font-weight: bold; background: #f0f0f0;">
-                        <td colspan="3" style="text-align: center; padding: 8px;">Total</td>
-                        <td style="text-align: center; padding: 8px;">${totalQuantity}</td>
-                        <td></td>
-                        <td style="text-align: right; padding: 8px;">₹${totalTaxableValue.toFixed(2)}</td>
-                        <td></td>
-                        <td style="text-align: right; padding: 8px;">${totalIgstAmount > 0 ? '₹' + totalIgstAmount.toFixed(2) : '-'}</td>
-                        <td style="text-align: right; padding: 8px;">₹${totalAmount.toFixed(2)}</td>
+                        <td colspan="3" style="text-align: right; padding: 8px; border: 1px solid #000;">Total</td>
+                        <td style="text-align: center; padding: 8px; border: 1px solid #000;">${totalQuantity}</td>
+                        <td style="border: 1px solid #000;"></td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalTaxableValue.toFixed(2)}</td>
+                        <td style="border: 1px solid #000;"></td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalIgstAmount > 0 ? totalIgstAmount.toFixed(2) : ''}</td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalAmount.toFixed(2)}</td>
                     </tr>
                 `;
 
@@ -1901,18 +1902,23 @@
                             </div>
                         </div>
 
-                        <table>
+                        <table style="border-collapse: collapse; width: 100%; border: 2px solid #000;">
                             <thead>
-                                <tr>
-                                    <th style="width: 30px;">Sr.<br>No.</th>
-                                    <th>Name of Product / Service</th>
-                                    <th style="width: 60px;">HSN / SAC</th>
-                                    <th style="width: 50px;">Qty</th>
-                                    <th style="width: 80px;">Rate</th>
-                                    <th style="width: 90px;">Taxable Value</th>
-                                    <th style="width: 50px;">IGST<br>%</th>
-                                    <th style="width: 80px;">IGST<br>Amount</th>
-                                    <th style="width: 90px;">Total</th>
+                                <tr style="background: #e5e7eb;">
+                                    <th style="width: 40px; padding: 8px 4px; border: 1px solid #000; font-size: 10px; text-align: center;">Sr.<br>No.</th>
+                                    <th style="padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Name of Product / Service</th>
+                                    <th style="width: 70px; padding: 8px 4px; border: 1px solid #000; font-size: 10px; text-align: center;">HSN / SAC</th>
+                                    <th style="width: 60px; padding: 8px 4px; border: 1px solid #000; font-size: 10px; text-align: center;">Qty</th>
+                                    <th style="width: 90px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Rate</th>
+                                    <th style="width: 100px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Taxable Value</th>
+                                    <th colspan="2" style="width: 140px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">IGST</th>
+                                    <th style="width: 100px; padding: 8px; border: 1px solid #000; font-size: 10px; text-align: center;">Total</th>
+                                </tr>
+                                <tr style="background: #e5e7eb;">
+                                    <th colspan="6" style="border: 1px solid #000;"></th>
+                                    <th style="width: 50px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center;">%</th>
+                                    <th style="width: 90px; padding: 4px; border: 1px solid #000; font-size: 9px; text-align: center;">Amount</th>
+                                    <th style="border: 1px solid #000;"></th>
                                 </tr>
                             </thead>
                             <tbody>
