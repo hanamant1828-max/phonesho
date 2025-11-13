@@ -1697,7 +1697,7 @@ function loadModels() {
                     <td>${model.description || '-'}</td>
                     <td>${date.toLocaleDateString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary action-btn" onclick="editModel(${model.id}, \`${model.name}\`, ${model.brand_id}, \`${(model.description || '').replace(/`/g, '\\`')}\`, \`${escapedImageData}\`)">
+                        <button class="btn btn-sm btn-primary action-btn" data-model-id="${model.id}" data-model-name="${model.name}" data-brand-id="${model.brand_id}" data-description="${(model.description || '').replace(/"/g, '&quot;')}" data-image="${escapedImageData}" onclick="editModelFromData(this)">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <button class="btn btn-sm btn-danger action-btn" onclick="deleteModel(${model.id})">
@@ -1710,6 +1710,15 @@ function loadModels() {
 
         $('#modelsTable').DataTable();
     });
+}
+
+function editModelFromData(button) {
+    const id = $(button).data('model-id');
+    const name = $(button).data('model-name');
+    const brandId = $(button).data('brand-id');
+    const description = $(button).data('description');
+    const imageData = $(button).data('image');
+    editModel(id, name, brandId, description, imageData);
 }
 
 function showAddModel() {
