@@ -8,6 +8,7 @@ import pandas as pd
 import io
 import os
 import hashlib
+import time
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')
@@ -502,11 +503,11 @@ init_db()
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', timestamp=int(time.time()))
 
 @app.route('/pos')
 def pos_page():
-    return render_template('pos.html')
+    return render_template('pos.html', timestamp=int(time.time()))
 
 
 
