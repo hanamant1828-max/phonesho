@@ -4738,6 +4738,9 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
 
     // Use items from saleData instead of global cart
     const items = saleData.items || [];
+    console.log('Invoice Generation - saleData:', saleData);
+    console.log('Invoice Generation - items:', items);
+    console.log('Invoice Generation - items count:', items.length);
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const discountAmount = subtotal * (saleData.discount_percentage / 100);
     const taxableAmount = subtotal - discountAmount;
@@ -4775,7 +4778,7 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
                 <td style="vertical-align: top; padding: 5px;">
                     <strong>${item.product_name}</strong>
-                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                    ${(item.imei_numbers && item.imei_numbers.length > 0) ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
                 </td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
@@ -6692,7 +6695,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
                 <td style="vertical-align: top; padding: 5px;">
                     <strong>${item.product_name}</strong>
-                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                    ${(item.imei_numbers && item.imei_numbers.length > 0) ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
                 </td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
@@ -8601,7 +8604,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
                 <td style="vertical-align: top; padding: 5px;">
                     <strong>${item.product_name}</strong>
-                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                    ${(item.imei_numbers && item.imei_numbers.length > 0) ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
                 </td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
                 <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
