@@ -1777,25 +1777,8 @@
                                 font-size: 10px;
                                 margin-bottom: 4px;
                             }
-                            .bank-qr {
-                                display: flex;
-                                gap: 12px;
-                                align-items: flex-start;
-                            }
                             .bank-details {
-                                flex: 1;
                                 font-size: 10px;
-                            }
-                            .qr-code {
-                                width: 80px;
-                                height: 80px;
-                                border: 1px solid #000;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                background: #fff;
-                                font-size: 8px;
-                                text-align: center;
                             }
                             .totals-box {
                                 padding: 8px;
@@ -1980,36 +1963,28 @@
                                 </div>
                                 <div class="bank-section">
                                     <div class="bank-header">Bank Details</div>
-                                    <div class="bank-qr">
-                                        <div class="bank-details">
-                                            <div class="info-row">
-                                                <span class="info-label">Name</span>
-                                                <span>${businessSettings.bank_name || 'ICICI'}</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Branch</span>
-                                                <span>${businessSettings.bank_branch || 'Surat'}</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">Acc. Number</span>
-                                                <span>${businessSettings.bank_account_number || '271550'}</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">IFSC</span>
-                                                <span>${businessSettings.bank_ifsc || 'ICIC045F'}</span>
-                                            </div>
-                                            <div class="info-row" style="margin-top: 8px;">
-                                                <span class="info-label">UPI ID</span>
-                                                <span>ifox@icici</span>
-                                            </div>
-                                        </div>
-                                        <div class="qr-code">
-                                            <div style="line-height: 1.2;">
-                                                QR Code<br>
-                                                <small>Pay using UPI</small>
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <div class="bank-details">
+                                <div class="info-row">
+                                    <span class="info-label">Name</span>
+                                    <span>${businessSettings.bank_name || 'ICICI'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Branch</span>
+                                    <span>${businessSettings.bank_branch || 'Surat'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Acc. Number</span>
+                                    <span>${businessSettings.bank_account_number || '271550'}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">IFSC</span>
+                                    <span>${businessSettings.bank_ifsc || 'ICIC045F'}</span>
+                                </div>
+                                <div class="info-row" style="margin-top: 8px;">
+                                    <span class="info-label">UPI ID</span>
+                                    <span>ifox@icici</span>
+                                </div>
+                            </div>
                                 </div>
                             </div>
                             <div class="right-section">
