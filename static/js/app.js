@@ -208,99 +208,150 @@ function loadBusinessSettings() {
             <h2><i class="bi bi-building"></i> Business Settings</h2>
             <p class="text-muted">Configure your business information for invoices and receipts</p>
         </div>
-        
+
         <div class="card">
             <div class="card-body">
                 <form id="businessSettingsForm">
-                    <h5 class="mb-3"><i class="bi bi-info-circle"></i> Basic Information</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Business Name *</label>
-                            <input type="text" class="form-control" id="businessName" required>
+                    <ul class="nav nav-tabs mb-4" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="business-info-tab" data-bs-toggle="tab" data-bs-target="#business-info" type="button">
+                                <i class="bi bi-building"></i> Business Information
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tax-settings-tab" data-bs-toggle="tab" data-bs-target="#tax-settings" type="button">
+                                <i class="bi bi-receipt"></i> Tax & Invoice Settings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="bank-details-tab" data-bs-toggle="tab" data-bs-target="#bank-details" type="button">
+                                <i class="bi bi-bank"></i> Bank Details
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button">
+                                <i class="bi bi-file-text"></i> Terms & Conditions
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="business-info" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Business Name *</label>
+                                    <input type="text" class="form-control" id="businessName" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">GSTIN</label>
+                                    <input type="text" class="form-control" id="businessGSTIN" maxlength="15">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" id="businessAddress" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" id="businessCity">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" id="businessState">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Pincode</label>
+                                    <input type="text" class="form-control" id="businessPincode">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="businessPhone">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="businessEmail">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Website</label>
+                                    <input type="text" class="form-control" id="businessWebsite">
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">GSTIN</label>
-                            <input type="text" class="form-control" id="businessGSTIN" maxlength="15">
+
+                        <div class="tab-pane fade" id="tax-settings" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Currency</label>
+                                    <select class="form-select" id="businessCurrency">
+                                        <option value="INR">INR - Indian Rupee</option>
+                                        <option value="USD">USD - US Dollar</option>
+                                        <option value="EUR">EUR - Euro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Tax Label</label>
+                                    <input type="text" class="form-control" id="businessTaxLabel" value="GST">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Invoice Prefix</label>
+                                    <input type="text" class="form-control" id="businessInvoicePrefix" value="INV">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Receipt Prefix</label>
+                                    <input type="text" class="form-control" id="businessReceiptPrefix" value="RCP">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="bank-details" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Bank Name</label>
+                                    <input type="text" class="form-control" id="businessBankName">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Branch Name</label>
+                                    <input type="text" class="form-control" id="businessBankBranch">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Account Number</label>
+                                    <input type="text" class="form-control" id="businessBankAccount">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">IFSC Code</label>
+                                    <input type="text" class="form-control" id="businessBankIFSC">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="terms" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label">Terms & Conditions</label>
+                                <textarea class="form-control" id="businessTerms" rows="6" placeholder="Enter your terms and conditions here..."></textarea>
+                                <small class="text-muted">These will appear on invoices and receipts</small>
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Address</label>
-                            <input type="text" class="form-control" id="businessAddress">
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">City</label>
-                            <input type="text" class="form-control" id="businessCity">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">State</label>
-                            <input type="text" class="form-control" id="businessState">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Pincode</label>
-                            <input type="text" class="form-control" id="businessPincode">
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="businessPhone">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" class="form-control" id="businessEmail">
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Website</label>
-                            <input type="text" class="form-control" id="businessWebsite">
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    <h5 class="mb-3"><i class="bi bi-bank"></i> Bank Details</h5>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Bank Name</label>
-                            <input type="text" class="form-control" id="bankName">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Branch</label>
-                            <input type="text" class="form-control" id="bankBranch">
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Account Number</label>
-                            <input type="text" class="form-control" id="bankAccountNumber">
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">IFSC Code</label>
-                            <input type="text" class="form-control" id="bankIFSC">
-                        </div>
-                    </div>
-                    
-                    <hr class="my-4">
-                    <h5 class="mb-3"><i class="bi bi-file-text"></i> Terms & Conditions</h5>
-                    <div class="mb-3">
-                        <textarea class="form-control" id="termsConditions" rows="4" placeholder="Enter terms and conditions for invoices"></textarea>
-                    </div>
-                    
-                    <div class="text-end">
-                        <button type="submit" class="btn btn-success">
-                            <i class="bi bi-check-circle"></i> Save Settings
+
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Save Business Settings
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     `);
-    
+
     // Load existing settings
     $.get(`${API_BASE}/business-settings`, function(settings) {
         $('#businessName').val(settings.business_name || '');
@@ -312,53 +363,56 @@ function loadBusinessSettings() {
         $('#businessPhone').val(settings.phone || '');
         $('#businessEmail').val(settings.email || '');
         $('#businessWebsite').val(settings.website || '');
-        $('#bankName').val(settings.bank_name || '');
-        $('#bankBranch').val(settings.bank_branch || '');
-        $('#bankAccountNumber').val(settings.bank_account_number || '');
-        $('#bankIFSC').val(settings.bank_ifsc || '');
-        $('#termsConditions').val(settings.terms_conditions || '');
+        $('#businessCurrency').val(settings.currency || 'INR');
+        $('#businessTaxLabel').val(settings.tax_label || 'GST');
+        $('#businessInvoicePrefix').val(settings.invoice_prefix || 'INV');
+        $('#businessReceiptPrefix').val(settings.receipt_prefix || 'RCP');
+        $('#businessBankName').val(settings.bank_name || '');
+        $('#businessBankBranch').val(settings.bank_branch || '');
+        $('#businessBankAccount').val(settings.bank_account_number || '');
+        $('#businessBankIFSC').val(settings.bank_ifsc || '');
+        $('#businessTerms').val(settings.terms_conditions || '');
     });
-    
-    // Form submission
+
+    // Handle form submission
     $('#businessSettingsForm').on('submit', function(e) {
         e.preventDefault();
-        saveBusinessSettings();
+
+        const settingsData = {
+            business_name: $('#businessName').val(),
+            gstin: $('#businessGSTIN').val(),
+            address: $('#businessAddress').val(),
+            city: $('#businessCity').val(),
+            state: $('#businessState').val(),
+            pincode: $('#businessPincode').val(),
+            phone: $('#businessPhone').val(),
+            email: $('#businessEmail').val(),
+            website: $('#businessWebsite').val(),
+            currency: $('#businessCurrency').val(),
+            tax_label: $('#businessTaxLabel').val(),
+            invoice_prefix: $('#businessInvoicePrefix').val(),
+            receipt_prefix: $('#businessReceiptPrefix').val(),
+            bank_name: $('#businessBankName').val(),
+            bank_branch: $('#businessBankBranch').val(),
+            bank_account_number: $('#businessBankAccount').val(),
+            bank_ifsc: $('#businessBankIFSC').val(),
+            terms_conditions: $('#businessTerms').val()
+        };
+
+        $.ajax({
+            url: `${API_BASE}/business-settings`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(settingsData),
+            success: function() {
+                alert('Business settings saved successfully!');
+            },
+            error: function(xhr) {
+                alert('Error saving settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
+            }
+        });
     });
 }
-
-function saveBusinessSettings() {
-    const data = {
-        business_name: $('#businessName').val(),
-        gstin: $('#businessGSTIN').val(),
-        address: $('#businessAddress').val(),
-        city: $('#businessCity').val(),
-        state: $('#businessState').val(),
-        pincode: $('#businessPincode').val(),
-        phone: $('#businessPhone').val(),
-        email: $('#businessEmail').val(),
-        website: $('#businessWebsite').val(),
-        bank_name: $('#bankName').val(),
-        bank_branch: $('#bankBranch').val(),
-        bank_account_number: $('#bankAccountNumber').val(),
-        bank_ifsc: $('#bankIFSC').val(),
-        terms_conditions: $('#termsConditions').val()
-    };
-    
-    $.ajax({
-        url: `${API_BASE}/business-settings`,
-        method: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function() {
-            alert('Business settings saved successfully!');
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save settings'));
-        }
-    });
-}
-
-let salesChart = null;
 
 function loadDashboard() {
     $('#content-area').html(`
@@ -1843,7 +1897,7 @@ function loadModels() {
             // Escape HTML entities for safe rendering
             const safeDescription = (model.description || '-').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             const safeName = model.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-            
+
             tbody.append(`
                 <tr>
                     <td>
@@ -1884,11 +1938,11 @@ function editModelFromData(button) {
     const brandId = $(button).data('brand-id');
     const description = $(button).data('description');
     const imageData = $(button).data('image');
-    
+
     // Decode HTML entities back to normal text
     const decodedName = $('<div/>').html(name).text();
     const decodedDescription = $('<div/>').html(description).text();
-    
+
     editModel(id, decodedName, brandId, decodedDescription, imageData);
 }
 
@@ -3234,218 +3288,6 @@ function loadQuickOrder() {
     });
 }
 
-function loadBusinessSettings() {
-    $('#content-area').html(`
-        <div class="page-header">
-            <h2><i class="bi bi-building"></i> Business Settings</h2>
-            <p class="text-muted">Configure your business information for invoices and receipts</p>
-        </div>
-        
-        <div class="card">
-            <div class="card-body">
-                <form id="businessSettingsForm">
-                    <ul class="nav nav-tabs mb-4" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="business-info-tab" data-bs-toggle="tab" data-bs-target="#business-info" type="button">
-                                <i class="bi bi-building"></i> Business Information
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="tax-settings-tab" data-bs-toggle="tab" data-bs-target="#tax-settings" type="button">
-                                <i class="bi bi-receipt"></i> Tax & Invoice Settings
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="bank-details-tab" data-bs-toggle="tab" data-bs-target="#bank-details" type="button">
-                                <i class="bi bi-bank"></i> Bank Details
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button">
-                                <i class="bi bi-file-text"></i> Terms & Conditions
-                            </button>
-                        </li>
-                    </ul>
-                    
-                    <div class="tab-content">
-                        <div class="tab-pane fade show active" id="business-info" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Business Name *</label>
-                                    <input type="text" class="form-control" id="businessName" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">GSTIN</label>
-                                    <input type="text" class="form-control" id="businessGSTIN" maxlength="15">
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-12 mb-3">
-                                    <label class="form-label">Address</label>
-                                    <textarea class="form-control" id="businessAddress" rows="2"></textarea>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">City</label>
-                                    <input type="text" class="form-control" id="businessCity">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">State</label>
-                                    <input type="text" class="form-control" id="businessState">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Pincode</label>
-                                    <input type="text" class="form-control" id="businessPincode">
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Phone</label>
-                                    <input type="tel" class="form-control" id="businessPhone">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="businessEmail">
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Website</label>
-                                    <input type="text" class="form-control" id="businessWebsite">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-pane fade" id="tax-settings" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Currency</label>
-                                    <select class="form-select" id="businessCurrency">
-                                        <option value="INR">INR - Indian Rupee</option>
-                                        <option value="USD">USD - US Dollar</option>
-                                        <option value="EUR">EUR - Euro</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label class="form-label">Tax Label</label>
-                                    <input type="text" class="form-control" id="businessTaxLabel" value="GST">
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Invoice Prefix</label>
-                                    <input type="text" class="form-control" id="businessInvoicePrefix" value="INV">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Receipt Prefix</label>
-                                    <input type="text" class="form-control" id="businessReceiptPrefix" value="RCP">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-pane fade" id="bank-details" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Bank Name</label>
-                                    <input type="text" class="form-control" id="businessBankName">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Branch Name</label>
-                                    <input type="text" class="form-control" id="businessBankBranch">
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Account Number</label>
-                                    <input type="text" class="form-control" id="businessBankAccount">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">IFSC Code</label>
-                                    <input type="text" class="form-control" id="businessBankIFSC">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="tab-pane fade" id="terms" role="tabpanel">
-                            <div class="mb-3">
-                                <label class="form-label">Terms & Conditions</label>
-                                <textarea class="form-control" id="businessTerms" rows="6" placeholder="Enter your terms and conditions here..."></textarea>
-                                <small class="text-muted">These will appear on invoices and receipts</small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="d-grid gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg">
-                            <i class="bi bi-save"></i> Save Business Settings
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `);
-    
-    // Load existing settings
-    $.get(`${API_BASE}/business-settings`, function(settings) {
-        $('#businessName').val(settings.business_name || '');
-        $('#businessGSTIN').val(settings.gstin || '');
-        $('#businessAddress').val(settings.address || '');
-        $('#businessCity').val(settings.city || '');
-        $('#businessState').val(settings.state || '');
-        $('#businessPincode').val(settings.pincode || '');
-        $('#businessPhone').val(settings.phone || '');
-        $('#businessEmail').val(settings.email || '');
-        $('#businessWebsite').val(settings.website || '');
-        $('#businessCurrency').val(settings.currency || 'INR');
-        $('#businessTaxLabel').val(settings.tax_label || 'GST');
-        $('#businessInvoicePrefix').val(settings.invoice_prefix || 'INV');
-        $('#businessReceiptPrefix').val(settings.receipt_prefix || 'RCP');
-        $('#businessBankName').val(settings.bank_name || '');
-        $('#businessBankBranch').val(settings.bank_branch || '');
-        $('#businessBankAccount').val(settings.bank_account_number || '');
-        $('#businessBankIFSC').val(settings.bank_ifsc || '');
-        $('#businessTerms').val(settings.terms_conditions || '');
-    });
-    
-    // Handle form submission
-    $('#businessSettingsForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        const settingsData = {
-            business_name: $('#businessName').val(),
-            gstin: $('#businessGSTIN').val(),
-            address: $('#businessAddress').val(),
-            city: $('#businessCity').val(),
-            state: $('#businessState').val(),
-            pincode: $('#businessPincode').val(),
-            phone: $('#businessPhone').val(),
-            email: $('#businessEmail').val(),
-            website: $('#businessWebsite').val(),
-            currency: $('#businessCurrency').val(),
-            tax_label: $('#businessTaxLabel').val(),
-            invoice_prefix: $('#businessInvoicePrefix').val(),
-            receipt_prefix: $('#businessReceiptPrefix').val(),
-            bank_name: $('#businessBankName').val(),
-            bank_branch: $('#businessBankBranch').val(),
-            bank_account_number: $('#businessBankAccount').val(),
-            bank_ifsc: $('#businessBankIFSC').val(),
-            terms_conditions: $('#businessTerms').val()
-        };
-        
-        $.ajax({
-            url: `${API_BASE}/business-settings`,
-            method: 'PUT',
-            contentType: 'application/json',
-            data: JSON.stringify(settingsData),
-            success: function() {
-                alert('Business settings saved successfully!');
-            },
-            error: function(xhr) {
-                alert('Error saving settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
-            }
-        });
-    });
-}
-
 function loadProductsForQuickOrder() {
     $.get(`${API_BASE}/products`, function(products) {
         const select = $('#quickOrderProduct');
@@ -3713,6 +3555,13 @@ function loadPOS() {
                         </div>
                         <div class="mb-2">
                             <input type="email" class="form-control form-control-sm" id="customerEmail" placeholder="Email">
+                        </div>
+                        <!-- Added fields for customer address, GSTIN from Business Settings -->
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="customerAddress" placeholder="Address">
+                        </div>
+                        <div class="mb-2">
+                            <input type="text" class="form-control form-control-sm" id="customerGSTIN" placeholder="GSTIN (Optional)">
                         </div>
                     </div>
                 </div>
@@ -4198,6 +4047,8 @@ function completePOSSale() {
         customer_name: $('#customerName').val(),
         customer_phone: $('#customerPhone').val(),
         customer_email: $('#customerEmail').val(),
+        customer_address: $('#customerAddress').val(), // Added for GST invoice
+        customer_gstin: $('#customerGSTIN').val(),     // Added for GST invoice
         sale_date: saleDate,
         transaction_type: transactionType,
         discount_percentage: parseFloat($('#posDiscountPercent').val()) || 0,
@@ -4215,6 +4066,15 @@ function completePOSSale() {
             if (response.success) {
                 const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
                 alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
+
+                // Save and Print functionality
+                if (transactionType === 'sale' && confirm('Do you want to print the GST Invoice?')) {
+                    // Fetch the sale details again to print receipt with full info
+                    $.get(`${API_BASE}/pos/sales/${response.sale_number}`, function(saleDetails) {
+                        printSaleReceipt(saleDetails, saleData); // Pass saleData for customer details
+                    });
+                }
+
                 loadPOS(); // Reset for new transaction
             } else {
                 alert('Error: ' + (response.error || 'Failed to complete transaction'));
@@ -4224,6 +4084,406 @@ function completePOSSale() {
             alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete transaction'));
         }
     });
+}
+
+function printSaleReceipt(saleResponse, saleData) {
+    // Fetch business settings first
+    $.get(`${API_BASE}/business-settings`, function(businessSettings) {
+        generateGSTInvoice(saleResponse, saleData, businessSettings);
+    }).fail(function() {
+        // Fallback to simple receipt if business settings not available
+        alert('Could not load business settings. Please configure Business Settings first.');
+    });
+}
+
+function generateGSTInvoice(saleResponse, saleData, businessSettings) {
+    const printWindow = window.open('', '', 'width=900,height=700');
+    const date = new Date();
+
+    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const discountAmount = subtotal * (saleData.discount_percentage / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
+    const total = Math.abs(saleResponse.total_amount);
+
+    // Determine if IGST or CGST+SGST based on state matching
+    const customerState = saleData.customer_address ? extractStateFromAddress(saleData.customer_address) : ''; // Assuming address format allows state extraction
+    const businessState = businessSettings.state || '';
+    const isIGST = customerState && businessState && customerState !== businessState;
+
+    const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const igstRate = isIGST ? saleData.tax_percentage : 0;
+
+    const cgstAmount = taxableAmount * (cgstRate / 100);
+    const sgstAmount = taxableAmount * (sgstRate / 100);
+    const igstAmount = taxableAmount * (igstRate / 100);
+
+    // Convert total amount to words
+    const totalInWords = convertNumberToWords(total); // Assuming convertNumberToWords function exists
+
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tax Invoice - ${saleResponse.sale_number}</title>
+            <style>
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                    @page { margin: 8mm; }
+                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 10px;
+                    line-height: 1.3;
+                    color: #000;
+                    max-width: 210mm;
+                    margin: 0 auto;
+                    padding: 8px;
+                }
+                .invoice-header {
+                    border: 2px solid #000;
+                    padding: 12px;
+                    margin-bottom: 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .header-left {
+                    flex: 1;
+                }
+                .company-logo {
+                    width: 80px;
+                    height: 80px;
+                    object-fit: contain;
+                }
+                .company-name {
+                    font-size: 22px;
+                    font-weight: bold;
+                    color: #1a5490;
+                    margin-bottom: 3px;
+                }
+                .company-tagline {
+                    font-size: 9px;
+                    color: #666;
+                    font-style: italic;
+                    margin-bottom: 5px;
+                }
+                .company-details {
+                    font-size: 9px;
+                    line-height: 1.4;
+                }
+                .brand-logos {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 5px;
+                    margin-top: 5px;
+                }
+                .brand-logo {
+                    width: 35px;
+                    height: 20px;
+                    object-fit: contain;
+                    border: 1px solid #ddd;
+                    padding: 2px;
+                }
+                .gstin-row {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 1px solid #000;
+                    padding: 5px 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .invoice-title {
+                    text-align: center;
+                    font-size: 16px;
+                    font-weight: bold;
+                    background: #e8f4f8;
+                    padding: 6px;
+                    flex: 1;
+                    margin: 0 10px;
+                }
+                .original-label {
+                    font-size: 9px;
+                    font-weight: normal;
+                }
+                .customer-section {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 2px solid #000;
+                }
+                .customer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .customer-table td {
+                    padding: 4px 8px;
+                    border: 1px solid #000;
+                    font-size: 9px;
+                }
+                .customer-label {
+                    font-weight: bold;
+                    background: #f5f5f5;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    border: 2px solid #000;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 4px;
+                    font-size: 9px;
+                }
+                th {
+                    background: #f0f0f0;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 5px 4px;
+                }
+                thead tr:first-child th {
+                    background: #d0e8f2;
+                }
+                .totals-section {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                }
+                .bank-details {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                .amount-summary {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    min-width: 300px;
+                }
+                .amount-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 3px 0;
+                }
+                .amount-row.total {
+                    font-weight: bold;
+                    border-top: 2px solid #000;
+                    margin-top: 5px;
+                    padding-top: 5px;
+                }
+                .amount-words {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-weight: bold;
+                }
+                .terms {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-size: 9px;
+                }
+                .signature-section {
+                    text-align: right;
+                    margin-top: 30px;
+                    padding-right: 20px;
+                }
+                .signature-line {
+                    margin-top: 50px;
+                    border-top: 1px solid #000;
+                    display: inline-block;
+                    padding-top: 5px;
+                    min-width: 200px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <div class="header-left">
+                        ${businessSettings.logo_url ? `<img src="${businessSettings.logo_url}" alt="Logo" class="company-logo">` : ''}
+                        <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
+                        <div class="company-tagline">${businessSettings.address || ''}</div>
+                        <div class="company-details">
+                            ${businessSettings.city || ''}${businessSettings.city && businessSettings.state ? ', ' : ''}${businessSettings.state || ''} - ${businessSettings.pincode || ''}<br>
+                            Ph: ${businessSettings.phone || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="brand-logos">
+                        <!-- Placeholder for brand logos - can be enhanced later -->
+                    </div>
+                </div>
+
+                <div class="gstin-row">
+                    <div><strong>GSTIN:</strong> ${businessSettings.gstin || 'N/A'}</div>
+                    <div class="invoice-title">
+                        TAX INVOICE
+                        <div class="original-label">ORIGINAL FOR RECIPIENT</div>
+                    </div>
+                    <div><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')}</div>
+                </div>
+
+                <div class="customer-section">
+                    <table class="customer-table">
+                        <tr>
+                            <td class="customer-label" style="width: 15%;">Invoice No.</td>
+                            <td style="width: 35%;">${saleResponse.sale_number}</td>
+                            <td class="customer-label" style="width: 15%;">Invoice Date</td>
+                            <td style="width: 35%;">${date.toLocaleDateString('en-IN')}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Name</td>
+                            <td>${saleData.customer_name || 'Walk-in Customer'}</td>
+                            <td class="customer-label">PHONE</td>
+                            <td>${saleData.customer_phone || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Address</td>
+                            <td>${saleData.customer_address || '-'}</td>
+                            <td class="customer-label">GSTIN</td>
+                            <td>${saleData.customer_gstin || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Place of Supply</td>
+                            <td colspan="3">${businessSettings.state || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 30px; vertical-align: middle;">Sr.<br>No.</th>
+                            <th rowspan="2" style="vertical-align: middle;">Name of Product / Service</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">HSN/<br>SAC</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">Qty</th>
+                            <th rowspan="2" style="width: 80px; vertical-align: middle;">Rate</th>
+                            <th rowspan="2" style="width: 90px; vertical-align: middle;">Taxable<br>Value</th>
+                            ${isIGST ? `
+                                <th colspan="2" style="background: #e8f4f8;">IGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            ` : `
+                                <th rowspan="2" style="width: 40px; vertical-align: middle;">IGST</th>
+                                <th colspan="2" style="background: #e8f4f8;">CGST</th>
+                                <th colspan="2" style="background: #ffe8e8;">SGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            `}
+                        </tr>
+                        <tr>
+                            ${isIGST ? `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                            ` : `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                                <th style="width: 40px; background: #ffe8e8;">%</th>
+                                <th style="width: 70px; background: #ffe8e8;">Amount</th>
+                            `}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                        <tr>
+                            <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="display: flex; border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000;">
+                    <div style="flex: 1; border-right: 1px solid #000; padding: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Total in words</div>
+                        <div style="padding: 5px 0; font-weight: bold; text-transform: uppercase;">${totalInWords}</div>
+
+                        <div style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
+                        <table style="width: 100%; font-size: 9px;">
+                            <tr><td style="padding: 2px 0;"><strong>Name</strong></td><td>${businessSettings.bank_name || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Branch</strong></td><td>${businessSettings.bank_branch || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Acc. Number</strong></td><td>${businessSettings.bank_account_number || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>IFSC</strong></td><td>${businessSettings.bank_ifsc || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>UPI ID</strong></td><td>${businessSettings.email ? businessSettings.email.split('@')[0] + '@icici' : 'N/A'}</td></tr>
+                        </table>
+
+                        <div style="text-align: center; margin-top: 10px; padding: 10px; border: 1px solid #000;">
+                            <div style="width: 120px; height: 120px; margin: 0 auto; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 9px;">
+                                QR Code<br>Placeholder
+                            </div>
+                            <div style="margin-top: 5px; font-weight: bold; font-size: 9px;">Pay using UPI</div>
+                        </div>
+                    </div>
+
+                    <div style="width: 40%; padding: 8px;">
+                        <table style="width: 100%; font-size: 10px;">
+                            <tr><td style="padding: 3px 0;"><strong>Taxable Amount</strong></td><td style="text-align: right;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ${isIGST ? `
+                                <tr><td style="padding: 3px 0;"><strong>Add: IGST</strong></td><td style="text-align: right;">${igstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ` : `
+                                <tr><td style="padding: 3px 0;"><strong>Add: CGST</strong></td><td style="text-align: right;">${cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                                <tr><td style="padding: 3px 0;"><strong>Add: SGST</strong></td><td style="text-align: right;">${sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            `}
+                            <tr><td style="padding: 3px 0;"><strong>Total Tax</strong></td><td style="text-align: right;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            <tr style="border-top: 2px solid #000;"><td style="padding: 8px 0; font-size: 12px;"><strong>Total Amount After Tax</strong></td><td style="text-align: right; font-size: 14px; font-weight: bold;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                        </table>
+
+                        <div style="margin-top: 15px; padding: 5px; border: 1px solid #000; text-align: center; font-size: 8px;">
+                            Certified that the particulars given above are true and correct.<br>
+                            <strong>E & O.E</strong>
+                        </div>
+
+                        <div style="margin-top: 30px; text-align: right;">
+                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 150px; font-size: 9px;">
+                                <strong>Authorised Signatory</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px;">Terms and Conditions</div>
+                    <div style="font-size: 8px; line-height: 1.5;">
+                        ${businessSettings.terms_conditions || 'Subject to Maharashtra Jurisdiction.<br>Our Responsibility Ceases as soon as goods leaves our Premises.<br>Goods once sold will not taken back.<br>Delivery Ex-Premises.'}
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+    // Attempt to print after a short delay to ensure content is loaded
+    setTimeout(() => {
+        printWindow.print();
+        // Optionally close the window after printing or provide a way to close it
+        // printWindow.close();
+    }, 500);
+}
+
+// Helper function to extract state from address string (basic implementation)
+function extractStateFromAddress(address) {
+    if (!address) return '';
+    const parts = address.split(',');
+    if (parts.length > 1) {
+        return parts[parts.length - 2].trim(); // Assuming state is the second to last part
+    }
+    return ''; // Return empty if state cannot be determined
+}
+
+// Dummy function for number to words conversion (implement as needed)
+function convertNumberToWords(num) {
+    // This is a placeholder. Implement a proper number-to-words conversion function.
+    // Example: 1234.56 -> "One Thousand Two Hundred Thirty Four Rupees and Fifty Six Paise Only"
+    return num.toLocaleString('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        useGrouping: true,
+        currencyDisplay: 'code'
+    }).replace('INR', '').trim() + ' Only'; // Basic formatting
 }
 
 function viewStockHistory(productId) {
@@ -4348,9 +4608,9 @@ function viewStockHistory(productId) {
                     <tr class="table-light fw-bold">
                         <td class="text-end">SUMMARY:</td>
                         <td class="text-center text-success">+${totalAdded}</td>
-                        <td class="text-center text-danger">-${totalRemoved}</td>
+                        <td class="text-center text-danger">-${totalremoved}</td>
                         <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
-                        <td class="text-center text-primary" style="font-size: 1.2em;">${currentBalance}</td>
+                        <td class="text-center text-primary" style="font-size: 1.1em;">${currentBalance}</td>
                     </tr>
             `;
         }
@@ -5636,319 +5896,658 @@ function saveCustomer() {
 }
 
 // Add the "Save and Print" functionality to the POS system
-function printReceipt(saleDetails) {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write('<html><head><title>Receipt</title>');
-    printWindow.document.write('<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">');
-    printWindow.document.write('<style>body { padding: 20px; font-family: Arial, sans-serif; } .receipt-header, .receipt-item, .receipt-footer { margin-bottom: 15px; } .receipt-header h3, .receipt-footer h4 { text-align: center; } .receipt-item td { padding: 8px; }</style>');
-    printWindow.document.write('</head><body>');
+function printReceipt(saleResponse, saleData) {
+    const printWindow = window.open('', '', 'width=900,height=700');
+    const date = new Date();
 
-    let receiptHtml = `<div class="receipt-header">
-                         <h3 class="text-center">${$('#companyName').text() || 'Your Company Name'}</h3>
-                         <p class="text-center small">${$('#companyAddress').text() || ''}</p>
-                         <p class="text-center small">Phone: ${$('#companyPhone').text() || ''}</p>
-                         <hr>
-                         <p><strong>Receipt #:</strong> ${saleDetails.sale_number}</p>
-                         <p><strong>Date:</strong> ${new Date(saleDetails.sale_date).toLocaleString()}</p>
-                         <p><strong>Customer:</strong> ${saleDetails.customer_name || 'Walk-in'}</p>
-                         <p><strong>Transaction Type:</strong> ${saleDetails.transaction_type.toUpperCase()}</p>
-                       </div>`;
+    // Use business settings to dynamically populate invoice details
+    $.get(`${API_BASE}/business-settings`, function(businessSettings) {
+        // Generate GST Invoice HTML
+        const gstInvoiceHtml = generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date);
+        printWindow.document.write(gstInvoiceHtml);
+        printWindow.document.close();
 
-    receiptHtml += `<table class="receipt-item table table-sm table-bordered">
-                      <thead>
-                        <tr>
-                          <th>Item</th>
-                          <th>Qty</th>
-                          <th>Price</th>
-                          <th>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>`;
+        // Attempt to print after a short delay
+        setTimeout(() => {
+            printWindow.print();
+            // Optionally close the window after printing
+            // printWindow.close();
+        }, 500);
 
-    saleDetails.items.forEach(item => {
-        receiptHtml += `<tr>
-                          <td>${item.product_name}<br><small class="text-muted">${item.sku || ''}</small></td>
-                          <td>${item.quantity}</td>
-                          <td>$${item.unit_price.toFixed(2)}</td>
-                          <td>$${(item.quantity * item.unit_price).toFixed(2)}</td>
-                        </tr>`;
-    });
-
-    receiptHtml += `</tbody></table>`;
-
-    receiptHtml += `<div class="receipt-footer">
-                      <div class="row justify-content-end">
-                        <div class="col-sm-6">
-                          <table class="table table-sm">
-                            <tr>
-                              <td class="text-end">Subtotal:</td>
-                              <td class="text-end">$${parseFloat(saleDetails.subtotal).toFixed(2)}</td>
-                            </tr>
-                            ${saleDetails.discount_amount > 0 ? `
-                            <tr>
-                              <td class="text-end">Discount:</td>
-                              <td class="text-end">-$${parseFloat(saleDetails.discount_amount).toFixed(2)}</td>
-                            </tr>
-                            ` : ''}
-                            ${saleDetails.tax_amount > 0 ? `
-                            <tr>
-                              <td class="text-end">Tax:</td>
-                              <td class="text-end">$${parseFloat(saleDetails.tax_amount).toFixed(2)}</td>
-                            </tr>
-                            ` : ''}
-                            <tr class="fw-bold">
-                              <td class="text-end">Total:</td>
-                              <td class="text-end">$${parseFloat(saleDetails.total_amount).toFixed(2)}</td>
-                            </tr>
-                          </table>
-                          <p class="text-center">Thank you for your business!</p>
-                        </div>
-                      </div>
-                    </div>`;
-
-    printWindow.document.write(receiptHtml);
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
-
-    // Attempt to print after a short delay to ensure content is loaded
-    setTimeout(() => {
-        printWindow.print();
-        // Optionally close the window after printing or provide a way to close it
-        // printWindow.close();
-    }, 500);
-}
-
-
-function completePOSSale() {
-    if (posCart.length === 0) {
-        alert('Please add items to cart');
-        return;
-    }
-
-    // Check if all items with IMEI tracking have the required number of IMEIs selected
-    let imeiSelectionIncomplete = false;
-    let incompleteItemName = '';
-    posCart.forEach(item => {
-        // Check only if the item requires IMEIs (indicated by available IMEIs or already selected IMEIs)
-        // And if the number of selected IMEIs is less than the required quantity
-        if ((item.imei_available && item.imei_available.length > 0 || (item.imei_ids && item.imei_ids.length > 0)) &&
-            item.imei_ids.length < item.quantity) {
-            imeiSelectionIncomplete = true;
-            incompleteItemName = item.product_name; // Store name for alert message
-        }
-    });
-
-    if (imeiSelectionIncomplete) {
-        alert(`IMEI selection is incomplete for "${incompleteItemName}". Please ensure all required IMEI numbers are selected for this item.`);
-        return; // Prevent proceeding if IMEI selection is incomplete
-    }
-
-    const transactionType = $('input[name="transactionType"]:checked').val();
-    const transactionLabel = transactionType === 'return' ? 'Return' :
-                            transactionType === 'exchange' ? 'Exchange' : 'Sale';
-
-    // Confirm transaction
-    if (!confirm(`Complete this ${transactionLabel}?`)) {
-        return;
-    }
-
-    const now = new Date();
-    const saleDate = now.toISOString().slice(0, 19).replace('T', ' ');
-
-    const saleData = {
-        items: posCart,
-        customer_name: $('#customerName').val(),
-        customer_phone: $('#customerPhone').val(),
-        customer_email: $('#customerEmail').val(),
-        sale_date: saleDate,
-        transaction_type: transactionType,
-        discount_percentage: parseFloat($('#posDiscountPercent').val()) || 0,
-        tax_percentage: parseFloat($('#posTaxPercent').val()) || 0,
-        payment_method: $('#posPaymentMethod').val(),
-        payment_reference: $('#posPaymentReference').val()
-    };
-
-    $.ajax({
-        url: `${API_BASE}/pos/sales`,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(saleData),
-        success: function(response) {
-            if (response.success) {
-                const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
-                alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
-
-                // Save and Print functionality
-                if (transactionType === 'sale' && confirm('Do you want to print the receipt?')) {
-                    // Fetch the sale details again to print receipt with full info
-                    $.get(`${API_BASE}/pos/sales/${response.sale_number}`, function(saleDetails) {
-                        printReceipt(saleDetails);
-                    });
-                }
-
-                loadPOS(); // Reset for new transaction
-            } else {
-                alert('Error: ' + (response.error || 'Failed to complete transaction'));
-            }
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete transaction'));
-        }
-    });
-}
-
-// Dummy function for Business Settings - needs implementation
-function loadBusinessSettings() {
-    $('#content-area').html(`
-        <div class="page-header">
-            <h2><i class="bi bi-gear"></i> Business Settings</h2>
-            <p class="text-muted">Manage your business details for invoices, reports, and more.</p>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-info-circle"></i> Business Information</h5>
-            </div>
-            <div class="card-body">
-                <form id="businessSettingsForm">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="businessName" class="form-label fw-bold">Business Name</label>
-                            <input type="text" class="form-control" id="businessName" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="businessGST" class="form-label fw-bold">GST Number</label>
-                            <input type="text" class="form-control" id="businessGST">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="businessAddress" class="form-label fw-bold">Business Address</label>
-                        <textarea class="form-control" id="businessAddress" rows="3"></textarea>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="businessContact" class="form-label fw-bold">Contact Information (Phone)</label>
-                            <input type="text" class="form-control" id="businessContact">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="businessEmail" class="form-label fw-bold">Contact Email</label>
-                            <input type="email" class="form-control" id="businessEmail">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="businessLogo" class="form-label fw-bold">Business Logo</label>
-                        <input type="file" class="form-control" id="businessLogo" accept="image/*">
-                        <div id="currentLogoPreview" class="mt-2"></div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="invoiceFooter" class="form-label fw-bold">Invoice Footer Text</label>
-                            <textarea class="form-control" id="invoiceFooter" rows="3" placeholder="e.g., Thank you for your business!"></textarea>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="reportHeader" class="form-label fw-bold">Report Header</label>
-                            <textarea class="form-control" id="reportHeader" rows="3" placeholder="Optional header for reports"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-save"></i> Save Settings
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    `);
-
-    loadBusinessSettingsData();
-
-    $('#businessSettingsForm').on('submit', saveBusinessSettings);
-}
-
-function loadBusinessSettingsData() {
-    $.get(`${API_BASE}/business-settings`, function(settings) {
-        $('#businessName').val(settings.name);
-        $('#businessGST').val(settings.gst_number);
-        $('#businessAddress').val(settings.address);
-        $('#businessContact').val(settings.contact_phone);
-        $('#businessEmail').val(settings.contact_email);
-        $('#invoiceFooter').val(settings.invoice_footer);
-        $('#reportHeader').val(settings.report_header);
-
-        if (settings.logo_url) {
-            $('#currentLogoPreview').html(`
-                Current Logo: <br>
-                <img src="${settings.logo_url}" style="max-height: 100px; max-width: 200px; margin-top: 5px;">
-                <button class="btn btn-sm btn-danger ms-2" onclick="removeBusinessLogo()">Remove</button>
-            `);
-        } else {
-            $('#currentLogoPreview').html('');
-        }
     }).fail(function() {
-        alert('Error loading business settings. Please try again.');
+        alert('Could not load business settings. Please configure Business Settings first.');
+        printWindow.close(); // Close the empty window
     });
 }
 
-function saveBusinessSettings(event) {
-    event.preventDefault();
+function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) {
+    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    const discountAmount = subtotal * (saleData.discount_percentage / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
+    const total = Math.abs(saleResponse.total_amount);
 
-    const logoFile = $('#businessLogo')[0].files[0];
-    const formData = new FormData();
+    // Determine if IGST or CGST+SGST based on state matching
+    const customerState = saleData.customer_address ? extractStateFromAddress(saleData.customer_address) : '';
+    const businessState = businessSettings.state || '';
+    const isIGST = customerState && businessState && customerState !== businessState;
 
-    formData.append('name', $('#businessName').val());
-    formData.append('gst_number', $('#businessGST').val());
-    formData.append('address', $('#businessAddress').val());
-    formData.append('contact_phone', $('#businessContact').val());
-    formData.append('contact_email', $('#businessEmail').val());
-    formData.append('invoice_footer', $('#invoiceFooter').val());
-    formData.append('report_header', $('#reportHeader').val());
+    const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+    const igstRate = isIGST ? saleData.tax_percentage : 0;
 
-    if (logoFile) {
-        formData.append('logo', logoFile);
+    const cgstAmount = taxableAmount * (cgstRate / 100);
+    const sgstAmount = taxableAmount * (sgstRate / 100);
+    const igstAmount = taxableAmount * (igstRate / 100);
+
+    // Convert total amount to words
+    const totalInWords = convertNumberToWords(total);
+
+    // Build items table HTML
+    let itemsHtml = '';
+    let srNo = 1;
+    cart.forEach(item => {
+        const itemSubtotal = item.quantity * item.unit_price;
+        const itemCgst = itemSubtotal * (cgstRate / 100);
+        const itemSgst = itemSubtotal * (sgstRate / 100);
+        const itemIgst = itemSubtotal * (igstRate / 100);
+        const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
+
+        itemsHtml += `
+            <tr>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
+                <td style="vertical-align: top; padding: 5px;">
+                    <strong>${item.product_name}</strong>
+                    ${item.imei_numbers.length > 0 ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
+                </td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
+                <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${item.unit_price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSubtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                ${isIGST ? `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                ` : `
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
+                    <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
+                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                `}
+                <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
+            </tr>
+        `;
+    });
+
+    return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Tax Invoice - ${saleResponse.sale_number}</title>
+            <style>
+                @media print {
+                    body { margin: 0; }
+                    .no-print { display: none; }
+                    @page { margin: 8mm; }
+                }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body {
+                    font-family: Arial, sans-serif;
+                    font-size: 10px;
+                    line-height: 1.3;
+                    color: #000;
+                    max-width: 210mm;
+                    margin: 0 auto;
+                    padding: 8px;
+                }
+                .invoice-header {
+                    border: 2px solid #000;
+                    padding: 12px;
+                    margin-bottom: 0;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .header-left {
+                    flex: 1;
+                }
+                .company-logo {
+                    width: 80px;
+                    height: 80px;
+                    object-fit: contain;
+                }
+                .company-name {
+                    font-size: 22px;
+                    font-weight: bold;
+                    color: #1a5490;
+                    margin-bottom: 3px;
+                }
+                .company-tagline {
+                    font-size: 9px;
+                    color: #666;
+                    font-style: italic;
+                    margin-bottom: 5px;
+                }
+                .company-details {
+                    font-size: 9px;
+                    line-height: 1.4;
+                }
+                .brand-logos {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 5px;
+                    margin-top: 5px;
+                }
+                .brand-logo {
+                    width: 35px;
+                    height: 20px;
+                    object-fit: contain;
+                    border: 1px solid #ddd;
+                    padding: 2px;
+                }
+                .gstin-row {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 1px solid #000;
+                    padding: 5px 12px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .invoice-title {
+                    text-align: center;
+                    font-size: 16px;
+                    font-weight: bold;
+                    background: #e8f4f8;
+                    padding: 6px;
+                    flex: 1;
+                    margin: 0 10px;
+                }
+                .original-label {
+                    font-size: 9px;
+                    font-weight: normal;
+                }
+                .customer-section {
+                    border-left: 2px solid #000;
+                    border-right: 2px solid #000;
+                    border-bottom: 2px solid #000;
+                }
+                .customer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .customer-table td {
+                    padding: 4px 8px;
+                    border: 1px solid #000;
+                    font-size: 9px;
+                }
+                .customer-label {
+                    font-weight: bold;
+                    background: #f5f5f5;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    border: 2px solid #000;
+                }
+                th, td {
+                    border: 1px solid #000;
+                    padding: 4px;
+                    font-size: 9px;
+                }
+                th {
+                    background: #f0f0f0;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 5px 4px;
+                }
+                thead tr:first-child th {
+                    background: #d0e8f2;
+                }
+                .totals-section {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 10px;
+                }
+                .bank-details {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    flex: 1;
+                    margin-right: 10px;
+                }
+                .amount-summary {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    min-width: 300px;
+                }
+                .amount-row {
+                    display: flex;
+                    justify-content: space-between;
+                    padding: 3px 0;
+                }
+                .amount-row.total {
+                    font-weight: bold;
+                    border-top: 2px solid #000;
+                    margin-top: 5px;
+                    padding-top: 5px;
+                }
+                .amount-words {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-weight: bold;
+                }
+                .terms {
+                    border: 1px solid #000;
+                    padding: 8px;
+                    margin-bottom: 10px;
+                    font-size: 9px;
+                }
+                .signature-section {
+                    text-align: right;
+                    margin-top: 30px;
+                    padding-right: 20px;
+                }
+                .signature-line {
+                    margin-top: 50px;
+                    border-top: 1px solid #000;
+                    display: inline-block;
+                    padding-top: 5px;
+                    min-width: 200px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <div class="header-left">
+                        ${businessSettings.logo_url ? `<img src="${businessSettings.logo_url}" alt="Logo" class="company-logo">` : ''}
+                        <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
+                        <div class="company-tagline">${businessSettings.address || ''}</div>
+                        <div class="company-details">
+                            ${businessSettings.city || ''}${businessSettings.city && businessSettings.state ? ', ' : ''}${businessSettings.state || ''} - ${businessSettings.pincode || ''}<br>
+                            Ph: ${businessSettings.phone || 'N/A'}
+                        </div>
+                    </div>
+                    <div class="brand-logos">
+                        <!-- Placeholder for brand logos - can be enhanced later -->
+                    </div>
+                </div>
+
+                <div class="gstin-row">
+                    <div><strong>GSTIN:</strong> ${businessSettings.gstin || 'N/A'}</div>
+                    <div class="invoice-title">
+                        TAX INVOICE
+                        <div class="original-label">ORIGINAL FOR RECIPIENT</div>
+                    </div>
+                    <div><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')}</div>
+                </div>
+
+                <div class="customer-section">
+                    <table class="customer-table">
+                        <tr>
+                            <td class="customer-label" style="width: 15%;">Invoice No.</td>
+                            <td style="width: 35%;">${saleResponse.sale_number}</td>
+                            <td class="customer-label" style="width: 15%;">Invoice Date</td>
+                            <td style="width: 35%;">${date.toLocaleDateString('en-IN')}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Name</td>
+                            <td>${saleData.customer_name || 'Walk-in Customer'}</td>
+                            <td class="customer-label">PHONE</td>
+                            <td>${saleData.customer_phone || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Address</td>
+                            <td>${saleData.customer_address || '-'}</td>
+                            <td class="customer-label">GSTIN</td>
+                            <td>${saleData.customer_gstin || '-'}</td>
+                        </tr>
+                        <tr>
+                            <td class="customer-label">Place of Supply</td>
+                            <td colspan="3">${businessSettings.state || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th rowspan="2" style="width: 30px; vertical-align: middle;">Sr.<br>No.</th>
+                            <th rowspan="2" style="vertical-align: middle;">Name of Product / Service</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">HSN/<br>SAC</th>
+                            <th rowspan="2" style="width: 50px; vertical-align: middle;">Qty</th>
+                            <th rowspan="2" style="width: 80px; vertical-align: middle;">Rate</th>
+                            <th rowspan="2" style="width: 90px; vertical-align: middle;">Taxable<br>Value</th>
+                            ${isIGST ? `
+                                <th colspan="2" style="background: #e8f4f8;">IGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            ` : `
+                                <th rowspan="2" style="width: 40px; vertical-align: middle;">IGST</th>
+                                <th colspan="2" style="background: #e8f4f8;">CGST</th>
+                                <th colspan="2" style="background: #ffe8e8;">SGST</th>
+                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
+                            `}
+                        </tr>
+                        <tr>
+                            ${isIGST ? `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                            ` : `
+                                <th style="width: 40px; background: #e8f4f8;">%</th>
+                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
+                                <th style="width: 40px; background: #ffe8e8;">%</th>
+                                <th style="width: 70px; background: #ffe8e8;">Amount</th>
+                            `}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                        <tr>
+                            <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                            <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="display: flex; border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000;">
+                    <div style="flex: 1; border-right: 1px solid #000; padding: 8px;">
+                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Total in words</div>
+                        <div style="padding: 5px 0; font-weight: bold; text-transform: uppercase;">${totalInWords}</div>
+
+                        <div style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
+                        <table style="width: 100%; font-size: 9px;">
+                            <tr><td style="padding: 2px 0;"><strong>Name</strong></td><td>${businessSettings.bank_name || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Branch</strong></td><td>${businessSettings.bank_branch || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>Acc. Number</strong></td><td>${businessSettings.bank_account_number || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>IFSC</strong></td><td>${businessSettings.bank_ifsc || 'N/A'}</td></tr>
+                            <tr><td style="padding: 2px 0;"><strong>UPI ID</strong></td><td>${businessSettings.email ? businessSettings.email.split('@')[0] + '@icici' : 'N/A'}</td></tr>
+                        </table>
+
+                        <div style="text-align: center; margin-top: 10px; padding: 10px; border: 1px solid #000;">
+                            <div style="width: 120px; height: 120px; margin: 0 auto; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 9px;">
+                                QR Code<br>Placeholder
+                            </div>
+                            <div style="margin-top: 5px; font-weight: bold; font-size: 9px;">Pay using UPI</div>
+                        </div>
+                    </div>
+
+                    <div style="width: 40%; padding: 8px;">
+                        <table style="width: 100%; font-size: 10px;">
+                            <tr><td style="padding: 3px 0;"><strong>Taxable Amount</strong></td><td style="text-align: right;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ${isIGST ? `
+                                <tr><td style="padding: 3px 0;"><strong>Add: IGST</strong></td><td style="text-align: right;">${igstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            ` : `
+                                <tr><td style="padding: 3px 0;"><strong>Add: CGST</strong></td><td style="text-align: right;">${cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                                <tr><td style="padding: 3px 0;"><strong>Add: SGST</strong></td><td style="text-align: right;">${sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            `}
+                            <tr><td style="padding: 3px 0;"><strong>Total Tax</strong></td><td style="text-align: right;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                            <tr style="border-top: 2px solid #000;"><td style="padding: 8px 0; font-size: 12px;"><strong>Total Amount After Tax</strong></td><td style="text-align: right; font-size: 14px; font-weight: bold;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
+                        </table>
+
+                        <div style="margin-top: 15px; padding: 5px; border: 1px solid #000; text-align: center; font-size: 8px;">
+                            Certified that the particulars given above are true and correct.<br>
+                            <strong>E & O.E</strong>
+                        </div>
+
+                        <div style="margin-top: 30px; text-align: right;">
+                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 150px; font-size: 9px;">
+                                <strong>Authorised Signatory</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px;">
+                    <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px;">Terms and Conditions</div>
+                    <div style="font-size: 8px; line-height: 1.5;">
+                        ${businessSettings.terms_conditions || 'Subject to Maharashtra Jurisdiction.<br>Our Responsibility Ceases as soon as goods leaves our Premises.<br>Goods once sold will not taken back.<br>Delivery Ex-Premises.'}
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `;
+}
+
+// Helper function to extract state from address string (basic implementation)
+function extractStateFromAddress(address) {
+    if (!address) return '';
+    const parts = address.split(',');
+    if (parts.length > 1) {
+        // Try to find a state-like pattern, e.g., "Maharashtra", "MH", "Delhi", "DL"
+        // This is a very basic approach and might need refinement based on address variations.
+        const potentialState = parts[parts.length - 2].trim();
+        // Simple check for common state abbreviations or names.
+        // A more robust solution would involve a lookup list or more complex regex.
+        if (potentialState.length <= 2 || potentialState.length > 2 && potentialState.length < 20) {
+            return potentialState;
+        }
+    }
+    return ''; // Return empty if state cannot be determined
+}
+
+// Dummy function for number to words conversion (implement as needed)
+function convertNumberToWords(num) {
+    // This is a placeholder. Implement a proper number-to-words conversion function.
+    // Example: 1234.56 -> "One Thousand Two Hundred Thirty Four Rupees and Fifty Six Paise Only"
+
+    // Basic implementation for demonstration:
+    const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+    const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    const thousands = ["", "Thousand", "Million", "Billion"]; // Extend if needed
+
+    if (num === 0) return "Zero Rupees";
+
+    let numStr = num.toString();
+    let decimalPart = '';
+    if (numStr.includes('.')) {
+        const parts = numStr.split('.');
+        numStr = parts[0];
+        const paise = parseInt(parts[1] || '00');
+        if (paise > 0) {
+            decimalPart = " and " + units[Math.floor(paise / 10)] + (paise % 10 ? "-" + units[paise % 10] : "") + " Paise";
+        }
     }
 
-    $.ajax({
-        url: `${API_BASE}/business-settings`,
-        method: 'POST', // Use POST for create/update
-        data: formData,
-        processData: false,
-        contentType: false,
-        success: function() {
-            alert('Business settings saved successfully!');
-            loadBusinessSettingsData(); // Reload to show updated logo if changed
-        },
-        error: function(xhr) {
-            alert('Error saving business settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
+    let word = '';
+    let i = 0; // Index for thousands array
+
+    while (numStr.length > 0) {
+        let chunk = parseInt(numStr.substring(numStr.length - 3));
+        numStr = numStr.substring(0, numStr.length - 3);
+
+        if (chunk > 0) {
+            let chunkWord = '';
+            // Handle hundreds
+            if (Math.floor(chunk / 100) > 0) {
+                chunkWord += units[Math.floor(chunk / 100)] + " Hundred";
+                chunk %= 100;
+            }
+            // Handle tens and units
+            if (chunk > 0) {
+                if (chunkWord.length > 0) chunkWord += " ";
+                if (chunk < 10) {
+                    chunkWord += units[chunk];
+                } else if (chunk < 20) {
+                    chunkWord += teens[chunk - 10];
+                } else {
+                    chunkWord += tens[Math.floor(chunk / 10)];
+                    if (chunk % 10 > 0) {
+                        chunkWord += "-" + units[chunk % 10];
+                    }
+                }
+            }
+            word = chunkWord + (thousands[i] ? " " + thousands[i] : "") + " " + word;
         }
-    });
+        i++;
+    }
+
+    word = word.trim();
+    if (!word) word = "Zero"; // Fallback if something went wrong
+
+    return word + " Rupees" + decimalPart;
 }
 
-function removeBusinessLogo() {
-    if (!confirm('Are you sure you want to remove the current business logo?')) return;
+function viewStockHistory(productId) {
+    try {
+        // Show loading state
+        $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
 
-    $.ajax({
-        url: `${API_BASE}/business-settings/logo`,
-        method: 'DELETE',
-        success: function() {
-            alert('Logo removed successfully.');
-            $('#currentLogoPreview').html('');
-        },
-        error: function(xhr) {
-            alert('Error removing logo: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        const modal = new bootstrap.Modal($('#stockHistoryModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error showing stock history modal:', error);
+        alert('Error opening stock history. Please refresh the page and try again.');
+        return;
+    }
+
+    // Load the stock history data
+    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
+        const productName = escapeHtml(data.product_name || 'Unknown Product');
+
+        let content = `
+            <div class="mb-3">
+                <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
+                <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-striped table-hover table-bordered">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="min-width: 150px;"><i class="bi bi-calendar-event"></i> Date & Time</th>
+                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-plus-circle text-success"></i> Stock Added</th>
+                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-dash-circle text-danger"></i> Stock Removed</th>
+                            <th style="min-width: 150px;"><i class="bi bi-receipt"></i> Reference Number</th>
+                            <th style="min-width: 120px;"><i class="bi bi-person"></i> Performed By</th>
+                            <th style="min-width: 120px;" class="text-center"><i class="bi bi-bar-chart"></i> Running Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        if (!data.history || data.history.length === 0) {
+            content += '<tr><td colspan="6" class="text-center text-muted"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
+        } else {
+            let totalAdded = 0;
+            let totalRemoved = 0;
+
+            data.history.forEach((item, index) => {
+                try {
+                    const dateStr = item.date_time || '';
+                    const date =new Date(dateStr);
+                    const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric'
+                    }) : 'Invalid Date';
+                    const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }) : '';
+
+                    const stockAddedVal = parseInt(item.stock_added) || 0;
+                    const stockRemovedVal = parseInt(item.stock_removed) || 0;
+
+                    const stockAdded = stockAddedVal > 0
+                        ? `<span class="badge bg-success">+${stockAddedVal}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const stockRemoved = stockRemovedVal > 0
+                        ? `<span class="badge bg-danger">-${stockRemovedVal}</span>`
+                        : '<span class="text-muted">-</span>';
+
+                    const reference = escapeHtml(item.reference || 'Manual Entry');
+                    const performedBy = escapeHtml(item.received_by || 'System');
+
+                    const runningBalance = parseInt(item.running_balance) || 0;
+
+                    // Determine balance color based on stock level
+                    let balanceClass = 'text-primary';
+                    if (runningBalance === 0) {
+                        balanceClass = 'text-danger';
+                    } else if (runningBalance < 10) {
+                        balanceClass = 'text-warning';
+                    }
+
+                    totalAdded += stockAddedVal;
+                    totalRemoved += stockRemovedVal;
+
+                    content += `
+                        <tr>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">${formattedDate}</span>
+                                    <small class="text-muted">${formattedTime}</small>
+                                </div>
+                            </td>
+                            <td class="text-center">${stockAdded}</td>
+                            <td class="text-center">${stockRemoved}</td>
+                            <td>
+                                <span class="badge bg-info bg-opacity-10 text-dark">
+                                    <i class="bi bi-link-45deg"></i> ${reference}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-10 text-dark">
+                                    <i class="bi bi-person-circle"></i> ${performedBy}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                <strong class="${balanceClass}" style="font-size: 1.1em;">${runningBalance}</strong>
+                            </td>
+                        </tr>
+                    `;
+                } catch (err) {
+                    console.error('Error rendering row:', err, item);
+                }
+            });
+
+            // Add summary row
+            const currentBalance = data.history.length > 0 ? (parseInt(data.history[data.history.length - 1].running_balance) || 0) : 0;
+
+            content += `
+                    <tr class="table-light fw-bold">
+                        <td class="text-end">SUMMARY:</td>
+                        <td class="text-center text-success">+${totalAdded}</td>
+                        <td class="text-center text-danger">-${totalRemoved}</td>
+                        <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
+                        <td class="text-center text-primary" style="font-size: 1.1em;">${currentBalance}</td>
+                    </tr>
+            `;
         }
-    });
-}
 
-// Helper function to escape HTML
-function escapeHtml(text) {
-    if (!text) return '';
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        content += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">
+                <div class="alert alert-info mb-0">
+                    <i class="bi bi-info-circle"></i> <strong>Legend:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li><strong>Stock Added:</strong> Incoming stock from purchases, returns, or manual adjustments</li>
+                        <li><strong>Stock Removed:</strong> Outgoing stock from sales or manual adjustments</li>
+                        <li><strong>Reference Number:</strong> Associated PO number, GRN number, or transaction identifier</li>
+                        <li><strong>Performed By:</strong> User who performed the transaction</li>
+                        <li><strong>Running Balance:</strong> Current stock level after each transaction</li>
+                    </ul>
+                </div>
+            </div>
+        `;
+
+        $('#stockHistoryContent').html(content);
+    }).fail(function(xhr) {
+        console.error('Stock history API error:', xhr);
+        const errorMsg = escapeHtml((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to load stock history. Please try again.');
+        $('#stockHistoryContent').html(`
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
+                <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
+            </div>
+        `);
+    });
 }
