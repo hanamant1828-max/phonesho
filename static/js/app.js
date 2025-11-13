@@ -4707,10 +4707,8 @@ function completePOSSale() {
 
                 // Save and Print functionality
                 if (transactionType === 'sale' && confirm('Do you want to print the GST Invoice?')) {
-                    // Fetch the sale details again to print receipt with full info
-                    $.get(`${API_BASE}/pos/sales/${response.sale_number}`, function(saleDetails) {
-                        printSaleReceipt(saleDetails, saleData); // Pass saleData for customer details
-                    });
+                    // Use response and saleData directly - no need to fetch again
+                    printSaleReceipt(response, saleData); // Pass both response and saleData
                 }
 
                 loadPOS(); // Reset for new transaction
@@ -4738,7 +4736,9 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
     const printWindow = window.open('', '', 'width=900,height=700');
     const date = new Date();
 
-    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    // Use items from saleData instead of global cart
+    const items = saleData.items || [];
+    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const discountAmount = subtotal * (saleData.discount_percentage / 100);
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
@@ -4763,7 +4763,7 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
     // Build items table HTML
     let itemsHtml = '';
     let srNo = 1;
-    cart.forEach(item => {
+    items.forEach(item => {
         const itemSubtotal = item.quantity * item.unit_price;
         const itemCgst = itemSubtotal * (cgstRate / 100);
         const itemSgst = itemSubtotal * (sgstRate / 100);
@@ -5061,7 +5061,7 @@ function generateGSTInvoice(saleResponse, saleData, businessSettings) {
                         ${itemsHtml}
                         <tr>
                             <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
-                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                             <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -6653,7 +6653,9 @@ function printReceipt(saleResponse, saleData) {
 }
 
 function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) {
-    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    // Use items from saleData instead of global cart
+    const items = saleData.items || [];
+    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const discountAmount = subtotal * (saleData.discount_percentage / 100);
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
@@ -6678,7 +6680,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
     // Build items table HTML
     let itemsHtml = '';
     let srNo = 1;
-    cart.forEach(item => {
+    items.forEach(item => {
         const itemSubtotal = item.quantity * item.unit_price;
         const itemCgst = itemSubtotal * (cgstRate / 100);
         const itemSgst = itemSubtotal * (sgstRate / 100);
@@ -6976,7 +6978,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                         ${itemsHtml}
                         <tr>
                             <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
-                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                             <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -8560,7 +8562,9 @@ function printReceipt(saleResponse, saleData) {
 }
 
 function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) {
-    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
+    // Use items from saleData instead of global cart
+    const items = saleData.items || [];
+    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const discountAmount = subtotal * (saleData.discount_percentage / 100);
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
@@ -8585,7 +8589,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
     // Build items table HTML
     let itemsHtml = '';
     let srNo = 1;
-    cart.forEach(item => {
+    items.forEach(item => {
         const itemSubtotal = item.quantity * item.unit_price;
         const itemCgst = itemSubtotal * (cgstRate / 100);
         const itemSgst = itemSubtotal * (sgstRate / 100);
@@ -8883,7 +8887,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                         ${itemsHtml}
                         <tr>
                             <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
-                            <td style="text-align: center; padding: 5px; font-weight: bold;">${cart.reduce((sum, item) => sum + item.quantity, 0)}</td>
+                            <td style="text-align: center; padding: 5px; font-weight: bold;">${items.reduce((sum, item) => sum + item.quantity, 0)}</td>
                             <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                             <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
