@@ -1505,30 +1505,47 @@
 
                 const totalInWords = numberToWords(Math.floor(total)) + ' Rupees Only';
 
-                // Build items table with actual cart data
+                // Calculate tax breakdown for each item
                 let itemsHtml = '';
                 let srNo = 1;
                 let totalQuantity = 0;
                 let totalTaxableValue = 0;
+                let totalCgstAmount = 0;
+                let totalSgstAmount = 0;
                 let totalIgstAmount = 0;
                 let totalAmount = 0;
 
                 cart.forEach(item => {
+                    // Calculate item values
                     const itemTaxableValue = item.quantity * item.unit_price;
-                    const itemIgstPercent = isIGST ? igstRate : 0;
                     
-                    const itemIgstAmount = itemTaxableValue * (itemIgstPercent / 100);
-                    const itemTotal = itemTaxableValue + itemIgstAmount;
+                    // Calculate tax amounts based on whether IGST or CGST+SGST
+                    let itemCgstAmount = 0;
+                    let itemSgstAmount = 0;
+                    let itemIgstAmount = 0;
                     
+                    if (isIGST) {
+                        itemIgstAmount = itemTaxableValue * (igstRate / 100);
+                    } else {
+                        itemCgstAmount = itemTaxableValue * (cgstRate / 100);
+                        itemSgstAmount = itemTaxableValue * (sgstRate / 100);
+                    }
+                    
+                    const itemTotalTax = itemIgstAmount + itemCgstAmount + itemSgstAmount;
+                    const itemTotal = itemTaxableValue + itemTotalTax;
+                    
+                    // Accumulate totals
                     totalQuantity += item.quantity;
                     totalTaxableValue += itemTaxableValue;
+                    totalCgstAmount += itemCgstAmount;
+                    totalSgstAmount += itemSgstAmount;
                     totalIgstAmount += itemIgstAmount;
                     totalAmount += itemTotal;
                     
                     // Format IMEI display - one per line if multiple
                     let imeiDisplay = '';
                     if (item.imei_numbers && item.imei_numbers.length > 0) {
-                        imeiDisplay = '<br><span style="font-size: 9px; color: #333; font-family: monospace;">IMEI ' + item.imei_numbers.join('<br>IMEI ') + '</span>';
+                        imeiDisplay = '<br><span style="font-size: 9px; color: #333; font-family: monospace;">IMEI: ' + item.imei_numbers.join('<br>IMEI: ') + '</span>';
                     }
                     
                     itemsHtml += `
@@ -1539,11 +1556,11 @@
                             </td>
                             <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">8517</td>
                             <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${item.quantity} NOS</td>
-                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${item.unit_price.toFixed(2)}</td>
-                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemTaxableValue.toFixed(2)}</td>
-                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${itemIgstPercent > 0 ? itemIgstPercent.toFixed(2) : ''}</td>
-                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemIgstAmount > 0 ? itemIgstAmount.toFixed(2) : ''}</td>
-                            <td style="text-align: right; padding: 6px 8px; font-weight: bold; border: 1px solid #000;">${itemTotal.toFixed(2)}</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${item.unit_price.toFixed(2)}</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">₹${itemTaxableValue.toFixed(2)}</td>
+                            <td style="text-align: center; padding: 6px 4px; border: 1px solid #000;">${isIGST && igstRate > 0 ? igstRate.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px; border: 1px solid #000;">${itemIgstAmount > 0 ? '₹' + itemIgstAmount.toFixed(2) : ''}</td>
+                            <td style="text-align: right; padding: 6px 8px; font-weight: bold; border: 1px solid #000;">₹${itemTotal.toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -1554,10 +1571,10 @@
                         <td colspan="3" style="text-align: right; padding: 8px; border: 1px solid #000;">Total</td>
                         <td style="text-align: center; padding: 8px; border: 1px solid #000;">${totalQuantity}</td>
                         <td style="border: 1px solid #000;"></td>
-                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalTaxableValue.toFixed(2)}</td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalTaxableValue.toFixed(2)}</td>
                         <td style="border: 1px solid #000;"></td>
-                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalIgstAmount > 0 ? totalIgstAmount.toFixed(2) : ''}</td>
-                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalAmount.toFixed(2)}</td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">${totalIgstAmount > 0 ? '₹' + totalIgstAmount.toFixed(2) : ''}</td>
+                        <td style="text-align: right; padding: 8px; border: 1px solid #000;">₹${totalAmount.toFixed(2)}</td>
                     </tr>
                 `;
 
@@ -1970,30 +1987,30 @@
                                 <div class="totals-box">
                                     <div class="total-row highlight">
                                         <span>Taxable Amount</span>
-                                        <span>₹${taxableAmount.toFixed(2)}</span>
+                                        <span>₹${totalTaxableValue.toFixed(2)}</span>
                                     </div>
                                     ${isIGST ? `
                                     <div class="total-row">
                                         <span>Add: IGST ${igstRate.toFixed(2)}%</span>
-                                        <span>₹${igstAmount.toFixed(2)}</span>
+                                        <span>₹${totalIgstAmount.toFixed(2)}</span>
                                     </div>
                                     ` : `
                                     <div class="total-row">
                                         <span>Add: CGST ${cgstRate.toFixed(2)}%</span>
-                                        <span>₹${cgstAmount.toFixed(2)}</span>
+                                        <span>₹${totalCgstAmount.toFixed(2)}</span>
                                     </div>
                                     <div class="total-row">
                                         <span>Add: SGST ${sgstRate.toFixed(2)}%</span>
-                                        <span>₹${sgstAmount.toFixed(2)}</span>
+                                        <span>₹${totalSgstAmount.toFixed(2)}</span>
                                     </div>
                                     `}
                                     <div class="total-row">
                                         <span>Total Tax</span>
-                                        <span>₹${taxAmount.toFixed(2)}</span>
+                                        <span>₹${(totalIgstAmount + totalCgstAmount + totalSgstAmount).toFixed(2)}</span>
                                     </div>
                                     <div class="total-row grand" style="background: #f0f0f0; margin: 4px -8px; padding: 6px 8px;">
                                         <span>Total Amount After Tax</span>
-                                        <span>₹${total.toFixed(2)}</span>
+                                        <span>₹${totalAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
                                 <div class="certified-text">
