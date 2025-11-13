@@ -2497,7 +2497,14 @@ function confirmReceivePO() {
                     loadInventoryData();
                 }
             } else {
-
+                alert('Error: ' + (response.error || 'Failed to receive items'));
+            }
+        },
+        error: function(xhr) {
+            alert('Error receiving items: ' + (xhr.responseJSON?.error || 'Unknown error'));
+        }
+    });
+}
 
 // Service Management Functions
 function loadServiceManagement() {
@@ -3125,15 +3132,6 @@ function deleteTechnician(id) {
         },
         error: function(xhr) {
             alert('Error: ' + (xhr.responseJSON?.error || 'Cannot delete'));
-        }
-    });
-}
-
-                alert('Error: ' + (response.error || 'Failed to receive items'));
-            }
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to receive items'));
         }
     });
 }
