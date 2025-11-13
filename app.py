@@ -417,6 +417,83 @@ def init_db():
             VALUES (?, ?, ?)
         ''', ('My Business', 'INR', 'GST'))
 
+    # Service Management Tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS technicians (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            email TEXT,
+            specialization TEXT,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS service_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_number TEXT UNIQUE NOT NULL,
+            customer_name TEXT NOT NULL,
+            customer_phone TEXT NOT NULL,
+            customer_email TEXT,
+            device_brand TEXT,
+            device_model TEXT,
+            imei_number TEXT,
+            problem_description TEXT NOT NULL,
+            estimated_cost REAL DEFAULT 0,
+            actual_cost REAL DEFAULT 0,
+            advance_payment REAL DEFAULT 0,
+            estimated_delivery DATE,
+            actual_delivery DATE,
+            status TEXT DEFAULT 'received',
+            technician_id INTEGER,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (technician_id) REFERENCES technicians (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS service_parts_used (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            product_id INTEGER,
+            part_name TEXT NOT NULL,
+            quantity INTEGER NOT NULL,
+            unit_price REAL NOT NULL,
+            total_price REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES service_jobs (id),
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS service_labor_charges (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            description TEXT NOT NULL,
+            amount REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES service_jobs (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS service_status_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            job_id INTEGER NOT NULL,
+            old_status TEXT,
+            new_status TEXT NOT NULL,
+            notes TEXT,
+            changed_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES service_jobs (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -3666,6 +3743,322 @@ def customer_detail(id):
 
     conn.close()
     return jsonify({'success': False, 'error': 'Method not allowed'}), 405
+
+# Service Management APIs
+
+@app.route('/api/technicians', methods=['GET', 'POST'])
+@login_required
+def technicians():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        if not data or 'name' not in data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Technician name is required'}), 400
+
+        try:
+            cursor.execute('''
+                INSERT INTO technicians (name, phone, email, specialization, status)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (data['name'], data.get('phone'), data.get('email'), 
+                  data.get('specialization'), data.get('status', 'active')))
+            conn.commit()
+            return jsonify({'success': True, 'id': cursor.lastrowid})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+    else:
+        cursor.execute('SELECT * FROM technicians ORDER BY name')
+        techs = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(techs)
+
+@app.route('/api/technicians/<int:id>', methods=['PUT', 'DELETE'])
+@login_required
+def technician_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'PUT':
+        data = request.json
+        try:
+            cursor.execute('''
+                UPDATE technicians SET name = ?, phone = ?, email = ?, 
+                specialization = ?, status = ?
+                WHERE id = ?
+            ''', (data['name'], data.get('phone'), data.get('email'),
+                  data.get('specialization'), data.get('status', 'active'), id))
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+    elif request.method == 'DELETE':
+        try:
+            cursor.execute('DELETE FROM technicians WHERE id = ?', (id,))
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+
+@app.route('/api/service-jobs', methods=['GET', 'POST'])
+@login_required
+def service_jobs():
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'POST':
+        data = request.json
+        if not data:
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invalid request data'}), 400
+
+        try:
+            job_number = f"SRV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            
+            cursor.execute('''
+                INSERT INTO service_jobs (
+                    job_number, customer_name, customer_phone, customer_email,
+                    device_brand, device_model, imei_number, problem_description,
+                    estimated_cost, advance_payment, estimated_delivery, 
+                    technician_id, notes, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (job_number, data['customer_name'], data['customer_phone'],
+                  data.get('customer_email'), data.get('device_brand'),
+                  data.get('device_model'), data.get('imei_number'),
+                  data['problem_description'], data.get('estimated_cost', 0),
+                  data.get('advance_payment', 0), data.get('estimated_delivery'),
+                  data.get('technician_id'), data.get('notes'), 'received'))
+            
+            job_id = cursor.lastrowid
+
+            # Record status history
+            cursor.execute('''
+                INSERT INTO service_status_history (job_id, new_status, changed_by)
+                VALUES (?, ?, ?)
+            ''', (job_id, 'received', session.get('username', 'admin')))
+
+            conn.commit()
+            return jsonify({'success': True, 'id': job_id, 'job_number': job_number})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+    else:
+        status = request.args.get('status', '')
+        search = request.args.get('search', '')
+
+        query = '''
+            SELECT sj.*, t.name as technician_name
+            FROM service_jobs sj
+            LEFT JOIN technicians t ON sj.technician_id = t.id
+            WHERE 1=1
+        '''
+        params = []
+
+        if status:
+            query += ' AND sj.status = ?'
+            params.append(status)
+
+        if search:
+            query += ' AND (sj.job_number LIKE ? OR sj.customer_name LIKE ? OR sj.customer_phone LIKE ? OR sj.imei_number LIKE ?)'
+            search_param = f'%{search}%'
+            params.extend([search_param] * 4)
+
+        query += ' ORDER BY sj.created_at DESC'
+
+        cursor.execute(query, params)
+        jobs = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(jobs)
+
+@app.route('/api/service-jobs/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def service_job_detail(id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if request.method == 'GET':
+        cursor.execute('''
+            SELECT sj.*, t.name as technician_name
+            FROM service_jobs sj
+            LEFT JOIN technicians t ON sj.technician_id = t.id
+            WHERE sj.id = ?
+        ''', (id,))
+        job = cursor.fetchone()
+
+        if not job:
+            conn.close()
+            return jsonify({'error': 'Job not found'}), 404
+
+        job_dict = dict(job)
+
+        # Get parts used
+        cursor.execute('''
+            SELECT spu.*, p.name as product_name
+            FROM service_parts_used spu
+            LEFT JOIN products p ON spu.product_id = p.id
+            WHERE spu.job_id = ?
+        ''', (id,))
+        job_dict['parts_used'] = [dict(row) for row in cursor.fetchall()]
+
+        # Get labor charges
+        cursor.execute('''
+            SELECT * FROM service_labor_charges WHERE job_id = ?
+        ''', (id,))
+        job_dict['labor_charges'] = [dict(row) for row in cursor.fetchall()]
+
+        # Get status history
+        cursor.execute('''
+            SELECT * FROM service_status_history WHERE job_id = ?
+            ORDER BY created_at DESC
+        ''', (id,))
+        job_dict['status_history'] = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+        return jsonify(job_dict)
+
+    elif request.method == 'PUT':
+        data = request.json
+        try:
+            old_status = None
+            cursor.execute('SELECT status FROM service_jobs WHERE id = ?', (id,))
+            row = cursor.fetchone()
+            if row:
+                old_status = row['status']
+
+            cursor.execute('''
+                UPDATE service_jobs SET
+                    customer_name = ?, customer_phone = ?, customer_email = ?,
+                    device_brand = ?, device_model = ?, imei_number = ?,
+                    problem_description = ?, estimated_cost = ?, actual_cost = ?,
+                    advance_payment = ?, estimated_delivery = ?, actual_delivery = ?,
+                    status = ?, technician_id = ?, notes = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (data['customer_name'], data['customer_phone'], 
+                  data.get('customer_email'), data.get('device_brand'),
+                  data.get('device_model'), data.get('imei_number'),
+                  data['problem_description'], data.get('estimated_cost', 0),
+                  data.get('actual_cost', 0), data.get('advance_payment', 0),
+                  data.get('estimated_delivery'), data.get('actual_delivery'),
+                  data.get('status', 'received'), data.get('technician_id'),
+                  data.get('notes'), id))
+
+            # Record status change
+            new_status = data.get('status', 'received')
+            if old_status != new_status:
+                cursor.execute('''
+                    INSERT INTO service_status_history (job_id, old_status, new_status, changed_by)
+                    VALUES (?, ?, ?, ?)
+                ''', (id, old_status, new_status, session.get('username', 'admin')))
+
+            conn.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
+        finally:
+            conn.close()
+
+    elif request.method == 'DELETE':
+        try:
+            cursor.execute('DELETE FROM service_parts_used WHERE job_id = ?', (id,))
+            cursor.execute('DELETE FROM service_labor_charges WHERE job_id = ?', (id,))
+            cursor.execute('DELETE FROM service_status_history WHERE job_id = ?', (id,))
+            cursor.execute('DELETE FROM service_jobs WHERE id = ?', (id,))
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+
+@app.route('/api/service-jobs/<int:id>/parts', methods=['POST'])
+@login_required
+def add_service_parts(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    data = request.json
+
+    try:
+        cursor.execute('''
+            INSERT INTO service_parts_used (job_id, product_id, part_name, quantity, unit_price, total_price)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (id, data.get('product_id'), data['part_name'], data['quantity'],
+              data['unit_price'], data['quantity'] * data['unit_price']))
+        
+        # Update product stock if product_id provided
+        if data.get('product_id'):
+            cursor.execute('''
+                UPDATE products SET current_stock = current_stock - ?
+                WHERE id = ?
+            ''', (data['quantity'], data['product_id']))
+
+        conn.commit()
+        return jsonify({'success': True, 'id': cursor.lastrowid})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/service-jobs/<int:job_id>/parts/<int:part_id>', methods=['DELETE'])
+@login_required
+def delete_service_part(job_id, part_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        # Get part details before deleting
+        cursor.execute('SELECT product_id, quantity FROM service_parts_used WHERE id = ?', (part_id,))
+        part = cursor.fetchone()
+
+        if part and part['product_id']:
+            # Restore stock
+            cursor.execute('''
+                UPDATE products SET current_stock = current_stock + ?
+                WHERE id = ?
+            ''', (part['quantity'], part['product_id']))
+
+        cursor.execute('DELETE FROM service_parts_used WHERE id = ?', (part_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    finally:
+        conn.close()
+
+@app.route('/api/service-jobs/<int:id>/labor', methods=['POST'])
+@login_required
+def add_service_labor(id):
+    conn = get_db()
+    cursor = conn.cursor()
+    data = request.json
+
+    try:
+        cursor.execute('''
+            INSERT INTO service_labor_charges (job_id, description, amount)
+            VALUES (?, ?, ?)
+        ''', (id, data['description'], data['amount']))
+        conn.commit()
+        return jsonify({'success': True, 'id': cursor.lastrowid})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        conn.close()
+
+@app.route('/api/service-jobs/<int:job_id>/labor/<int:labor_id>', methods=['DELETE'])
+@login_required
+def delete_service_labor(job_id, labor_id):
+    conn = get_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute('DELETE FROM service_labor_charges WHERE id = ?', (labor_id,))
+        conn.commit()
+        return jsonify({'success': True})
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     init_db()

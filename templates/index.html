@@ -48,6 +48,15 @@
                             <i class="bi bi-people"></i> Customers
                         </a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-tools"></i> Service
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" data-page="service-management">Repair Jobs</a></li>
+                            <li><a class="dropdown-item" href="#" data-page="technicians">Technicians</a></li>
+                        </ul>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#" data-page="purchase-orders">
                             <i class="bi bi-cart-plus"></i> Purchase Orders
@@ -676,3 +685,196 @@
     <script src="/static/js/app.js"></script>
 </body>
 </html>
+
+
+    <!-- Service Job Modal -->
+    <div class="modal fade" id="serviceJobModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="serviceJobModalLabel">New Repair Job</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="serviceJobForm">
+                        <input type="hidden" id="serviceJobId">
+                        
+                        <ul class="nav nav-tabs mb-3">
+                            <li class="nav-item">
+                                <button class="nav-link active" type="button" data-bs-toggle="tab" data-bs-target="#jobBasicInfo">Basic Info</button>
+                            </li>
+                            <li class="nav-item">
+                                <button class="nav-link" type="button" data-bs-toggle="tab" data-bs-target="#jobParts">Parts & Labor</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content">
+                            <div class="tab-pane fade show active" id="jobBasicInfo">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Customer Name *</label>
+                                        <input type="text" class="form-control" id="serviceJobCustomerName" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Customer Phone *</label>
+                                        <input type="tel" class="form-control" id="serviceJobCustomerPhone" required>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Customer Email</label>
+                                        <input type="email" class="form-control" id="serviceJobCustomerEmail">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Device Brand</label>
+                                        <input type="text" class="form-control" id="serviceJobDeviceBrand">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Device Model</label>
+                                        <input type="text" class="form-control" id="serviceJobDeviceModel">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">IMEI Number</label>
+                                        <input type="text" class="form-control" id="serviceJobIMEI" maxlength="15">
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">Problem Description *</label>
+                                        <textarea class="form-control" id="serviceJobProblem" rows="3" required></textarea>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Estimated Cost</label>
+                                        <input type="number" step="0.01" class="form-control" id="serviceJobEstimatedCost" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Actual Cost</label>
+                                        <input type="number" step="0.01" class="form-control" id="serviceJobActualCost" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Advance Payment</label>
+                                        <input type="number" step="0.01" class="form-control" id="serviceJobAdvancePayment" value="0">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Estimated Delivery</label>
+                                        <input type="date" class="form-control" id="serviceJobEstimatedDelivery">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Actual Delivery</label>
+                                        <input type="date" class="form-control" id="serviceJobActualDelivery">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label class="form-label">Status</label>
+                                        <select class="form-select" id="serviceJobStatus">
+                                            <option value="received">Received</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="ready">Ready</option>
+                                            <option value="delivered">Delivered</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Assign Technician</label>
+                                        <select class="form-select" id="serviceJobTechnician">
+                                            <option value="">Select Technician</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">Notes</label>
+                                        <textarea class="form-control" id="serviceJobNotes" rows="2"></textarea>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="jobParts">
+                                <h6>Parts Used</h6>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Part Name</th>
+                                            <th>Quantity</th>
+                                            <th>Unit Price</th>
+                                            <th>Total</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="partsUsedBody"></tbody>
+                                </table>
+
+                                <h6 class="mt-4">Labor Charges</h6>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Description</th>
+                                            <th>Amount</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="laborChargesBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveServiceJob()">Save Job</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Job View Modal -->
+    <div class="modal fade" id="serviceJobViewModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-tools"></i> Repair Job Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="serviceJobViewContent"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Technician Modal -->
+    <div class="modal fade" id="technicianModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="technicianModalLabel">Add Technician</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="technicianForm">
+                        <input type="hidden" id="technicianId">
+                        <div class="mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="technicianName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="technicianPhone">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" id="technicianEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Specialization</label>
+                            <input type="text" class="form-control" id="technicianSpecialization" placeholder="e.g., Screen Repair, Battery Replacement">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="technicianStatus">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTechnician()">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>

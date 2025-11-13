@@ -193,11 +193,17 @@ function loadPage(page) {
         case 'reports':
             loadReports();
             break;
-        case 'customers': // Add case for Customer Management
+        case 'customers':
             loadCustomers();
             break;
-        case 'business-settings': // Add case for Business Settings
+        case 'business-settings':
             loadBusinessSettings();
+            break;
+        case 'service-management':
+            loadServiceManagement();
+            break;
+        case 'technicians':
+            loadTechnicians();
             break;
     }
 }
@@ -2491,6 +2497,638 @@ function confirmReceivePO() {
                     loadInventoryData();
                 }
             } else {
+
+
+// Service Management Functions
+function loadServiceManagement() {
+    $('#content-area').html(`
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-tools"></i> Service Management</h2>
+            <button class="btn btn-success" onclick="showAddServiceJob()">
+                <i class="bi bi-plus-circle"></i> New Repair Job
+            </button>
+        </div>
+
+        <div class="filter-section">
+            <div class="row">
+                <div class="col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="searchServiceJob" placeholder="Job #, Customer, Phone, IMEI...">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="filterServiceStatus">
+                        <option value="">All Status</option>
+                        <option value="received">Received</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="ready">Ready</option>
+                        <option value="delivered">Delivered</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100" style="margin-top: 32px;" onclick="loadServiceJobs()">Filter</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover" id="serviceJobsTable">
+                    <thead>
+                        <tr>
+                            <th>Job #</th>
+                            <th>Customer</th>
+                            <th>Device</th>
+                            <th>IMEI</th>
+                            <th>Problem</th>
+                            <th>Technician</th>
+                            <th>Status</th>
+                            <th>Estimated Cost</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `);
+
+    loadServiceJobs();
+}
+
+function loadServiceJobs() {
+    const status = $('#filterServiceStatus').val();
+    const search = $('#searchServiceJob').val();
+
+    const params = new URLSearchParams();
+    if (status) params.append('status', status);
+    if (search) params.append('search', search);
+
+    $.get(`${API_BASE}/service-jobs?${params.toString()}`, function(jobs) {
+        const tbody = $('#serviceJobsTable tbody');
+        tbody.empty();
+
+        if (jobs.length === 0) {
+            tbody.append('<tr><td colspan="9" class="text-center text-muted">No service jobs found</td></tr>');
+            return;
+        }
+
+        jobs.forEach(job => {
+            let statusBadge = 'secondary';
+            let statusText = job.status;
+            
+            if (job.status === 'received') {
+                statusBadge = 'info';
+                statusText = 'Received';
+            } else if (job.status === 'in_progress') {
+                statusBadge = 'warning';
+                statusText = 'In Progress';
+            } else if (job.status === 'ready') {
+                statusBadge = 'success';
+                statusText = 'Ready';
+            } else if (job.status === 'delivered') {
+                statusBadge = 'dark';
+                statusText = 'Delivered';
+            }
+
+            tbody.append(`
+                <tr>
+                    <td><strong>${job.job_number}</strong></td>
+                    <td>${job.customer_name}<br><small class="text-muted">${job.customer_phone}</small></td>
+                    <td>${job.device_brand || 'N/A'} ${job.device_model || ''}</td>
+                    <td><small>${job.imei_number || 'N/A'}</small></td>
+                    <td><small>${job.problem_description.substring(0, 50)}${job.problem_description.length > 50 ? '...' : ''}</small></td>
+                    <td>${job.technician_name || 'Unassigned'}</td>
+                    <td><span class="badge bg-${statusBadge}">${statusText}</span></td>
+                    <td>₹${parseFloat(job.estimated_cost || 0).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info action-btn" onclick="viewServiceJob(${job.id})">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-primary action-btn" onclick="editServiceJob(${job.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-success action-btn" onclick="printServiceReceipt(${job.id})">
+                            <i class="bi bi-printer"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        $('#serviceJobsTable').DataTable({
+            order: [[0, 'desc']]
+        });
+    });
+}
+
+function showAddServiceJob() {
+    $('#serviceJobId').val('');
+    $('#serviceJobForm')[0].reset();
+    $('#serviceJobModalLabel').text('New Repair Job');
+    $('#partsUsedBody, #laborChargesBody').empty();
+
+    // Load technicians
+    $.get(`${API_BASE}/technicians`, function(techs) {
+        const select = $('#serviceJobTechnician');
+        select.empty().append('<option value="">Select Technician</option>');
+        techs.forEach(tech => {
+            if (tech.status === 'active') {
+                select.append(`<option value="${tech.id}">${tech.name}</option>`);
+            }
+        });
+    });
+
+    const modal = new bootstrap.Modal($('#serviceJobModal'));
+    modal.show();
+}
+
+function editServiceJob(id) {
+    $.get(`${API_BASE}/service-jobs/${id}`, function(job) {
+        $('#serviceJobId').val(job.id);
+        $('#serviceJobCustomerName').val(job.customer_name);
+        $('#serviceJobCustomerPhone').val(job.customer_phone);
+        $('#serviceJobCustomerEmail').val(job.customer_email || '');
+        $('#serviceJobDeviceBrand').val(job.device_brand || '');
+        $('#serviceJobDeviceModel').val(job.device_model || '');
+        $('#serviceJobIMEI').val(job.imei_number || '');
+        $('#serviceJobProblem').val(job.problem_description);
+        $('#serviceJobEstimatedCost').val(job.estimated_cost || 0);
+        $('#serviceJobActualCost').val(job.actual_cost || 0);
+        $('#serviceJobAdvancePayment').val(job.advance_payment || 0);
+        $('#serviceJobEstimatedDelivery').val(job.estimated_delivery || '');
+        $('#serviceJobActualDelivery').val(job.actual_delivery || '');
+        $('#serviceJobStatus').val(job.status);
+        $('#serviceJobNotes').val(job.notes || '');
+
+        // Load technicians
+        $.get(`${API_BASE}/technicians`, function(techs) {
+            const select = $('#serviceJobTechnician');
+            select.empty().append('<option value="">Select Technician</option>');
+            techs.forEach(tech => {
+                const selected = tech.id === job.technician_id ? 'selected' : '';
+                select.append(`<option value="${tech.id}" ${selected}>${tech.name}</option>`);
+            });
+        });
+
+        // Load parts used
+        const partsBody = $('#partsUsedBody');
+        partsBody.empty();
+        job.parts_used.forEach(part => {
+            partsBody.append(`
+                <tr>
+                    <td>${part.part_name}</td>
+                    <td>${part.quantity}</td>
+                    <td>₹${parseFloat(part.unit_price).toFixed(2)}</td>
+                    <td>₹${parseFloat(part.total_price).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteServicePart(${job.id}, ${part.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        // Load labor charges
+        const laborBody = $('#laborChargesBody');
+        laborBody.empty();
+        job.labor_charges.forEach(labor => {
+            laborBody.append(`
+                <tr>
+                    <td>${labor.description}</td>
+                    <td>₹${parseFloat(labor.amount).toFixed(2)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteServiceLabor(${job.id}, ${labor.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        $('#serviceJobModalLabel').text('Edit Repair Job - ' + job.job_number);
+        const modal = new bootstrap.Modal($('#serviceJobModal'));
+        modal.show();
+    });
+}
+
+function saveServiceJob() {
+    const id = $('#serviceJobId').val();
+    const data = {
+        customer_name: $('#serviceJobCustomerName').val(),
+        customer_phone: $('#serviceJobCustomerPhone').val(),
+        customer_email: $('#serviceJobCustomerEmail').val(),
+        device_brand: $('#serviceJobDeviceBrand').val(),
+        device_model: $('#serviceJobDeviceModel').val(),
+        imei_number: $('#serviceJobIMEI').val(),
+        problem_description: $('#serviceJobProblem').val(),
+        estimated_cost: parseFloat($('#serviceJobEstimatedCost').val()) || 0,
+        actual_cost: parseFloat($('#serviceJobActualCost').val()) || 0,
+        advance_payment: parseFloat($('#serviceJobAdvancePayment').val()) || 0,
+        estimated_delivery: $('#serviceJobEstimatedDelivery').val(),
+        actual_delivery: $('#serviceJobActualDelivery').val(),
+        status: $('#serviceJobStatus').val(),
+        technician_id: $('#serviceJobTechnician').val() || null,
+        notes: $('#serviceJobNotes').val()
+    };
+
+    const url = id ? `${API_BASE}/service-jobs/${id}` : `${API_BASE}/service-jobs`;
+    const method = id ? 'PUT' : 'POST';
+
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(response) {
+            alert('Service job saved successfully');
+            bootstrap.Modal.getInstance($('#serviceJobModal')).hide();
+            
+            // If new job, show option to print receipt
+            if (!id && response.job_number) {
+                if (confirm('Job created successfully! Do you want to print the job receipt?')) {
+                    printServiceReceipt(response.id);
+                }
+            }
+            
+            loadServiceJobs();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save'));
+        }
+    });
+}
+
+function viewServiceJob(id) {
+    $.get(`${API_BASE}/service-jobs/${id}`, function(job) {
+        let statusBadge = 'secondary';
+        if (job.status === 'received') statusBadge = 'info';
+        else if (job.status === 'in_progress') statusBadge = 'warning';
+        else if (job.status === 'ready') statusBadge = 'success';
+        else if (job.status === 'delivered') statusBadge = 'dark';
+
+        let partsHtml = '<p class="text-muted">No parts used yet</p>';
+        if (job.parts_used && job.parts_used.length > 0) {
+            partsHtml = '<table class="table table-sm"><thead><tr><th>Part</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>';
+            job.parts_used.forEach(part => {
+                partsHtml += `<tr><td>${part.part_name}</td><td>${part.quantity}</td><td>₹${part.unit_price.toFixed(2)}</td><td>₹${part.total_price.toFixed(2)}</td></tr>`;
+            });
+            partsHtml += '</tbody></table>';
+        }
+
+        let laborHtml = '<p class="text-muted">No labor charges yet</p>';
+        if (job.labor_charges && job.labor_charges.length > 0) {
+            laborHtml = '<table class="table table-sm"><thead><tr><th>Description</th><th>Amount</th></tr></thead><tbody>';
+            job.labor_charges.forEach(labor => {
+                laborHtml += `<tr><td>${labor.description}</td><td>₹${labor.amount.toFixed(2)}</td></tr>`;
+            });
+            laborHtml += '</tbody></table>';
+        }
+
+        const content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Job Information</h6>
+                    <p><strong>Job Number:</strong> ${job.job_number}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-${statusBadge}">${job.status}</span></p>
+                    <p><strong>Technician:</strong> ${job.technician_name || 'Unassigned'}</p>
+                    <p><strong>Created:</strong> ${new Date(job.created_at).toLocaleString()}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Customer Details</h6>
+                    <p><strong>Name:</strong> ${job.customer_name}</p>
+                    <p><strong>Phone:</strong> ${job.customer_phone}</p>
+                    <p><strong>Email:</strong> ${job.customer_email || 'N/A'}</p>
+                </div>
+            </div>
+            <hr>
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Device Information</h6>
+                    <p><strong>Brand:</strong> ${job.device_brand || 'N/A'}</p>
+                    <p><strong>Model:</strong> ${job.device_model || 'N/A'}</p>
+                    <p><strong>IMEI:</strong> ${job.imei_number || 'N/A'}</p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Cost Information</h6>
+                    <p><strong>Estimated Cost:</strong> ₹${parseFloat(job.estimated_cost || 0).toFixed(2)}</p>
+                    <p><strong>Actual Cost:</strong> ₹${parseFloat(job.actual_cost || 0).toFixed(2)}</p>
+                    <p><strong>Advance Paid:</strong> ₹${parseFloat(job.advance_payment || 0).toFixed(2)}</p>
+                </div>
+            </div>
+            <hr>
+            <h6>Problem Description</h6>
+            <p>${job.problem_description}</p>
+            <hr>
+            <h6>Parts Used</h6>
+            ${partsHtml}
+            <hr>
+            <h6>Labor Charges</h6>
+            ${laborHtml}
+        `;
+
+        $('#serviceJobViewContent').html(content);
+        const modal = new bootstrap.Modal($('#serviceJobViewModal'));
+        modal.show();
+    });
+}
+
+function printServiceReceipt(jobId) {
+    Promise.all([
+        $.get(`${API_BASE}/service-jobs/${jobId}`),
+        $.get(`${API_BASE}/business-settings`)
+    ]).then(([job, businessSettings]) => {
+        const printWindow = window.open('', '', 'width=800,height=600');
+        const date = new Date();
+
+        let statusText = job.status;
+        if (job.status === 'received') statusText = 'Received';
+        else if (job.status === 'in_progress') statusText = 'In Progress';
+        else if (job.status === 'ready') statusText = 'Ready for Pickup';
+        else if (job.status === 'delivered') statusText = 'Delivered';
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Repair Job Receipt - ${job.job_number}</title>
+                <style>
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; max-width: 800px; margin: 0 auto; }
+                    .header { text-align: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #000; }
+                    .company-name { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+                    .company-details { font-size: 11px; margin-bottom: 5px; }
+                    .receipt-title { text-align: center; font-size: 18px; font-weight: bold; margin: 15px 0; background: #f0f0f0; padding: 8px; }
+                    .section { margin-bottom: 15px; }
+                    .section-title { font-weight: bold; margin-bottom: 8px; background: #f0f0f0; padding: 5px; }
+                    .info-row { display: flex; margin-bottom: 5px; }
+                    .info-label { font-weight: bold; width: 150px; }
+                    .info-value { flex: 1; }
+                    .terms { border: 1px solid #000; padding: 10px; margin-top: 20px; font-size: 10px; }
+                    .signature { margin-top: 40px; text-align: right; }
+                    .signature-line { margin-top: 50px; border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px; }
+                    .print-btn { margin: 20px auto; display: block; padding: 10px 30px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 14px; border-radius: 4px; }
+                    @media print { .print-btn { display: none; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
+                    <div class="company-details">
+                        ${businessSettings.address || ''} ${businessSettings.city || ''} ${businessSettings.state || ''} ${businessSettings.pincode || ''}<br>
+                        Phone: ${businessSettings.phone || 'N/A'} | Email: ${businessSettings.email || 'N/A'}<br>
+                        GSTIN: ${businessSettings.gstin || 'N/A'}
+                    </div>
+                </div>
+
+                <div class="receipt-title">REPAIR JOB RECEIPT</div>
+
+                <div class="section">
+                    <div class="info-row">
+                        <div class="info-label">Job Number:</div>
+                        <div class="info-value"><strong>${job.job_number}</strong></div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Date & Time:</div>
+                        <div class="info-value">${date.toLocaleString()}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Status:</div>
+                        <div class="info-value"><strong>${statusText}</strong></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Customer Details</div>
+                    <div class="info-row">
+                        <div class="info-label">Name:</div>
+                        <div class="info-value">${job.customer_name}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Phone:</div>
+                        <div class="info-value">${job.customer_phone}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Email:</div>
+                        <div class="info-value">${job.customer_email || 'N/A'}</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Device Details</div>
+                    <div class="info-row">
+                        <div class="info-label">Brand:</div>
+                        <div class="info-value">${job.device_brand || 'N/A'}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Model:</div>
+                        <div class="info-value">${job.device_model || 'N/A'}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">IMEI Number:</div>
+                        <div class="info-value"><strong>${job.imei_number || 'N/A'}</strong></div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Problem Description</div>
+                    <div style="padding: 5px;">${job.problem_description}</div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">Cost Details</div>
+                    <div class="info-row">
+                        <div class="info-label">Estimated Cost:</div>
+                        <div class="info-value">₹${parseFloat(job.estimated_cost || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Advance Paid:</div>
+                        <div class="info-value">₹${parseFloat(job.advance_payment || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="info-label">Estimated Delivery:</div>
+                        <div class="info-value">${job.estimated_delivery ? new Date(job.estimated_delivery).toLocaleDateString() : 'TBD'}</div>
+                    </div>
+                </div>
+
+                <div class="terms">
+                    <strong>Terms & Conditions:</strong><br>
+                    1. Goods once repaired will not be returned without this receipt.<br>
+                    2. The company is not responsible for data loss during repair.<br>
+                    3. Estimated delivery date is subject to parts availability.<br>
+                    4. Customer must collect the device within 15 days of notification.<br>
+                    5. Any accessories left with the device must be claimed at the time of collection.<br>
+                    ${businessSettings.terms_conditions || ''}
+                </div>
+
+                <div class="signature">
+                    <div>Customer Signature: _________________</div>
+                    <div style="margin-top: 20px;">Authorized Signatory</div>
+                    <div class="signature-line">${businessSettings.business_name || 'Mobile Shop'}</div>
+                </div>
+
+                <button class="print-btn" onclick="window.print();">Print Receipt</button>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        setTimeout(() => printWindow.print(), 500);
+    });
+}
+
+function deleteServicePart(jobId, partId) {
+    if (!confirm('Remove this part?')) return;
+
+    $.ajax({
+        url: `${API_BASE}/service-jobs/${jobId}/parts/${partId}`,
+        method: 'DELETE',
+        success: function() {
+            editServiceJob(jobId);
+        }
+    });
+}
+
+function deleteServiceLabor(jobId, laborId) {
+    if (!confirm('Remove this labor charge?')) return;
+
+    $.ajax({
+        url: `${API_BASE}/service-jobs/${jobId}/labor/${laborId}`,
+        method: 'DELETE',
+        success: function() {
+            editServiceJob(jobId);
+        }
+    });
+}
+
+function loadTechnicians() {
+    $('#content-area').html(`
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-person-gear"></i> Technicians</h2>
+            <button class="btn btn-success" onclick="showAddTechnician()">
+                <i class="bi bi-plus-circle"></i> Add Technician
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover" id="techniciansTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Specialization</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `);
+
+    $.get(`${API_BASE}/technicians`, function(techs) {
+        const tbody = $('#techniciansTable tbody');
+        tbody.empty();
+
+        techs.forEach(tech => {
+            tbody.append(`
+                <tr>
+                    <td>${tech.name}</td>
+                    <td>${tech.phone || 'N/A'}</td>
+                    <td>${tech.email || 'N/A'}</td>
+                    <td>${tech.specialization || 'N/A'}</td>
+                    <td><span class="badge bg-${tech.status === 'active' ? 'success' : 'secondary'}">${tech.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary action-btn" onclick="editTechnician(${tech.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteTechnician(${tech.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+
+        $('#techniciansTable').DataTable();
+    });
+}
+
+function showAddTechnician() {
+    $('#technicianId').val('');
+    $('#technicianForm')[0].reset();
+    $('#technicianModalLabel').text('Add Technician');
+    const modal = new bootstrap.Modal($('#technicianModal'));
+    modal.show();
+}
+
+function editTechnician(id) {
+    $.get(`${API_BASE}/technicians`, function(techs) {
+        const tech = techs.find(t => t.id === id);
+        if (!tech) return;
+
+        $('#technicianId').val(tech.id);
+        $('#technicianName').val(tech.name);
+        $('#technicianPhone').val(tech.phone || '');
+        $('#technicianEmail').val(tech.email || '');
+        $('#technicianSpecialization').val(tech.specialization || '');
+        $('#technicianStatus').val(tech.status);
+        $('#technicianModalLabel').text('Edit Technician');
+
+        const modal = new bootstrap.Modal($('#technicianModal'));
+        modal.show();
+    });
+}
+
+function saveTechnician() {
+    const id = $('#technicianId').val();
+    const data = {
+        name: $('#technicianName').val(),
+        phone: $('#technicianPhone').val(),
+        email: $('#technicianEmail').val(),
+        specialization: $('#technicianSpecialization').val(),
+        status: $('#technicianStatus').val()
+    };
+
+    const url = id ? `${API_BASE}/technicians/${id}` : `${API_BASE}/technicians`;
+    const method = id ? 'PUT' : 'POST';
+
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            alert('Technician saved successfully');
+            bootstrap.Modal.getInstance($('#technicianModal')).hide();
+            loadTechnicians();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save'));
+        }
+    });
+}
+
+function deleteTechnician(id) {
+    if (!confirm('Delete this technician?')) return;
+
+    $.ajax({
+        url: `${API_BASE}/technicians/${id}`,
+        method: 'DELETE',
+        success: function() {
+            alert('Technician deleted');
+            loadTechnicians();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Cannot delete'));
+        }
+    });
+}
+
                 alert('Error: ' + (response.error || 'Failed to receive items'));
             }
         },
