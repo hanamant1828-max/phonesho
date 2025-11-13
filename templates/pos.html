@@ -1442,7 +1442,17 @@
             }
 
             function printSaleReceipt(saleResponse, saleData) {
-                const printWindow = window.open('', '', 'width=800,height=600');
+                // Fetch business settings first
+                $.get(`${API_BASE}/business-settings`, function(businessSettings) {
+                    generateGSTInvoice(saleResponse, saleData, businessSettings);
+                }).fail(function() {
+                    // Fallback to simple receipt if business settings not available
+                    alert('Could not load business settings. Please configure Business Settings first.');
+                });
+            }
+
+            function generateGSTInvoice(saleResponse, saleData, businessSettings) {
+                const printWindow = window.open('', '', 'width=900,height=700');
                 const date = new Date();
                 
                 const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
@@ -1451,78 +1461,276 @@
                 const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
                 const total = Math.abs(saleResponse.total_amount);
                 
+                // Determine if IGST or CGST+SGST (simplified - you can enhance based on state matching)
+                const isIGST = false; // Set to true if inter-state
+                const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+                const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
+                const igstRate = isIGST ? saleData.tax_percentage : 0;
+                
+                const cgstAmount = taxableAmount * (cgstRate / 100);
+                const sgstAmount = taxableAmount * (sgstRate / 100);
+                const igstAmount = taxableAmount * (igstRate / 100);
+                
+                // Number to words conversion
+                function numberToWords(num) {
+                    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+                    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+                    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+                    
+                    if (num === 0) return 'Zero';
+                    
+                    const crores = Math.floor(num / 10000000);
+                    const lakhs = Math.floor((num % 10000000) / 100000);
+                    const thousands = Math.floor((num % 100000) / 1000);
+                    const hundreds = Math.floor((num % 1000) / 100);
+                    const remainder = num % 100;
+                    
+                    let words = '';
+                    
+                    if (crores > 0) words += ones[crores] + ' Crore ';
+                    if (lakhs > 0) words += (lakhs < 10 ? ones[lakhs] : tens[Math.floor(lakhs / 10)] + ' ' + ones[lakhs % 10]) + ' Lakh ';
+                    if (thousands > 0) words += (thousands < 10 ? ones[thousands] : tens[Math.floor(thousands / 10)] + ' ' + ones[thousands % 10]) + ' Thousand ';
+                    if (hundreds > 0) words += ones[hundreds] + ' Hundred ';
+                    
+                    if (remainder >= 20) {
+                        words += tens[Math.floor(remainder / 10)] + ' ' + ones[remainder % 10];
+                    } else if (remainder >= 10) {
+                        words += teens[remainder - 10];
+                    } else if (remainder > 0) {
+                        words += ones[remainder];
+                    }
+                    
+                    return words.trim();
+                }
+                
+                const totalInWords = numberToWords(Math.floor(total)) + ' Rupees Only';
+                
+                // Build items table
                 let itemsHtml = '';
+                let srNo = 1;
                 cart.forEach(item => {
+                    const itemSubtotal = item.quantity * item.unit_price;
+                    const itemCgst = itemSubtotal * (cgstRate / 100);
+                    const itemSgst = itemSubtotal * (sgstRate / 100);
+                    const itemIgst = itemSubtotal * (igstRate / 100);
+                    const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
+                    
                     itemsHtml += `
                         <tr>
-                            <td>${item.product_name}</td>
-                            <td>${item.quantity}</td>
-                            <td>$${item.unit_price.toFixed(2)}</td>
-                            <td>$${(item.quantity * item.unit_price).toFixed(2)}</td>
+                            <td style="text-align: center;">${srNo++}</td>
+                            <td>
+                                <strong>${item.product_name}</strong>
+                                ${item.imei_numbers.length > 0 ? `<br><small style="color: #666;">IMEI: ${item.imei_numbers.join(', ')}</small>` : ''}
+                            </td>
+                            <td style="text-align: center;">-</td>
+                            <td style="text-align: center;">${item.quantity}</td>
+                            <td style="text-align: right;">₹${item.unit_price.toFixed(2)}</td>
+                            <td style="text-align: right;">₹${itemSubtotal.toFixed(2)}</td>
+                            ${isIGST ? `
+                                <td style="text-align: right;">₹${itemIgst.toFixed(2)}</td>
+                                <td style="text-align: center;">-</td>
+                                <td style="text-align: center;">-</td>
+                            ` : `
+                                <td style="text-align: center;">-</td>
+                                <td style="text-align: right;">₹${itemCgst.toFixed(2)}</td>
+                                <td style="text-align: right;">₹${itemSgst.toFixed(2)}</td>
+                            `}
+                            <td style="text-align: right;"><strong>₹${itemTotal.toFixed(2)}</strong></td>
                         </tr>
                     `;
-                    if (item.imei_numbers.length > 0) {
-                        itemsHtml += `
-                            <tr>
-                                <td colspan="4" style="font-size: 0.85em; color: #666; padding-left: 2em;">
-                                    IMEI: ${item.imei_numbers.join(', ')}
-                                </td>
-                            </tr>
-                        `;
-                    }
                 });
                 
                 printWindow.document.write(`
                     <!DOCTYPE html>
                     <html>
                     <head>
-                        <title>Receipt - ${saleResponse.sale_number}</title>
+                        <title>Tax Invoice - ${saleResponse.sale_number}</title>
                         <style>
                             @media print {
                                 body { margin: 0; }
                                 .no-print { display: none; }
+                                @page { margin: 10mm; }
                             }
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
                             body {
-                                font-family: 'Courier New', monospace;
-                                max-width: 80mm;
+                                font-family: Arial, sans-serif;
+                                font-size: 11px;
+                                line-height: 1.4;
+                                color: #000;
+                                max-width: 210mm;
                                 margin: 0 auto;
                                 padding: 10px;
                             }
-                            h2 { text-align: center; margin: 10px 0; }
-                            .header { text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-                            .info { margin: 5px 0; font-size: 0.9em; }
-                            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
-                            th, td { padding: 5px; text-align: left; }
-                            th { border-bottom: 1px solid #000; }
-                            .totals { border-top: 2px dashed #000; margin-top: 10px; padding-top: 10px; }
-                            .total-row { display: flex; justify-content: space-between; margin: 3px 0; }
-                            .grand-total { font-size: 1.2em; font-weight: bold; border-top: 1px solid #000; padding-top: 5px; margin-top: 5px; }
-                            .footer { text-align: center; margin-top: 20px; padding-top: 10px; border-top: 2px dashed #000; font-size: 0.9em; }
-                            .print-btn { margin: 20px auto; display: block; padding: 10px 30px; background: #28a745; color: white; border: none; cursor: pointer; font-size: 1em; }
+                            .invoice-header {
+                                border: 2px solid #000;
+                                padding: 10px;
+                                margin-bottom: 10px;
+                            }
+                            .company-name {
+                                font-size: 20px;
+                                font-weight: bold;
+                                text-align: center;
+                                margin-bottom: 5px;
+                            }
+                            .company-details {
+                                text-align: center;
+                                font-size: 10px;
+                                margin-bottom: 10px;
+                            }
+                            .invoice-title {
+                                text-align: center;
+                                font-size: 16px;
+                                font-weight: bold;
+                                background: #f0f0f0;
+                                padding: 5px;
+                                border: 1px solid #000;
+                                margin-bottom: 10px;
+                            }
+                            .invoice-details {
+                                display: flex;
+                                justify-content: space-between;
+                                margin-bottom: 10px;
+                            }
+                            .invoice-box {
+                                border: 1px solid #000;
+                                padding: 8px;
+                                flex: 1;
+                            }
+                            .invoice-box + .invoice-box {
+                                margin-left: 10px;
+                            }
+                            .invoice-box h4 {
+                                font-size: 11px;
+                                margin-bottom: 5px;
+                                background: #f0f0f0;
+                                padding: 3px;
+                            }
+                            .invoice-box p {
+                                margin: 2px 0;
+                                font-size: 10px;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin-bottom: 10px;
+                            }
+                            th, td {
+                                border: 1px solid #000;
+                                padding: 5px;
+                                font-size: 10px;
+                            }
+                            th {
+                                background: #f0f0f0;
+                                font-weight: bold;
+                                text-align: center;
+                            }
+                            .totals-section {
+                                display: flex;
+                                justify-content: space-between;
+                                margin-bottom: 10px;
+                            }
+                            .bank-details {
+                                border: 1px solid #000;
+                                padding: 8px;
+                                flex: 1;
+                                margin-right: 10px;
+                            }
+                            .amount-summary {
+                                border: 1px solid #000;
+                                padding: 8px;
+                                min-width: 300px;
+                            }
+                            .amount-row {
+                                display: flex;
+                                justify-content: space-between;
+                                padding: 3px 0;
+                            }
+                            .amount-row.total {
+                                font-weight: bold;
+                                border-top: 2px solid #000;
+                                margin-top: 5px;
+                                padding-top: 5px;
+                            }
+                            .amount-words {
+                                border: 1px solid #000;
+                                padding: 8px;
+                                margin-bottom: 10px;
+                                font-weight: bold;
+                            }
+                            .terms {
+                                border: 1px solid #000;
+                                padding: 8px;
+                                margin-bottom: 10px;
+                                font-size: 9px;
+                            }
+                            .signature-section {
+                                text-align: right;
+                                margin-top: 30px;
+                                padding-right: 20px;
+                            }
+                            .signature-line {
+                                margin-top: 50px;
+                                border-top: 1px solid #000;
+                                display: inline-block;
+                                padding-top: 5px;
+                                min-width: 200px;
+                            }
+                            .print-btn {
+                                margin: 20px auto;
+                                display: block;
+                                padding: 10px 30px;
+                                background: #28a745;
+                                color: white;
+                                border: none;
+                                cursor: pointer;
+                                font-size: 14px;
+                                border-radius: 4px;
+                            }
                         </style>
                     </head>
                     <body>
-                        <div class="header">
-                            <h2>Mobile Shop</h2>
-                            <div>Point of Sale Receipt</div>
+                        <div class="invoice-header">
+                            <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
+                            <div class="company-details">
+                                ${businessSettings.address || ''} ${businessSettings.city || ''} ${businessSettings.state || ''} ${businessSettings.pincode || ''}<br>
+                                Phone: ${businessSettings.phone || 'N/A'} | Email: ${businessSettings.email || 'N/A'}<br>
+                                GSTIN: <strong>${businessSettings.gstin || 'N/A'}</strong>
+                            </div>
                         </div>
                         
-                        <div class="info">
-                            <div><strong>Receipt #:</strong> ${saleResponse.sale_number}</div>
-                            <div><strong>Date:</strong> ${date.toLocaleDateString()} ${date.toLocaleTimeString()}</div>
-                            <div><strong>Transaction:</strong> ${saleData.transaction_type.toUpperCase()}</div>
-                            ${saleData.customer_name ? `<div><strong>Customer:</strong> ${saleData.customer_name}</div>` : ''}
-                            ${saleData.customer_phone ? `<div><strong>Phone:</strong> ${saleData.customer_phone}</div>` : ''}
-                            <div><strong>Payment:</strong> ${saleData.payment_method.toUpperCase()}</div>
+                        <div class="invoice-title">TAX INVOICE</div>
+                        
+                        <div class="invoice-details">
+                            <div class="invoice-box">
+                                <h4>Invoice Details</h4>
+                                <p><strong>Invoice No:</strong> ${saleResponse.sale_number}</p>
+                                <p><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')} ${date.toLocaleTimeString('en-IN', {hour: '2-digit', minute: '2-digit'})}</p>
+                                <p><strong>Payment Mode:</strong> ${saleData.payment_method.toUpperCase()}</p>
+                            </div>
+                            
+                            <div class="invoice-box">
+                                <h4>Customer Details</h4>
+                                <p><strong>Name:</strong> ${saleData.customer_name || 'Walk-in Customer'}</p>
+                                <p><strong>Phone:</strong> ${saleData.customer_phone || 'N/A'}</p>
+                                <p><strong>Email:</strong> ${saleData.customer_email || 'N/A'}</p>
+                                <p><strong>GSTIN:</strong> N/A</p>
+                                <p><strong>Place of Supply:</strong> ${businessSettings.state || 'N/A'}</p>
+                            </div>
                         </div>
                         
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Item</th>
-                                    <th>Qty</th>
-                                    <th>Price</th>
-                                    <th>Total</th>
+                                    <th style="width: 30px;">Sr.</th>
+                                    <th>Product/Service Name</th>
+                                    <th style="width: 60px;">HSN/SAC</th>
+                                    <th style="width: 40px;">Qty</th>
+                                    <th style="width: 80px;">Rate</th>
+                                    <th style="width: 90px;">Taxable Value</th>
+                                    <th style="width: 70px;">IGST</th>
+                                    <th style="width: 70px;">CGST</th>
+                                    <th style="width: 70px;">SGST</th>
+                                    <th style="width: 90px;">Total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1530,37 +1738,71 @@
                             </tbody>
                         </table>
                         
-                        <div class="totals">
-                            <div class="total-row">
-                                <span>Subtotal:</span>
-                                <span>$${subtotal.toFixed(2)}</span>
+                        <div class="totals-section">
+                            <div class="bank-details">
+                                <h4 style="margin-bottom: 5px;">Bank Details</h4>
+                                <p><strong>Bank Name:</strong> ${businessSettings.bank_name || 'N/A'}</p>
+                                <p><strong>Branch:</strong> ${businessSettings.bank_branch || 'N/A'}</p>
+                                <p><strong>A/C No:</strong> ${businessSettings.bank_account_number || 'N/A'}</p>
+                                <p><strong>IFSC Code:</strong> ${businessSettings.bank_ifsc || 'N/A'}</p>
                             </div>
-                            ${saleData.discount_percentage > 0 ? `
-                            <div class="total-row">
-                                <span>Discount (${saleData.discount_percentage}%):</span>
-                                <span>-$${discountAmount.toFixed(2)}</span>
-                            </div>
-                            ` : ''}
-                            ${saleData.tax_percentage > 0 ? `
-                            <div class="total-row">
-                                <span>Tax (${saleData.tax_percentage}%):</span>
-                                <span>+$${taxAmount.toFixed(2)}</span>
-                            </div>
-                            ` : ''}
-                            <div class="total-row grand-total">
-                                <span>TOTAL:</span>
-                                <span>$${total.toFixed(2)}</span>
+                            
+                            <div class="amount-summary">
+                                <div class="amount-row">
+                                    <span>Taxable Amount:</span>
+                                    <span>₹${taxableAmount.toFixed(2)}</span>
+                                </div>
+                                ${isIGST ? `
+                                    <div class="amount-row">
+                                        <span>IGST (${igstRate}%):</span>
+                                        <span>₹${igstAmount.toFixed(2)}</span>
+                                    </div>
+                                ` : `
+                                    <div class="amount-row">
+                                        <span>CGST (${cgstRate}%):</span>
+                                        <span>₹${cgstAmount.toFixed(2)}</span>
+                                    </div>
+                                    <div class="amount-row">
+                                        <span>SGST (${sgstRate}%):</span>
+                                        <span>₹${sgstAmount.toFixed(2)}</span>
+                                    </div>
+                                `}
+                                <div class="amount-row">
+                                    <span>Total Tax:</span>
+                                    <span>₹${taxAmount.toFixed(2)}</span>
+                                </div>
+                                ${saleData.discount_percentage > 0 ? `
+                                    <div class="amount-row">
+                                        <span>Discount (${saleData.discount_percentage}%):</span>
+                                        <span>-₹${discountAmount.toFixed(2)}</span>
+                                    </div>
+                                ` : ''}
+                                <div class="amount-row total">
+                                    <span>Grand Total:</span>
+                                    <span>₹${total.toFixed(2)}</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="footer">
-                            <div>Thank you for your business!</div>
-                            <div style="margin-top: 10px; font-size: 0.8em;">
-                                Please keep this receipt for warranty claims
-                            </div>
+                        <div class="amount-words">
+                            <strong>Amount in Words:</strong> ${totalInWords}
                         </div>
                         
-                        <button class="print-btn no-print" onclick="window.print();">Print Receipt</button>
+                        <div class="terms">
+                            <strong>Terms & Conditions:</strong><br>
+                            ${businessSettings.terms_conditions || '1. Goods once sold will not be taken back.<br>2. Warranty as per manufacturer terms.'}
+                        </div>
+                        
+                        <div style="font-size: 9px; font-style: italic; margin-bottom: 10px;">
+                            Certified that the particulars given above are true and correct.
+                        </div>
+                        
+                        <div class="signature-section">
+                            <div><strong>For ${businessSettings.business_name || 'Mobile Shop'}</strong></div>
+                            <div class="signature-line">Authorized Signatory</div>
+                        </div>
+                        
+                        <button class="print-btn no-print" onclick="window.print();">Print Invoice</button>
                     </body>
                     </html>
                 `);

@@ -2119,7 +2119,7 @@ def report_grns():
         query += ' AND g.payment_status = ?'
         params.append(payment_status)
 
-    query += ' ORDER BY g.received_date DESC'
+    query += ' ORDER BY g.received_date DESC, g.grn_number'
 
     cursor.execute(query, params)
     grns = [dict(row) for row in cursor.fetchall()]
@@ -3158,13 +3158,13 @@ def pos_sales():
             customer_phone = data.get('customer_phone', '').strip()
             customer_name = data.get('customer_name', '').strip()
             customer_email = data.get('customer_email', '').strip()
-            
+
             if customer_phone and customer_name:
                 try:
                     # Check if customer already exists by phone
                     cursor.execute('SELECT id FROM customers WHERE phone = ?', (customer_phone,))
                     existing_customer = cursor.fetchone()
-                    
+
                     if not existing_customer:
                         # Create new customer record
                         cursor.execute('''
@@ -3496,11 +3496,11 @@ def customer_lookup_by_phone(phone):
     """Lookup customer by phone number"""
     conn = get_db()
     cursor = conn.cursor()
-    
+
     cursor.execute('SELECT * FROM customers WHERE phone = ? AND status = ?', (phone, 'active'))
     customer = cursor.fetchone()
     conn.close()
-    
+
     if customer:
         return jsonify(dict(customer))
     return jsonify({'error': 'Customer not found'}), 404
@@ -3515,6 +3515,7 @@ def customer_detail(id):
         cursor.execute('SELECT * FROM customers WHERE id = ?', (id,))
         customer = cursor.fetchone()
         conn.close()
+
         if customer:
             return jsonify(dict(customer))
         return jsonify({'error': 'Customer not found'}), 404
@@ -3575,9 +3576,31 @@ def business_settings():
         cursor.execute('SELECT * FROM business_settings LIMIT 1')
         settings = cursor.fetchone()
         conn.close()
+
         if settings:
             return jsonify(dict(settings))
-        return jsonify({'error': 'Business settings not found'}), 404
+        # Return default structure if no settings are found
+        return jsonify({
+            'business_name': 'My Business',
+            'gstin': '',
+            'address': '',
+            'city': '',
+            'state': '',
+            'pincode': '',
+            'country': 'India',
+            'phone': '',
+            'email': '',
+            'website': '',
+            'currency': 'INR',
+            'tax_label': 'GST',
+            'invoice_prefix': 'INV',
+            'receipt_prefix': 'RCP',
+            'bank_name': '',
+            'bank_account_number': '',
+            'bank_ifsc': '',
+            'bank_branch': '',
+            'terms_conditions': ''
+        })
 
     elif request.method == 'PUT':
         data = request.json
@@ -3586,58 +3609,58 @@ def business_settings():
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
 
         try:
-            cursor.execute('''
-                UPDATE business_settings SET
-                    business_name = ?,
-                    gstin = ?,
-                    address = ?,
-                    city = ?,
-                    state = ?,
-                    pincode = ?,
-                    country = ?,
-                    phone = ?,
-                    email = ?,
-                    website = ?,
-                    logo_url = ?,
-                    currency = ?,
-                    tax_label = ?,
-                    invoice_prefix = ?,
-                    receipt_prefix = ?,
-                    terms_conditions = ?,
-                    bank_name = ?,
-                    bank_account_number = ?,
-                    bank_ifsc = ?,
-                    bank_branch = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE id = 1
-            ''', (
-                data.get('business_name', ''),
-                data.get('gstin', ''),
-                data.get('address', ''),
-                data.get('city', ''),
-                data.get('state', ''),
-                data.get('pincode', ''),
-                data.get('country', ''),
-                data.get('phone', ''),
-                data.get('email', ''),
-                data.get('website', ''),
-                data.get('logo_url', ''),
-                data.get('currency', 'INR'),
-                data.get('tax_label', 'GST'),
-                data.get('invoice_prefix', 'INV'),
-                data.get('receipt_prefix', 'RCP'),
-                data.get('terms_conditions', ''),
-                data.get('bank_name', ''),
-                data.get('bank_account_number', ''),
-                data.get('bank_ifsc', ''),
-                data.get('bank_branch', '')
-            ))
+            # Check if settings exist
+            cursor.execute('SELECT COUNT(*) as count FROM business_settings')
+            count = cursor.fetchone()['count']
+
+            if count == 0:
+                # Insert new settings
+                cursor.execute('''
+                    INSERT INTO business_settings (
+                        business_name, gstin, address, city, state, pincode, country,
+                        phone, email, website, logo_url, currency, tax_label,
+                        invoice_prefix, receipt_prefix, terms_conditions,
+                        bank_name, bank_account_number, bank_ifsc, bank_branch
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data.get('business_name'), data.get('gstin'), data.get('address'),
+                    data.get('city'), data.get('state'), data.get('pincode'),
+                    data.get('country', 'India'), data.get('phone'), data.get('email'),
+                    data.get('website'), data.get('logo_url'), data.get('currency', 'INR'),
+                    data.get('tax_label', 'GST'), data.get('invoice_prefix', 'INV'),
+                    data.get('receipt_prefix', 'RCP'), data.get('terms_conditions'),
+                    data.get('bank_name'), data.get('bank_account_number'),
+                    data.get('bank_ifsc'), data.get('bank_branch')
+                ))
+            else:
+                # Update existing settings
+                cursor.execute('''
+                    UPDATE business_settings SET
+                        business_name = ?, gstin = ?, address = ?, city = ?, state = ?,
+                        pincode = ?, country = ?, phone = ?, email = ?, website = ?,
+                        logo_url = ?, currency = ?, tax_label = ?, invoice_prefix = ?,
+                        receipt_prefix = ?, terms_conditions = ?, bank_name = ?,
+                        bank_account_number = ?, bank_ifsc = ?, bank_branch = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = (SELECT id FROM business_settings LIMIT 1)
+                ''', (
+                    data.get('business_name'), data.get('gstin'), data.get('address'),
+                    data.get('city'), data.get('state'), data.get('pincode'),
+                    data.get('country', 'India'), data.get('phone'), data.get('email'),
+                    data.get('website'), data.get('logo_url'), data.get('currency', 'INR'),
+                    data.get('tax_label', 'GST'), data.get('invoice_prefix', 'INV'),
+                    data.get('receipt_prefix', 'RCP'), data.get('terms_conditions'),
+                    data.get('bank_name'), data.get('bank_account_number'),
+                    data.get('bank_ifsc'), data.get('bank_branch')
+                ))
+
             conn.commit()
+            conn.close()
             return jsonify({'success': True})
         except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 400
-        finally:
+            conn.rollback()
             conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 400
 
 if __name__ == '__main__':
     init_db()

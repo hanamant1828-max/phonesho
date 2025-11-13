@@ -2947,6 +2947,220 @@ function loadQuickOrder() {
     quickOrderItems = [];
 
     $('#content-area').html(`
+
+
+function loadBusinessSettings() {
+    $('#content-area').html(`
+        <div class="page-header">
+            <h2><i class="bi bi-building"></i> Business Settings</h2>
+            <p class="text-muted">Configure your business information for invoices and receipts</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <form id="businessSettingsForm">
+                    <ul class="nav nav-tabs mb-4" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="business-info-tab" data-bs-toggle="tab" data-bs-target="#business-info" type="button">
+                                <i class="bi bi-building"></i> Business Information
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tax-settings-tab" data-bs-toggle="tab" data-bs-target="#tax-settings" type="button">
+                                <i class="bi bi-receipt"></i> Tax & Invoice Settings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="bank-details-tab" data-bs-toggle="tab" data-bs-target="#bank-details" type="button">
+                                <i class="bi bi-bank"></i> Bank Details
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button">
+                                <i class="bi bi-file-text"></i> Terms & Conditions
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="business-info" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Business Name *</label>
+                                    <input type="text" class="form-control" id="businessName" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">GSTIN</label>
+                                    <input type="text" class="form-control" id="businessGSTIN" maxlength="15">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">Address</label>
+                                    <textarea class="form-control" id="businessAddress" rows="2"></textarea>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">City</label>
+                                    <input type="text" class="form-control" id="businessCity">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" id="businessState">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Pincode</label>
+                                    <input type="text" class="form-control" id="businessPincode">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="businessPhone">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="businessEmail">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Website</label>
+                                    <input type="text" class="form-control" id="businessWebsite">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="tax-settings" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Currency</label>
+                                    <select class="form-select" id="businessCurrency">
+                                        <option value="INR">INR - Indian Rupee</option>
+                                        <option value="USD">USD - US Dollar</option>
+                                        <option value="EUR">EUR - Euro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Tax Label</label>
+                                    <input type="text" class="form-control" id="businessTaxLabel" value="GST">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Invoice Prefix</label>
+                                    <input type="text" class="form-control" id="businessInvoicePrefix" value="INV">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Receipt Prefix</label>
+                                    <input type="text" class="form-control" id="businessReceiptPrefix" value="RCP">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="bank-details" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Bank Name</label>
+                                    <input type="text" class="form-control" id="businessBankName">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Branch Name</label>
+                                    <input type="text" class="form-control" id="businessBankBranch">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Account Number</label>
+                                    <input type="text" class="form-control" id="businessBankAccount">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">IFSC Code</label>
+                                    <input type="text" class="form-control" id="businessBankIFSC">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="tab-pane fade" id="terms" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label">Terms & Conditions</label>
+                                <textarea class="form-control" id="businessTerms" rows="6" placeholder="Enter your terms and conditions here..."></textarea>
+                                <small class="text-muted">These will appear on invoices and receipts</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="bi bi-save"></i> Save Business Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `);
+    
+    // Load existing settings
+    $.get(`${API_BASE}/business-settings`, function(settings) {
+        $('#businessName').val(settings.business_name || '');
+        $('#businessGSTIN').val(settings.gstin || '');
+        $('#businessAddress').val(settings.address || '');
+        $('#businessCity').val(settings.city || '');
+        $('#businessState').val(settings.state || '');
+        $('#businessPincode').val(settings.pincode || '');
+        $('#businessPhone').val(settings.phone || '');
+        $('#businessEmail').val(settings.email || '');
+        $('#businessWebsite').val(settings.website || '');
+        $('#businessCurrency').val(settings.currency || 'INR');
+        $('#businessTaxLabel').val(settings.tax_label || 'GST');
+        $('#businessInvoicePrefix').val(settings.invoice_prefix || 'INV');
+        $('#businessReceiptPrefix').val(settings.receipt_prefix || 'RCP');
+        $('#businessBankName').val(settings.bank_name || '');
+        $('#businessBankBranch').val(settings.bank_branch || '');
+        $('#businessBankAccount').val(settings.bank_account_number || '');
+        $('#businessBankIFSC').val(settings.bank_ifsc || '');
+        $('#businessTerms').val(settings.terms_conditions || '');
+    });
+    
+    // Handle form submission
+    $('#businessSettingsForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const settingsData = {
+            business_name: $('#businessName').val(),
+            gstin: $('#businessGSTIN').val(),
+            address: $('#businessAddress').val(),
+            city: $('#businessCity').val(),
+            state: $('#businessState').val(),
+            pincode: $('#businessPincode').val(),
+            phone: $('#businessPhone').val(),
+            email: $('#businessEmail').val(),
+            website: $('#businessWebsite').val(),
+            currency: $('#businessCurrency').val(),
+            tax_label: $('#businessTaxLabel').val(),
+            invoice_prefix: $('#businessInvoicePrefix').val(),
+            receipt_prefix: $('#businessReceiptPrefix').val(),
+            bank_name: $('#businessBankName').val(),
+            bank_branch: $('#businessBankBranch').val(),
+            bank_account_number: $('#businessBankAccount').val(),
+            bank_ifsc: $('#businessBankIFSC').val(),
+            terms_conditions: $('#businessTerms').val()
+        };
+        
+        $.ajax({
+            url: `${API_BASE}/business-settings`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(settingsData),
+            success: function() {
+                alert('Business settings saved successfully!');
+            },
+            error: function(xhr) {
+                alert('Error saving settings: ' + (xhr.responseJSON?.error || 'Unknown error'));
+            }
+        });
+    });
+}
+
         <div class="page-header">
             <h2><i class="bi bi-bag-plus"></i> Quick Order</h2>
             <p class="text-muted">Simple order entry - Select products and quantities</p>
