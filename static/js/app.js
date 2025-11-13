@@ -3,6 +3,7 @@ let currentPage = 'dashboard';
 let inventoryTable = null;
 let poItemCounter = 0;
 let isAuthenticated = false;
+let salesChart = null;
 
 let currentPOSProductForIMEI = null;
 let currentPOSCartIndex = null;
@@ -2650,6 +2651,91 @@ function showAddServiceJob() {
     modal.show();
 }
 
+function addPartUsed() {
+    const partsBody = $('#partsUsedBody');
+    const rowId = Date.now();
+    
+    const row = $(`
+        <tr id="partRow${rowId}">
+            <td>
+                <input type="text" class="form-control form-control-sm part-name" placeholder="Part name">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm part-quantity" value="1" min="1" onchange="calculatePartTotal(${rowId})">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm part-price" value="0" step="0.01" min="0" onchange="calculatePartTotal(${rowId})">
+            </td>
+            <td class="part-total">0.00</td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removePartRow(${rowId})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `);
+    
+    partsBody.append(row);
+}
+
+function removePartRow(rowId) {
+    $(`#partRow${rowId}`).remove();
+    calculateServiceTotal();
+}
+
+function calculatePartTotal(rowId) {
+    const row = $(`#partRow${rowId}`);
+    const quantity = parseFloat(row.find('.part-quantity').val()) || 0;
+    const price = parseFloat(row.find('.part-price').val()) || 0;
+    const total = quantity * price;
+    
+    row.find('.part-total').text(total.toFixed(2));
+    calculateServiceTotal();
+}
+
+function addLaborCharge() {
+    const laborBody = $('#laborChargesBody');
+    const rowId = Date.now();
+    
+    const row = $(`
+        <tr id="laborRow${rowId}">
+            <td>
+                <input type="text" class="form-control form-control-sm labor-description" placeholder="Description">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm labor-amount" value="0" step="0.01" min="0" onchange="calculateServiceTotal()">
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeLaborRow(${rowId})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `);
+    
+    laborBody.append(row);
+}
+
+function removeLaborRow(rowId) {
+    $(`#laborRow${rowId}`).remove();
+    calculateServiceTotal();
+}
+
+function calculateServiceTotal() {
+    let partsTotal = 0;
+    $('.part-total').each(function() {
+        partsTotal += parseFloat($(this).text()) || 0;
+    });
+    
+    let laborTotal = 0;
+    $('.labor-amount').each(function() {
+        laborTotal += parseFloat($(this).val()) || 0;
+    });
+    
+    const actualCost = partsTotal + laborTotal;
+    $('#serviceJobActualCost').val(actualCost.toFixed(2));
+}
+
 function editServiceJob(id) {
     $.get(`${API_BASE}/service-jobs/${id}`, function(job) {
         $('#serviceJobId').val(job.id);
@@ -2664,6 +2750,334 @@ function editServiceJob(id) {
         $('#serviceJobActualCost').val(job.actual_cost || 0);
         $('#serviceJobAdvancePayment').val(job.advance_payment || 0);
         $('#serviceJobEstimatedDelivery').val(job.estimated_delivery || '');
+        $('#serviceJobStatus').val(job.status || 'received');
+        $('#serviceJobTechnician').val(job.technician_id || '');
+        $('#serviceJobNotes').val(job.notes || '');
+        
+        // Load technicians
+        $.get(`${API_BASE}/technicians`, function(techs) {
+            const select = $('#serviceJobTechnician');
+            select.empty().append('<option value="">Select Technician</option>');
+            techs.forEach(tech => {
+                const selected = tech.id === job.technician_id ? 'selected' : '';
+                select.append(`<option value="${tech.id}" ${selected}>${tech.name}</option>`);
+            });
+        });
+        
+        // Load parts used
+        if (job.parts_used && job.parts_used.length > 0) {
+            job.parts_used.forEach(part => {
+                const rowId = Date.now() + Math.random();
+                const row = $(`
+                    <tr id="partRow${rowId}">
+                        <td>
+                            <input type="text" class="form-control form-control-sm part-name" value="${part.part_name}">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm part-quantity" value="${part.quantity}" min="1" onchange="calculatePartTotal(${rowId})">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm part-price" value="${part.unit_price}" step="0.01" min="0" onchange="calculatePartTotal(${rowId})">
+                        </td>
+                        <td class="part-total">${part.total_price.toFixed(2)}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removePartRow(${rowId})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+                $('#partsUsedBody').append(row);
+            });
+        }
+        
+        // Load labor charges
+        if (job.labor_charges && job.labor_charges.length > 0) {
+            job.labor_charges.forEach(labor => {
+                const rowId = Date.now() + Math.random();
+                const row = $(`
+                    <tr id="laborRow${rowId}">
+                        <td>
+                            <input type="text" class="form-control form-control-sm labor-description" value="${labor.description}">
+                        </td>
+                        <td>
+                            <input type="number" class="form-control form-control-sm labor-amount" value="${labor.amount}" step="0.01" min="0" onchange="calculateServiceTotal()">
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" onclick="removeLaborRow(${rowId})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+                $('#laborChargesBody').append(row);
+            });
+        }
+        
+        $('#serviceJobModalLabel').text('Edit Repair Job');
+        const modal = new bootstrap.Modal($('#serviceJobModal'));
+        modal.show();
+    });
+}
+
+function saveServiceJob() {
+    const id = $('#serviceJobId').val();
+    
+    // Collect parts used
+    const parts = [];
+    $('#partsUsedBody tr').each(function() {
+        const partName = $(this).find('.part-name').val();
+        const quantity = parseInt($(this).find('.part-quantity').val()) || 0;
+        const unitPrice = parseFloat($(this).find('.part-price').val()) || 0;
+        
+        if (partName && quantity > 0) {
+            parts.push({
+                part_name: partName,
+                quantity: quantity,
+                unit_price: unitPrice,
+                total_price: quantity * unitPrice
+            });
+        }
+    });
+    
+    // Collect labor charges
+    const labor = [];
+    $('#laborChargesBody tr').each(function() {
+        const description = $(this).find('.labor-description').val();
+        const amount = parseFloat($(this).find('.labor-amount').val()) || 0;
+        
+        if (description && amount > 0) {
+            labor.push({
+                description: description,
+                amount: amount
+            });
+        }
+    });
+    
+    const data = {
+        customer_name: $('#serviceJobCustomerName').val(),
+        customer_phone: $('#serviceJobCustomerPhone').val(),
+        customer_email: $('#serviceJobCustomerEmail').val(),
+        device_brand: $('#serviceJobDeviceBrand').val(),
+        device_model: $('#serviceJobDeviceModel').val(),
+        imei_number: $('#serviceJobIMEI').val(),
+        problem_description: $('#serviceJobProblem').val(),
+        estimated_cost: parseFloat($('#serviceJobEstimatedCost').val()) || 0,
+        actual_cost: parseFloat($('#serviceJobActualCost').val()) || 0,
+        advance_payment: parseFloat($('#serviceJobAdvancePayment').val()) || 0,
+        estimated_delivery: $('#serviceJobEstimatedDelivery').val() || null,
+        status: $('#serviceJobStatus').val(),
+        technician_id: $('#serviceJobTechnician').val() || null,
+        notes: $('#serviceJobNotes').val(),
+        parts_used: parts,
+        labor_charges: labor
+    };
+    
+    const url = id ? `${API_BASE}/service-jobs/${id}` : `${API_BASE}/service-jobs`;
+    const method = id ? 'PUT' : 'POST';
+    
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            alert('Service job saved successfully!');
+            bootstrap.Modal.getInstance($('#serviceJobModal')).hide();
+            loadServiceJobs();
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save service job'));
+        }
+    });
+}
+
+function viewServiceJob(id) {
+    $.get(`${API_BASE}/service-jobs/${id}`, function(job) {
+        let statusBadge = 'secondary';
+        if (job.status === 'received') statusBadge = 'info';
+        else if (job.status === 'in_progress') statusBadge = 'warning';
+        else if (job.status === 'ready') statusBadge = 'success';
+        else if (job.status === 'delivered') statusBadge = 'dark';
+        
+        let content = `
+            <div class="mb-3">
+                <h6>Job Details</h6>
+                <p><strong>Job Number:</strong> ${job.job_number}</p>
+                <p><strong>Customer:</strong> ${job.customer_name} (${job.customer_phone})</p>
+                <p><strong>Email:</strong> ${job.customer_email || '-'}</p>
+                <p><strong>Device:</strong> ${job.device_brand || ''} ${job.device_model || ''}</p>
+                <p><strong>IMEI:</strong> ${job.imei_number || '-'}</p>
+                <p><strong>Problem:</strong> ${job.problem_description}</p>
+                <p><strong>Status:</strong> <span class="badge bg-${statusBadge}">${job.status}</span></p>
+                <p><strong>Technician:</strong> ${job.technician_name || 'Unassigned'}</p>
+                <p><strong>Estimated Cost:</strong> ₹${parseFloat(job.estimated_cost || 0).toFixed(2)}</p>
+                <p><strong>Actual Cost:</strong> ₹${parseFloat(job.actual_cost || 0).toFixed(2)}</p>
+                <p><strong>Advance Payment:</strong> ₹${parseFloat(job.advance_payment || 0).toFixed(2)}</p>
+                <p><strong>Balance:</strong> ₹${(parseFloat(job.actual_cost || 0) - parseFloat(job.advance_payment || 0)).toFixed(2)}</p>
+            </div>
+        `;
+        
+        if (job.parts_used && job.parts_used.length > 0) {
+            content += `
+                <h6>Parts Used</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Part</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            job.parts_used.forEach(part => {
+                content += `
+                    <tr>
+                        <td>${part.part_name}</td>
+                        <td>${part.quantity}</td>
+                        <td>₹${parseFloat(part.unit_price).toFixed(2)}</td>
+                        <td>₹${parseFloat(part.total_price).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            content += '</tbody></table>';
+        }
+        
+        if (job.labor_charges && job.labor_charges.length > 0) {
+            content += `
+                <h6>Labor Charges</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            job.labor_charges.forEach(labor => {
+                content += `
+                    <tr>
+                        <td>${labor.description}</td>
+                        <td>₹${parseFloat(labor.amount).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            content += '</tbody></table>';
+        }
+        
+        const modal = $(`
+            <div class="modal fade" id="viewJobModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Service Job Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">${content}</div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+        
+        $('body').append(modal);
+        const modalInstance = new bootstrap.Modal($('#viewJobModal'));
+        modalInstance.show();
+        
+        $('#viewJobModal').on('hidden.bs.modal', function() {
+            $(this).remove();
+        });
+    });
+}
+
+function printServiceReceipt(id) {
+    $.get(`${API_BASE}/service-jobs/${id}`, function(job) {
+        alert('Print receipt for job: ' + job.job_number);
+        // TODO: Implement receipt printing
+    });
+}
+
+function loadTechnicians() {
+    $('#content-area').html(`
+        <div class="page-header d-flex justify-content-between align-items-center">
+            <h2><i class="bi bi-person-badge"></i> Technicians</h2>
+            <button class="btn btn-success" onclick="showAddTechnician()">
+                <i class="bi bi-plus-circle"></i> Add Technician
+            </button>
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <table class="table table-hover" id="techniciansTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Specialization</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    `);
+    
+    $.get(`${API_BASE}/technicians`, function(techs) {
+        const tbody = $('#techniciansTable tbody');
+        tbody.empty();
+        
+        if (techs.length === 0) {
+            tbody.append('<tr><td colspan="6" class="text-center text-muted">No technicians found</td></tr>');
+            return;
+        }
+        
+        techs.forEach(tech => {
+            tbody.append(`
+                <tr>
+                    <td>${tech.name}</td>
+                    <td>${tech.phone || '-'}</td>
+                    <td>${tech.email || '-'}</td>
+                    <td>${tech.specialization || '-'}</td>
+                    <td><span class="badge bg-${tech.status === 'active' ? 'success' : 'secondary'}">${tech.status}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-primary action-btn" onclick="editTechnician(${tech.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger action-btn" onclick="deleteTechnician(${tech.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+        
+        $('#techniciansTable').DataTable();
+    });
+}
+
+function showAddTechnician() {
+    alert('Add technician feature - to be implemented');
+    // TODO: Implement technician add/edit modal
+}
+
+function editTechnician(id) {
+    alert('Edit technician ' + id + ' - to be implemented');
+    // TODO: Implement technician edit
+}
+
+function deleteTechnician(id) {
+    if (!confirm('Delete this technician?')) return;
+    alert('Delete technician ' + id + ' - to be implemented');
+    // TODO: Implement technician delete
+}
         $('#serviceJobActualDelivery').val(job.actual_delivery || '');
         $('#serviceJobStatus').val(job.status);
         $('#serviceJobNotes').val(job.notes || '');
