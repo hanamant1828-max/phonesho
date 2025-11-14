@@ -1267,7 +1267,7 @@ function viewProductDetails(productId) {
                     <p><strong>Selling Price:</strong> $${parseFloat(product.selling_price || 0).toFixed(2)}</p>
                     <p><strong>MRP:</strong> $${parseFloat(product.mrp || 0).toFixed(2)}</p>
                     <p><strong>Profit Margin:</strong> ${product.cost_price > 0 ? (((product.selling_price - product.cost_price) / product.cost_price * 100).toFixed(2)) : 0}%</p>
-                    
+
                     <h6 class="mt-3">Stock Information</h6>
                     <p><strong>Current Stock:</strong> ${product.current_stock}</p>
                     <p><strong>Min Stock Level:</strong> ${product.min_stock_level}</p>
@@ -1340,13 +1340,13 @@ function viewIMEITracking(productId) {
             `;
 
             data.imei_records.forEach(record => {
-                const statusBadge = record.status === 'available' || record.status === 'in_stock' 
-                    ? '<span class="badge bg-success">Available</span>' 
+                const statusBadge = record.status === 'available' || record.status === 'in_stock'
+                    ? '<span class="badge bg-success">Available</span>'
                     : '<span class="badge bg-secondary">Sold</span>';
-                
+
                 const receivedDate = record.created_at ? new Date(record.created_at).toLocaleDateString() : 'N/A';
                 const reference = record.reference || 'Manual Entry';
-                
+
                 let saleInfo = '-';
                 if (record.status === 'sold' && record.sale_number) {
                     saleInfo = `
@@ -3972,6 +3972,7 @@ function deleteAdjustment(id, productName) {
     });
 }
 
+
 let quickOrderItems = [];
 
 function loadQuickOrder() {
@@ -5240,10 +5241,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
 
                 <div style="display: flex; border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000;">
                     <div style="flex: 1; border-right: 1px solid #000; padding: 8px;">
-                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Total in words</div>
-                        <div style="padding: 5px 0; font-weight: bold; text-transform: uppercase;">${totalInWords}</div>
-
-                        <div style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
+                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
                         <table style="width: 100%; font-size: 9px;">
                             <tr><td style="padding: 2px 0;"><strong>Name</strong></td><td>${businessSettings.bank_name || 'N/A'}</td></tr>
                             <tr><td style="padding: 2px 0;"><strong>Branch</strong></td><td>${businessSettings.bank_branch || 'N/A'}</td></tr>
@@ -5279,7 +5277,7 @@ function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) 
                         </div>
 
                         <div style="margin-top: 30px; text-align: right;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 150px; font-size: 9px;">
+                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px; font-size: 9px;">
                                 <strong>Authorised Signatory</strong>
                             </div>
                         </div>
@@ -5643,11 +5641,52 @@ function deleteAdjustment(id, productName) {
 }
 
 
+let loadCustomersTable = function() {
+    const search = $('#customerSearch').val();
+    const status = $('#customerStatusFilter').val();
+
+    $.get(`${API_BASE}/customers`, { search, status }, function(customers) {
+        const tbody = $('#customersTable tbody');
+        tbody.empty();
+
+        if (customers.length === 0) {
+            tbody.append('<tr><td colspan="8" class="text-center text-muted">No customers found</td></tr>');
+            return;
+        }
+
+        customers.forEach(customer => {
+            const statusBadge = customer.status === 'active' ? 'success' : 'secondary';
+            const createdDate = new Date(customer.created_at).toLocaleDateString();
+
+            tbody.append(`
+                <tr>
+                    <td>${customer.name}</td>
+                    <td>${customer.phone || '-'}</td>
+                    <td>${customer.email || '-'}</td>
+                    <td>${customer.city || '-'}</td>
+                    <td>${customer.gstin || '-'}</td>
+                    <td><span class="badge bg-${statusBadge}">${customer.status}</span></td>
+                    <td>${createdDate}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editCustomer(${customer.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${customer.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `);
+        });
+    });
+};
+
+
 function loadCustomers() {
     $('#content-area').html(`
         <div class="page-header">
             <h2><i class="bi bi-people"></i> Customer Management</h2>
-            <p class="text-muted">Manage your shop customers and their information</p>
+            <p class="text-muted">Manage your shop customerstext-muted">Manage your shop customers and their information</p>
         </div>
 
         <div class="card">
@@ -5765,52 +5804,12 @@ function loadCustomers() {
     loadCustomersTable();
 }
 
-function loadCustomersTable() {
-    const search = $('#customerSearch').val();
-    const status = $('#customerStatusFilter').val();
-    
-    $.get(`${API_BASE}/customers`, { search, status }, function(customers) {
-        const tbody = $('#customersTable tbody');
-        tbody.empty();
-
-        if (customers.length === 0) {
-            tbody.append('<tr><td colspan="8" class="text-center text-muted">No customers found</td></tr>');
-            return;
-        }
-
-        customers.forEach(customer => {
-            const statusBadge = customer.status === 'active' ? 'success' : 'secondary';
-            const createdDate = new Date(customer.created_at).toLocaleDateString();
-
-            tbody.append(`
-                <tr>
-                    <td>${customer.name}</td>
-                    <td>${customer.phone || '-'}</td>
-                    <td>${customer.email || '-'}</td>
-                    <td>${customer.city || '-'}</td>
-                    <td>${customer.gstin || '-'}</td>
-                    <td><span class="badge bg-${statusBadge}">${customer.status}</span></td>
-                    <td>${createdDate}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary" onclick="editCustomer(${customer.id})">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${customer.id})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `);
-        });
-    });
-}
-
 function showAddCustomerModal() {
     $('#customerModalLabel').text('Add Customer');
     $('#customerForm')[0].reset();
     $('#customerId').val('');
     $('#customerStatus').val('active');
-    
+
     const modal = new bootstrap.Modal($('#customerModal'));
     modal.show();
 }
@@ -5829,7 +5828,7 @@ function editCustomer(id) {
         $('#customerPincode').val(customer.pincode);
         $('#customerNotes').val(customer.notes);
         $('#customerStatus').val(customer.status);
-        
+
         const modal = new bootstrap.Modal($('#customerModal'));
         modal.show();
     });
@@ -6323,6 +6322,7 @@ function loadReports() {
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
@@ -6743,7 +6743,7 @@ function showAddUserModal() {
     $('#userForm')[0].reset();
     $('#userId').val('');
     $('#userStatus').val('active');
-    loadRoles();
+    loadRolesForUser(); // Ensure roles are loaded
     const modal = new bootstrap.Modal($('#userModal'));
     modal.show();
 }
@@ -6756,10 +6756,10 @@ function editUser(id) {
         $('#userUsername').val(user.username);
         $('#userEmail').val(user.email);
         $('#userPhone').val(user.phone);
-        $('#userPassword').val('');
+        $('#userPassword').val(''); // Clear password field on edit
         $('#userRole').val(user.role_id);
         $('#userStatus').val(user.status);
-        loadRoles();
+        loadRolesForUser(); // Ensure roles are loaded
         const modal = new bootstrap.Modal($('#userModal'));
         modal.show();
     });
@@ -6846,7 +6846,7 @@ function loadRolePermissions(roleId, roleName) {
     $.get(`${API_BASE}/permissions`, function(allPermissions) {
         $.get(`${API_BASE}/roles/${roleId}/permissions`, function(rolePermissions) {
             const rolePermIds = rolePermissions.map(p => p.id);
-            
+
             const groupedPerms = {};
             allPermissions.forEach(perm => {
                 const module = perm.module || 'Other';
@@ -6944,3 +6944,49 @@ function loadAuditLogs() {
     });
 }
 
+
+function loadRolesForUser() {
+    $.get(`${API_BASE}/roles`, function(response) {
+        const select = $('#userRole');
+        select.empty();
+        select.append('<option value="">Select Role</option>');
+
+        // Handle both array response and object with roles property
+        const roles = Array.isArray(response) ? response : (response.roles || []);
+
+        roles.forEach(role => {
+            select.append(`<option value="${role.id}">${role.role_name || role.name}</option>`);
+        });
+    }).fail(function(xhr) {
+        console.error('Failed to load roles:', xhr.responseJSON);
+        showNotification('Failed to load roles', 'error');
+    });
+}
+
+// Helper function to display notifications
+function showNotification(message, type = 'info') {
+    // Basic notification implementation (can be replaced with a more robust library)
+    const alertClass = type === 'error' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-info';
+    const notificationContainer = $('#notification-area'); // Assuming an element with id="notification-area" exists in the layout
+
+    if (!notificationContainer.length) {
+        // If container doesn't exist, create a temporary one
+        notificationContainer = $('<div id="notification-area" style="position: fixed; top: 70px; right: 20px; z-index: 1050; width: 300px;"></div>');
+        $('body').append(notificationContainer);
+    }
+
+    const alert = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+
+    notificationContainer.prepend(alert); // Add to the top
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        alert.alert('close');
+    }, 5000);
+}
+// ==================== END USER MANAGEMENT ====================
