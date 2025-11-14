@@ -5536,87 +5536,6 @@ function viewStockHistory(productId) {
     });
 }
 
-function viewAdjustmentDetail(id) {
-    $.get(`${API_BASE}/stock-adjustments/${id}`, function(adj) {
-        const date = new Date(adj.created_at);
-        const formattedDate = date.toLocaleString();
-
-        let imeiSection = '';
-        if (adj.imei_numbers && adj.imei_numbers.length > 0) {
-            imeiSection = `
-                <div class="mt-4">
-                    <h6><i class="bi bi-upc-scan"></i> IMEI Numbers Recorded (${adj.imei_numbers.length})</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>IMEI Number</th>
-                                    <th>Status</th>
-                                    <th>Added On</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-
-            adj.imei_numbers.forEach((imei, index) => {
-                const statusBadge = imei.status === 'available' || imei.status === 'in_stock'
-                    ? '<span class="badge bg-success">Available</span>'
-                    : '<span class="badge bg-danger">Sold</span>';
-                const imeiDate = imei.created_at ? new Date(imei.created_at).toLocaleDateString() : 'N/A';
-
-                imeiSection += `
-                    <tr>
-                        <td>${index + 1}</td>
-                        <td><code>${imei.imei}</code></td>
-                        <td>${statusBadge}</td>
-                        <td>${imeiDate}</td>
-                    </tr>
-                `;
-            });
-
-            imeiSection += `
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-        } else {
-            imeiSection = `
-                <div class="mt-4">
-                    <h6><i class="bi bi-upc-scan"></i> IMEI Numbers</h6>
-                    <div class="alert alert-info mb-0">
-                        <i class="bi bi-info-circle"></i> No IMEI numbers were recorded for this stock adjustment.
-                    </div>
-                </div>
-            `;
-        }
-
-        const content = `
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong><i class="bi bi-box"></i> Product:</strong> ${adj.product_name}</p>
-                    <p><strong><i class="bi bi-tag"></i> SKU:</strong> ${adj.sku || 'N/A'}</p>
-                    <p><strong><i class="bi bi-stack"></i> Current Stock:</strong> <span class="badge bg-primary">${adj.current_stock}</span></p>
-                </div>
-                <div class="col-md-6">
-                    <p><strong><i class="bi bi-calendar"></i> Date:</strong> ${formattedDate}</p>
-                    <p><strong><i class="bi bi-plus-circle"></i> Quantity Added:</strong> <span class="badge bg-success">+${adj.quantity}</span></p>
-                    <p><strong><i class="bi bi-pencil"></i> Notes:</strong> ${adj.notes || '<em class="text-muted">None</em>'}</p>
-                </div>
-            </div>
-            <hr>
-            ${imeiSection}
-        `;
-
-        $('#adjustmentDetailContent').html(content);
-        const modal = new bootstrap.Modal($('#adjustmentDetailModal'));
-        modal.show();
-    }).fail(function(xhr) {
-        alert('Error: Failed to load adjustment details');
-    });
-}
-
 function deleteAdjustment(id, productName) {
     if (!confirm(`Are you sure you want to delete this stock adjustment for ${productName}?\n\nThis will reverse the stock change. This action cannot be undone.`)) {
         return;
@@ -5896,7 +5815,7 @@ function loadReports() {
             <p class="text-muted">Generate comprehensive reports to track your business performance</p>
         </div>
 
-        <!-- Quick Stats Summary -->
+        <!-- QuickStats Summary -->
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card bg-primary text-white">
@@ -6499,28 +6418,34 @@ function escapeHtml(text) {
 function loadUserManagement() {
     $('#content-area').html(`
         <div class="page-header">
-            <h2><i class="bi bi-people-fill"></i> User Management</h2>
-            <p class="text-muted">Manage system users, roles, and permissions</p>
+            <h2><i class="bi bi-people-gear"></i> User Management</h2>
+            <p class="text-muted">Manage users, roles, and permissions</p>
         </div>
 
-        <ul class="nav nav-tabs" role="tablist">
-            <li class="nav-item">
-                <a class="nav-link active" data-bs-toggle="tab" href="#usersTab">Users</a>
+        <ul class="nav nav-tabs mb-4" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-panel" type="button">
+                    <i class="bi bi-people"></i> Users
+                </button>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#rolesTab">Roles & Permissions</a>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles-panel" type="button">
+                    <i class="bi bi-shield-check"></i> Roles & Permissions
+                </button>
             </li>
-            <li class="nav-item">
-                <a class="nav-link" data-bs-toggle="tab" href="#auditTab">Audit Logs</a>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit-panel" type="button">
+                    <i class="bi bi-clock-history"></i> Audit Logs
+                </button>
             </li>
         </ul>
 
-        <div class="tab-content mt-3">
-            <!-- Users Tab -->
-            <div id="usersTab" class="tab-pane fade show active">
+        <div class="tab-content">
+            <!-- Users Panel -->
+            <div class="tab-pane fade show active" id="users-panel" role="tabpanel">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-people"></i> System Users</span>
+                        <h5><i class="bi bi-people"></i> System Users</h5>
                         <button class="btn btn-primary" onclick="showAddUserModal()">
                             <i class="bi bi-plus-circle"></i> Add User
                         </button>
@@ -6532,9 +6457,9 @@ function loadUserManagement() {
                                     <th>Name</th>
                                     <th>Username</th>
                                     <th>Email</th>
+                                    <th>Phone</th>
                                     <th>Role</th>
                                     <th>Status</th>
-                                    <th>Last Login</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -6544,76 +6469,26 @@ function loadUserManagement() {
                 </div>
             </div>
 
-            <!-- Roles & Permissions Tab -->
-            <div id="rolesTab" class="tab-pane fade">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <i class="bi bi-shield-check"></i> Roles
-                            </div>
-                            <div class="card-body">
-                                <div class="list-group" id="rolesList"></div>
-                            </div>
-                        </div>
+            <!-- Roles Panel -->
+            <div class="tab-pane fade" id="roles-panel" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-shield-check"></i> Roles & Permissions</h5>
                     </div>
-                    <div class="col-md-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <i class="bi bi-key-fill"></i> Permissions
-                            </div>
-                            <div class="card-body">
-                                <div id="permissionsContent">
-                                    <p class="text-muted">Select a role to view and edit permissions</p>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="card-body">
+                        <p class="text-muted">Role management coming soon...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Audit Logs Tab -->
-            <div id="auditTab" class="tab-pane fade">
+            <!-- Audit Panel -->
+            <div class="tab-pane fade" id="audit-panel" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <i class="bi bi-clock-history"></i> Audit Trail
+                        <h5><i class="bi bi-clock-history"></i> Activity Audit Logs</h5>
                     </div>
                     <div class="card-body">
-                        <div class="row mb-3">
-                            <div class="col-md-3">
-                                <input type="date" class="form-control" id="auditStartDate" placeholder="Start Date">
-                            </div>
-                            <div class="col-md-3">
-                                <input type="date" class="form-control" id="auditEndDate" placeholder="End Date">
-                            </div>
-                            <div class="col-md-3">
-                                <select class="form-select" id="auditActionFilter">
-                                    <option value="">All Actions</option>
-                                    <option value="login_success">Login Success</option>
-                                    <option value="login_failed">Login Failed</option>
-                                    <option value="user_created">User Created</option>
-                                    <option value="user_updated">User Updated</option>
-                                    <option value="password_reset">Password Reset</option>
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <button class="btn btn-primary" onclick="loadAuditLogs()">
-                                    <i class="bi bi-search"></i> Filter
-                                </button>
-                            </div>
-                        </div>
-                        <table class="table table-sm table-hover" id="auditLogsTable">
-                            <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>User</th>
-                                    <th>Action</th>
-                                    <th>Description</th>
-                                    <th>IP Address</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                        <p class="text-muted">Audit logs coming soon...</p>
                     </div>
                 </div>
             </div>
@@ -6621,51 +6496,48 @@ function loadUserManagement() {
 
         <!-- Add/Edit User Modal -->
         <div class="modal fade" id="userModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="userModalLabel">Add User</h5>
+                        <h5 class="modal-title" id="userModalTitle">Add User</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                         <form id="userForm">
                             <input type="hidden" id="userId">
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="userName" class="form-label">Full Name *</label>
-                                    <input type="text" class="form-control" id="userName" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userUsername" class="form-label">Username *</label>
-                                    <input type="text" class="form-control" id="userUsername" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="userEmail">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userPhone" class="form-label">Phone</label>
-                                    <input type="tel" class="form-control" id="userPhone">
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userPassword" class="form-label">Password *</label>
-                                    <input type="password" class="form-control" id="userPassword">
-                                    <small class="text-muted">Leave blank to keep current password</small>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userRole" class="form-label">Role *</label>
-                                    <select class="form-select" id="userRole" required>
-                                        <option value="">Select Role</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="userStatus" class="form-label">Status</label>
-                                    <select class="form-select" id="userStatus">
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                        <option value="locked">Locked</option>
-                                    </select>
-                                </div>
+                            <div class="mb-3">
+                                <label class="form-label">Full Name *</label>
+                                <input type="text" class="form-control" id="userFullName" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Username *</label>
+                                <input type="text" class="form-control" id="userUsername" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" id="userEmail">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="userPhone">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Role *</label>
+                                <select class="form-select" id="userRole" required>
+                                    <option value="">Select Role</option>
+                                </select>
+                            </div>
+                            <div class="mb-3" id="passwordGroup">
+                                <label class="form-label">Password *</label>
+                                <input type="password" class="form-control" id="userPassword" minlength="6">
+                                <small class="text-muted">Leave blank to keep current password</small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="userStatus">
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                </select>
                             </div>
                         </form>
                     </div>
@@ -6678,315 +6550,77 @@ function loadUserManagement() {
         </div>
     `);
 
-    loadUsers();
-    loadRoles();
+    loadUsersTable();
 }
 
-function loadUsers() {
-    $.get(`${API_BASE}/users`, function(users) {
+function loadUsersTable() {
+    $.get(`${API_BASE}/users`, function(response) {
         const tbody = $('#usersTable tbody');
         tbody.empty();
 
+        // Handle both array and object responses
+        const users = Array.isArray(response) ? response : (response.users || []);
+
+        if (users.length === 0) {
+            tbody.append('<tr><td colspan="7" class="text-center text-muted">No users found</td></tr>');
+            return;
+        }
+
         users.forEach(user => {
-            const statusClass = user.status === 'active' ? 'success' : user.status === 'locked' ? 'danger' : 'secondary';
-            const lastLogin = user.last_login_at ? new Date(user.last_login_at).toLocaleString() : 'Never';
+            const statusBadge = user.status === 'active' ? 'success' : 'secondary';
 
             tbody.append(`
                 <tr>
-                    <td>${user.name || user.username}</td>
+                    <td>${user.name}</td>
                     <td>${user.username}</td>
                     <td>${user.email || '-'}</td>
-                    <td><span class="badge bg-primary">${user.role_name}</span></td>
-                    <td><span class="badge bg-${statusClass}">${user.status}</span></td>
-                    <td>${lastLogin}</td>
+                    <td>${user.phone || '-'}</td>
+                    <td>${user.role_name}</td>
+                    <td><span class="badge bg-${statusBadge}">${user.status}</span></td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="editUser(${user.id})">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-warning" onclick="resetUserPassword(${user.id})">
-                            <i class="bi bi-key"></i>
-                        </button>
-                        <button class="btn btn-sm btn-${user.status === 'active' ? 'secondary' : 'success'}" 
-                                onclick="toggleUserStatus(${user.id}, '${user.status === 'active' ? 'inactive' : 'active'}')">
-                            <i class="bi bi-toggle-${user.status === 'active' ? 'off' : 'on'}"></i>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">
+                            <i class="bi bi-trash"></i>
                         </button>
                     </td>
                 </tr>
             `);
         });
-    });
-}
-
-function loadRoles() {
-    $.get(`${API_BASE}/roles`, function(roles) {
-        const roleSelect = $('#userRole');
-        roleSelect.empty().append('<option value="">Select Role</option>');
-        roles.forEach(role => {
-            roleSelect.append(`<option value="${role.id}">${role.role_name}</option>`);
-        });
-
-        const rolesList = $('#rolesList');
-        rolesList.empty();
-        roles.forEach(role => {
-            rolesList.append(`
-                <a href="#" class="list-group-item list-group-item-action" onclick="loadRolePermissions(${role.id}, '${role.role_name}'); return false;">
-                    <i class="bi bi-shield-check"></i> ${role.role_name}
-                    <br><small class="text-muted">${role.description || ''}</small>
-                </a>
-            `);
-        });
+    }).fail(function(xhr) {
+        const tbody = $('#usersTable tbody');
+        tbody.empty();
+        tbody.append(`<tr><td colspan="7" class="text-center text-danger">Error loading users: ${xhr.responseJSON?.error || 'Unknown error'}</td></tr>`);
     });
 }
 
 function showAddUserModal() {
-    $('#userModalLabel').text('Add User');
+    $('#userModalTitle').text('Add User');
     $('#userForm')[0].reset();
     $('#userId').val('');
-    $('#userStatus').val('active');
-    loadRolesForUser(); // Ensure roles are loaded
+    $('#passwordGroup').show();
+    $('#userPassword').prop('required', true);
+
+    loadRolesDropdown();
+
     const modal = new bootstrap.Modal($('#userModal'));
     modal.show();
 }
 
-function editUser(id) {
-    $.get(`${API_BASE}/users/${id}`, function(user) {
-        $('#userModalLabel').text('Edit User');
-        $('#userId').val(user.id);
-        $('#userName').val(user.name);
-        $('#userUsername').val(user.username);
-        $('#userEmail').val(user.email);
-        $('#userPhone').val(user.phone);
-        $('#userPassword').val(''); // Clear password field on edit
-        $('#userRole').val(user.role_id);
-        $('#userStatus').val(user.status);
-        loadRolesForUser(); // Ensure roles are loaded
-        const modal = new bootstrap.Modal($('#userModal'));
-        modal.show();
-    });
-}
-
-function saveUser() {
-    const id = $('#userId').val();
-    const data = {
-        name: $('#userName').val(),
-        username: $('#userUsername').val(),
-        email: $('#userEmail').val(),
-        phone: $('#userPhone').val(),
-        role_id: parseInt($('#userRole').val()),
-        status: $('#userStatus').val()
-    };
-
-    const password = $('#userPassword').val();
-    if (password) {
-        data.password = password;
-    }
-
-    if (!data.name || !data.username || !data.role_id) {
-        alert('Please fill in all required fields');
-        return;
-    }
-
-    const url = id ? `${API_BASE}/users/${id}` : `${API_BASE}/users`;
-    const method = id ? 'PUT' : 'POST';
-
-    $.ajax({
-        url: url,
-        method: method,
-        contentType: 'application/json',
-        data: JSON.stringify(data),
-        success: function() {
-            bootstrap.Modal.getInstance($('#userModal')).hide();
-            loadUsers();
-            alert('User saved successfully');
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save user'));
-        }
-    });
-}
-
-function toggleUserStatus(userId, newStatus) {
-    $.ajax({
-        url: `${API_BASE}/users/${userId}/status`,
-        method: 'PATCH',
-        contentType: 'application/json',
-        data: JSON.stringify({ status: newStatus }),
-        success: function() {
-            loadUsers();
-            alert('User status updated');
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update status'));
-        }
-    });
-}
-
-function resetUserPassword(userId) {
-    const newPassword = prompt('Enter new password (min 6 characters):');
-    if (!newPassword || newPassword.length < 6) {
-        alert('Password must be at least 6 characters');
-        return;
-    }
-
-    $.ajax({
-        url: `${API_BASE}/users/${userId}/reset-password`,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ new_password: newPassword }),
-        success: function() {
-            alert('Password reset successfully');
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to reset password'));
-        }
-    });
-}
-
-function loadRolePermissions(roleId, roleName) {
-    $.get(`${API_BASE}/permissions`, function(allPermissions) {
-        $.get(`${API_BASE}/roles/${roleId}/permissions`, function(rolePermissions) {
-            const rolePermIds = rolePermissions.map(p => p.id);
-
-            const groupedPerms = {};
-            allPermissions.forEach(perm => {
-                const module = perm.module || 'Other';
-                if (!groupedPerms[module]) groupedPerms[module] = [];
-                groupedPerms[module].push(perm);
-            });
-
-            let html = `
-                <h5>${roleName} Permissions</h5>
-                <form id="rolePermissionsForm">
-                    <input type="hidden" id="currentRoleId" value="${roleId}">
-            `;
-
-            Object.keys(groupedPerms).forEach(module => {
-                html += `<h6 class="mt-3">${module}</h6><div class="row">`;
-                groupedPerms[module].forEach(perm => {
-                    const checked = rolePermIds.includes(perm.id) ? 'checked' : '';
-                    html += `
-                        <div class="col-md-6">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="${perm.id}" ${checked} id="perm${perm.id}">
-                                <label class="form-check-label" for="perm${perm.id}">
-                                    ${perm.permission_name || perm.name}
-                                </label>
-                            </div>
-                        </div>
-                    `;
-                });
-                html += `</div>`;
-            });
-
-            html += `
-                    <button type="button" class="btn btn-primary mt-3" onclick="saveRolePermissions()">
-                        <i class="bi bi-save"></i> Save Permissions
-                    </button>
-                </form>
-            `;
-
-            $('#permissionsContent').html(html);
-        });
-    });
-}
-
-function saveRolePermissions() {
-    const roleId = $('#currentRoleId').val();
-    const permissionIds = [];
-    $('#rolePermissionsForm input[type="checkbox"]:checked').each(function() {
-        permissionIds.push(parseInt($(this).val()));
-    });
-
-    $.ajax({
-        url: `${API_BASE}/roles/${roleId}/permissions`,
-        method: 'PUT',
-        contentType: 'application/json',
-        data: JSON.stringify({ permission_ids: permissionIds }),
-        success: function() {
-            alert('Permissions updated successfully');
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update permissions'));
-        }
-    });
-}
-
-function loadAuditLogs() {
-    const params = new URLSearchParams();
-    const startDate = $('#auditStartDate').val();
-    const endDate = $('#auditEndDate').val();
-    const action = $('#auditActionFilter').val();
-
-    if (startDate) params.append('start_date', startDate);
-    if (endDate) params.append('end_date', endDate);
-    if (action) params.append('action_type', action);
-
-    $.get(`${API_BASE}/audit-logs?${params.toString()}`, function(response) {
-        const tbody = $('#auditLogsTable tbody');
-        tbody.empty();
-
-        response.logs.forEach(log => {
-            const timestamp = new Date(log.created_at).toLocaleString();
-            tbody.append(`
-                <tr>
-                    <td>${timestamp}</td>
-                    <td>${log.username || 'System'}</td>
-                    <td><span class="badge bg-info">${log.action_type}</span></td>
-                    <td>${log.description || '-'}</td>
-                    <td>${log.ip_address || '-'}</td>
-                </tr>
-            `);
-        });
-
-        if (response.logs.length === 0) {
-            tbody.append('<tr><td colspan="5" class="text-center text-muted">No audit logs found</td></tr>');
-        }
-    });
-}
-
-
-function loadRolesForUser() {
+function loadRolesDropdown(selectedRoleId) {
     $.get(`${API_BASE}/roles`, function(response) {
         const select = $('#userRole');
-        select.empty();
-        select.append('<option value="">Select Role</option>');
+        select.empty().append('<option value="">Select Role</option>');
 
-        // Handle both array response and object with roles property
+        // Handle both array and object responses
         const roles = Array.isArray(response) ? response : (response.roles || []);
 
         roles.forEach(role => {
-            select.append(`<option value="${role.id}">${role.role_name || role.name}</option>`);
+            select.append(`<option value="${role.id}" ${role.id === selectedRoleId ? 'selected' : ''}>${role.role_name}</option>`);
         });
     }).fail(function(xhr) {
-        console.error('Failed to load roles:', xhr.responseJSON);
-        showNotification('Failed to load roles', 'error');
+        console.error('Error loading roles:', xhr);
+        alert('Failed to load roles. Please try again.');
     });
 }
-
-// Helper function to display notifications
-function showNotification(message, type = 'info') {
-    // Basic notification implementation (can be replaced with a more robust library)
-    const alertClass = type === 'error' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-info';
-    const notificationContainer = $('#notification-area'); // Assuming an element with id="notification-area" exists in the layout
-
-    if (!notificationContainer.length) {
-        // If container doesn't exist, create a temporary one
-        notificationContainer = $('<div id="notification-area" style="position: fixed; top: 70px; right: 20px; z-index: 1050; width: 300px;"></div>');
-        $('body').append(notificationContainer);
-    }
-
-    const alert = $(`
-        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-
-    notificationContainer.prepend(alert); // Add to the top
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        alert.alert('close');
-    }, 5000);
-}
-// ==================== END USER MANAGEMENT ====================
