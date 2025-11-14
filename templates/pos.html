@@ -1426,7 +1426,7 @@
                         imei_numbers: [],
                         imei_ids: [],
                         manual_imeis: [],
-                        item_discount: 0,
+                        item_discount: 0, // Default to 0 for new items
                     });
                 }
 
@@ -1524,11 +1524,11 @@
 
                         <div class="cart-item-discount">
                             <label><i class="bi bi-tag"></i> Item Discount:</label>
-                            <input type="number" class="form-input" value="${itemDiscount.toFixed(2)}" 
-                                   min="0" max="${itemSubtotal}" step="0.01" 
+                            <input type="number" class="form-input" value="${itemDiscount.toFixed(2)}"
+                                   min="0" max="100" step="0.1"
                                    onchange="updateItemDiscount(${index}, this.value)"
                                    placeholder="0.00">
-                            <span style="font-size: 12px; color: var(--gray-500);">₹</span>
+                            <span style="font-size: 12px; color: var(--gray-500);">%</span>
                         </div>
 
                         ${imeiSectionHtml}
@@ -1731,9 +1731,10 @@
                     return;
                 }
 
-                if (discountValue > itemSubtotal) {
-                    alert("Discount cannot exceed item subtotal");
-                    item.item_discount = itemSubtotal;
+                // Allow discounts up to 100%
+                if (discountValue > 100) {
+                    alert("Discount percentage cannot exceed 100%");
+                    item.item_discount = 100; // Set to 100% if over
                     updateCart();
                     return;
                 }
@@ -1771,11 +1772,12 @@
 
                     cart.forEach((item, index) => {
                         const itemSubtotal = item.quantity * item.unit_price;
-                        const itemDiscount = parseFloat(item.item_discount) || 0;
-                        const itemTotal = itemSubtotal - itemDiscount;
+                        const itemDiscountPercent = parseFloat(item.item_discount) || 0;
+                        const itemDiscountAmount = itemSubtotal * (itemDiscountPercent / 100);
+                        const itemTotal = itemSubtotal - itemDiscountAmount;
 
                         subtotal += itemSubtotal;
-                        totalItemDiscounts += itemDiscount;
+                        totalItemDiscounts += itemDiscountAmount;
 
                         breakdownHTML += `
                         <div style="display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px solid #f0f0f0;">
@@ -1783,7 +1785,7 @@
                                 <div style="font-weight: 500; color: #333;">${item.product_name}</div>
                                 <div style="font-size: 0.75rem; color: #999;">
                                     ₹${item.unit_price.toFixed(2)} × ${item.quantity} = ₹${itemSubtotal.toFixed(2)}
-                                    ${itemDiscount > 0 ? `<br><span style="color: #ef4444;">Item Discount: -₹${itemDiscount.toFixed(2)}</span>` : ''}
+                                    ${itemDiscountAmount > 0 ? `<br><span style="color: #ef4444;">Item Discount: -₹${itemDiscountAmount.toFixed(2)} (${itemDiscountPercent}%)</span>` : ''}
                                 </div>
                             </div>
                             <div style="font-weight: 500; color: #333;">₹${itemTotal.toFixed(2)}</div>
@@ -1802,7 +1804,7 @@
                 const subtotalAfterItemDiscounts = subtotal - totalItemDiscounts;
                 const additionalDiscountAmount = subtotalAfterItemDiscounts * (discountPercent / 100);
                 const totalDiscountAmount = totalItemDiscounts + additionalDiscountAmount;
-                
+
                 const taxableAmount = subtotal - totalDiscountAmount;
                 const taxAmount = taxableAmount * (taxPercent / 100);
                 const total = taxableAmount + taxAmount;
@@ -1840,16 +1842,19 @@
                     }
                 }
 
-                const subtotal = cart.reduce(
-                    (sum, item) => sum + item.quantity * item.unit_price,
-                    0,
-                );
+                const items = cart || [];
+                const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
                 const discountPercent =
                     parseFloat($("#discountPercent").val()) || 0;
                 const taxPercent = parseFloat($("#taxPercent").val()) || 0;
 
-                // Calculate total item discounts
-                const totalItemDiscounts = cart.reduce((sum, item) => sum + (parseFloat(item.item_discount) || 0), 0);
+                // Calculate total item discounts (convert percentage to amount)
+                const totalItemDiscounts = cart.reduce((sum, item) => {
+                    const itemSubtotal = item.quantity * item.unit_price;
+                    const itemDiscountPercent = parseFloat(item.item_discount) || 0;
+                    const itemDiscountAmount = itemSubtotal * (itemDiscountPercent / 100);
+                    return sum + itemDiscountAmount;
+                }, 0);
 
                 const saleData = {
                     transaction_type: currentTransactionType,
@@ -1985,8 +1990,9 @@
 
                 items.forEach(item => {
                     const itemSubtotal = item.quantity * item.unit_price;
-                    const itemDiscount = parseFloat(item.item_discount) || 0;
-                    const itemTaxableValue = itemSubtotal - itemDiscount;
+                    const itemDiscountPercent = parseFloat(item.item_discount) || 0;
+                    const itemDiscountAmount = itemSubtotal * (itemDiscountPercent / 100);
+                    const itemTaxableValue = itemSubtotal - itemDiscountAmount;
 
                     let itemCgstAmount = 0;
                     let itemSgstAmount = 0;
@@ -2015,8 +2021,8 @@
                     }
 
                     let discountDisplay = '';
-                    if (itemDiscount > 0) {
-                        discountDisplay = '<br><span style="font-size: 9px; color: #ef4444;">Discount: -₹' + itemDiscount.toFixed(2) + '</span>';
+                    if (itemDiscountAmount > 0) {
+                        discountDisplay = '<br><span style="font-size: 9px; color: #ef4444;">Discount: -₹' + itemDiscountAmount.toFixed(2) + ' (' + itemDiscountPercent.toFixed(1) + '%)</span>';
                     }
 
                     itemsHtml += `
