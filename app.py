@@ -534,11 +534,14 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
             full_name TEXT,
             email TEXT UNIQUE,
             role_id INTEGER,
             is_active INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'active',
+            failed_login_attempts INTEGER DEFAULT 0,
+            last_login_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (role_id) REFERENCES roles (id)
         )
@@ -610,8 +613,8 @@ def init_db():
         cursor.execute('SELECT id FROM roles WHERE name = ?', ('Admin',))
         admin_role = cursor.fetchone()
         if admin_role:
-            cursor.execute('INSERT INTO users (username, password, full_name, email, role_id, is_active) VALUES (?, ?, ?, ?, ?, ?)',
-                           (ADMIN_USERNAME, hashed_password.decode('utf-8'), 'Administrator', 'admin@example.com', admin_role['id'], 1))
+            cursor.execute('INSERT INTO users (username, password_hash, full_name, email, role_id, is_active, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           (ADMIN_USERNAME, hashed_password.decode('utf-8'), 'Administrator', 'admin@example.com', admin_role['id'], 1, 'active'))
 
     conn.commit()
     conn.close()
