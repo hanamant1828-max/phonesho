@@ -35,7 +35,7 @@ def check_permission(permission_key):
     try:
         # Check if user is admin - admins have all permissions
         cursor.execute('''
-            SELECT COALESCE(r.role_name, r.name) as role_name
+            SELECT r.name as role_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE u.id = ?
@@ -120,7 +120,7 @@ def admin_required(f):
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT COALESCE(r.role_name, r.name) as role_name
+                SELECT r.name as role_name
                 FROM users u
                 JOIN roles r ON u.role_id = r.id
                 WHERE u.id = ?
@@ -143,9 +143,9 @@ def authenticate_user(username, password):
     cursor = conn.cursor()
     
     try:
-        # Get user details - use COALESCE to handle both 'name' and 'role_name' columns
+        # Get user details
         cursor.execute('''
-            SELECT u.*, COALESCE(r.role_name, r.name) as role_name
+            SELECT u.*, r.name as role_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE u.username = ?
