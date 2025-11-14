@@ -1147,6 +1147,32 @@
                         <button class="btn btn-primary" onclick="completeSale(true)">
                             <i class="bi bi-printer-fill"></i> Save and Print
                         </button>
+                        
+                        <!-- New Action Buttons -->
+                        <div class="row g-2 mt-2">
+                            <div class="col-6">
+                                <button class="btn btn-warning w-100" onclick="holdBill()">
+                                    <i class="bi bi-pause-circle"></i> Hold Bill
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-info w-100" onclick="showResumeBillModal()">
+                                    <i class="bi bi-play-circle"></i> Resume Bill
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button class="btn btn-outline-primary w-100" onclick="saveBillDraft()">
+                                    <i class="bi bi-save"></i> Save Bill
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-success w-100" onclick="shareViaWhatsApp()">
+                                    <i class="bi bi-whatsapp"></i> WhatsApp
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1182,6 +1208,26 @@
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="button" class="btn btn-primary" id="confirmImeiSelectionBtn">Confirm Selection</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resume Bill Modal -->
+        <div class="modal fade" id="resumeBillModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title"><i class="bi bi-play-circle"></i> Resume Held Bills</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="heldBillsList">
+                            <!-- Held bills will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
@@ -2585,6 +2631,443 @@
                     }
                 }
             });
+
+            // ========================================
+            // HOLD BILL FUNCTIONALITY
+            // ========================================
+            function holdBill() {
+                if (cart.length === 0) {
+                    alert("Cart is empty. Nothing to hold.");
+                    return;
+                }
+
+                const holdId = 'HOLD-' + Date.now();
+                const holdData = {
+                    id: holdId,
+                    timestamp: new Date().toISOString(),
+                    cart: JSON.parse(JSON.stringify(cart)),
+                    customer: {
+                        name: $('#customerName').val(),
+                        phone: $('#customerPhone').val(),
+                        email: $('#customerEmail').val()
+                    },
+                    billing: {
+                        subtotal: $('#subtotal').text(),
+                        discount: $('#discountPercent').val(),
+                        tax: $('#taxPercent').val(),
+                        total: $('#total').text()
+                    },
+                    paymentMethod: $('#paymentMethod').val(),
+                    transactionType: currentTransactionType
+                };
+
+                // Get existing held bills
+                let heldBills = JSON.parse(localStorage.getItem('heldBills') || '[]');
+                heldBills.push(holdData);
+                localStorage.setItem('heldBills', JSON.stringify(heldBills));
+
+                alert(`Bill held successfully!\n\nHold ID: ${holdId}\nItems: ${cart.length}\nTotal: ${holdData.billing.total}`);
+                
+                // Clear cart after holding
+                resetPOS();
+            }
+
+            // ========================================
+            // RESUME BILL FUNCTIONALITY
+            // ========================================
+            function showResumeBillModal() {
+                const heldBills = JSON.parse(localStorage.getItem('heldBills') || '[]');
+                const container = $('#heldBillsList');
+                container.empty();
+
+                if (heldBills.length === 0) {
+                    container.html(`
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-3">No held bills found</p>
+                        </div>
+                    `);
+                } else {
+                    heldBills.forEach((bill, index) => {
+                        const date = new Date(bill.timestamp);
+                        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        
+                        container.append(`
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1"><i class="bi bi-receipt"></i> ${bill.id}</h6>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock"></i> ${dateStr}
+                                            </small>
+                                            <div class="mt-2">
+                                                <strong>Customer:</strong> ${bill.customer.name || 'Walk-in'}<br>
+                                                <strong>Items:</strong> ${bill.cart.length}<br>
+                                                <strong>Total:</strong> ${bill.billing.total}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <button class="btn btn-success btn-sm" onclick="resumeBill(${index})">
+                                                <i class="bi bi-play-circle"></i> Resume
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteHeldBill(${index})">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    });
+                }
+
+                const modal = new bootstrap.Modal($('#resumeBillModal'));
+                modal.show();
+            }
+
+            function resumeBill(index) {
+                const heldBills = JSON.parse(localStorage.getItem('heldBills') || '[]');
+                const bill = heldBills[index];
+
+                if (!bill) {
+                    alert('Bill not found');
+                    return;
+                }
+
+                // Restore cart
+                cart = JSON.parse(JSON.stringify(bill.cart));
+
+                // Restore customer info
+                $('#customerName').val(bill.customer.name || '');
+                $('#customerPhone').val(bill.customer.phone || '');
+                $('#customerEmail').val(bill.customer.email || '');
+
+                // Restore billing
+                $('#discountPercent').val(bill.billing.discount || 0);
+                $('#taxPercent').val(bill.billing.tax || 0);
+                $('#paymentMethod').val(bill.paymentMethod || 'cash');
+
+                // Restore transaction type
+                currentTransactionType = bill.transactionType || 'sale';
+                $('.transaction-tab').removeClass('active');
+                $(`.transaction-tab[data-type="${currentTransactionType}"]`).addClass('active');
+
+                // Remove from held bills
+                heldBills.splice(index, 1);
+                localStorage.setItem('heldBills', JSON.stringify(heldBills));
+
+                // Update UI
+                updateCart();
+                bootstrap.Modal.getInstance($('#resumeBillModal')).hide();
+
+                alert(`Bill ${bill.id} resumed successfully!`);
+            }
+
+            function deleteHeldBill(index) {
+                if (!confirm('Are you sure you want to delete this held bill?')) {
+                    return;
+                }
+
+                const heldBills = JSON.parse(localStorage.getItem('heldBills') || '[]');
+                heldBills.splice(index, 1);
+                localStorage.setItem('heldBills', JSON.stringify(heldBills));
+
+                showResumeBillModal();
+            }
+
+            // ========================================
+            // SAVE BILL FUNCTIONALITY
+            // ========================================
+            function saveBillDraft() {
+                if (cart.length === 0) {
+                    alert("Cart is empty. Nothing to save.");
+                    return;
+                }
+
+                const billId = 'DRAFT-' + Date.now();
+                const billData = {
+                    id: billId,
+                    timestamp: new Date().toISOString(),
+                    date: new Date().toLocaleDateString(),
+                    time: new Date().toLocaleTimeString(),
+                    cart: JSON.parse(JSON.stringify(cart)),
+                    customer: {
+                        name: $('#customerName').val() || 'Walk-in Customer',
+                        phone: $('#customerPhone').val() || '',
+                        email: $('#customerEmail').val() || ''
+                    },
+                    billing: {
+                        subtotal: parseFloat($('#subtotal').text().replace('₹', '')),
+                        discountPercent: parseFloat($('#discountPercent').val()) || 0,
+                        discountAmount: parseFloat($('#discountAmount').text().replace('-₹', '')),
+                        taxPercent: parseFloat($('#taxPercent').val()) || 0,
+                        taxAmount: parseFloat($('#taxAmount').text().replace('+₹', '')),
+                        total: parseFloat($('#total').text().replace('₹', ''))
+                    },
+                    paymentMethod: $('#paymentMethod').val(),
+                    transactionType: currentTransactionType,
+                    status: 'draft'
+                };
+
+                // Save to localStorage
+                let savedBills = JSON.parse(localStorage.getItem('savedBills') || '[]');
+                savedBills.push(billData);
+                localStorage.setItem('savedBills', JSON.stringify(savedBills));
+
+                alert(`Bill saved successfully!\n\nBill ID: ${billId}\nTotal: ₹${billData.billing.total.toFixed(2)}\n\nYou can access saved bills from localStorage.`);
+            }
+
+            // ========================================
+            // PRINT BILL FUNCTIONALITY
+            // ========================================
+            function printBillOnly() {
+                if (cart.length === 0) {
+                    alert("Cart is empty. Nothing to print.");
+                    return;
+                }
+
+                const billId = 'PRINT-' + Date.now();
+                const date = new Date();
+                
+                const subtotal = parseFloat($('#subtotal').text().replace('₹', ''));
+                const discountPercent = parseFloat($('#discountPercent').val()) || 0;
+                const discountAmount = parseFloat($('#discountAmount').text().replace('-₹', ''));
+                const taxPercent = parseFloat($('#taxPercent').val()) || 0;
+                const taxAmount = parseFloat($('#taxAmount').text().replace('+₹', ''));
+                const total = parseFloat($('#total').text().replace('₹', ''));
+
+                let itemsHtml = '';
+                cart.forEach((item, index) => {
+                    const itemSubtotal = item.quantity * item.unit_price;
+                    const itemDiscountPercent = parseFloat(item.item_discount) || 0;
+                    const itemDiscountAmount = itemSubtotal * (itemDiscountPercent / 100);
+                    const itemTotal = itemSubtotal - itemDiscountAmount;
+
+                    itemsHtml += `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${item.product_name}</td>
+                            <td style="text-align: center;">${item.quantity}</td>
+                            <td style="text-align: right;">₹${item.unit_price.toFixed(2)}</td>
+                            <td style="text-align: right;">₹${itemTotal.toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+
+                const printWindow = window.open('', '', 'width=800,height=600');
+                printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <title>Invoice - ${billId}</title>
+                        <style>
+                            * { margin: 0; padding: 0; box-sizing: border-box; }
+                            body {
+                                font-family: Arial, sans-serif;
+                                padding: 20px;
+                                font-size: 12px;
+                            }
+                            .header {
+                                text-align: center;
+                                margin-bottom: 20px;
+                                border-bottom: 2px solid #000;
+                                padding-bottom: 10px;
+                            }
+                            .company-name {
+                                font-size: 24px;
+                                font-weight: bold;
+                                color: #1e40af;
+                            }
+                            .invoice-info {
+                                display: flex;
+                                justify-content: space-between;
+                                margin-bottom: 20px;
+                            }
+                            table {
+                                width: 100%;
+                                border-collapse: collapse;
+                                margin-bottom: 20px;
+                            }
+                            th, td {
+                                border: 1px solid #ddd;
+                                padding: 8px;
+                            }
+                            th {
+                                background-color: #f0f0f0;
+                                font-weight: bold;
+                            }
+                            .totals {
+                                margin-left: auto;
+                                width: 300px;
+                            }
+                            .totals tr td {
+                                padding: 5px 10px;
+                            }
+                            .grand-total {
+                                font-size: 16px;
+                                font-weight: bold;
+                                background-color: #f0f0f0;
+                            }
+                            .footer {
+                                margin-top: 30px;
+                                text-align: center;
+                                font-size: 11px;
+                                color: #666;
+                            }
+                            @media print {
+                                .no-print { display: none; }
+                            }
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <div class="company-name">Mobile Shop</div>
+                            <div>Complete Mobile Solutions</div>
+                        </div>
+
+                        <div class="invoice-info">
+                            <div>
+                                <strong>Invoice No:</strong> ${billId}<br>
+                                <strong>Date:</strong> ${date.toLocaleDateString()}<br>
+                                <strong>Time:</strong> ${date.toLocaleTimeString()}
+                            </div>
+                            <div style="text-align: right;">
+                                <strong>Customer:</strong> ${$('#customerName').val() || 'Walk-in Customer'}<br>
+                                <strong>Phone:</strong> ${$('#customerPhone').val() || 'N/A'}<br>
+                                <strong>Payment:</strong> ${$('#paymentMethod').val().toUpperCase()}
+                            </div>
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;">Sr.</th>
+                                    <th>Product</th>
+                                    <th style="width: 80px; text-align: center;">Qty</th>
+                                    <th style="width: 100px; text-align: right;">Rate</th>
+                                    <th style="width: 100px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+
+                        <table class="totals">
+                            <tr>
+                                <td>Subtotal:</td>
+                                <td style="text-align: right;">₹${subtotal.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td>Discount (${discountPercent}%):</td>
+                                <td style="text-align: right; color: #dc3545;">-₹${discountAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr>
+                                <td>Tax (${taxPercent}%):</td>
+                                <td style="text-align: right;">+₹${taxAmount.toFixed(2)}</td>
+                            </tr>
+                            <tr class="grand-total">
+                                <td>Total Amount:</td>
+                                <td style="text-align: right;">₹${total.toFixed(2)}</td>
+                            </tr>
+                        </table>
+
+                        <div class="footer">
+                            <p>Thank you for your business!</p>
+                            <p>This is a computer generated invoice</p>
+                        </div>
+
+                        <div class="no-print" style="text-align: center; margin-top: 20px;">
+                            <button onclick="window.print()" style="padding: 10px 30px; font-size: 14px; background: #10b981; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                                🖨️ Print Invoice
+                            </button>
+                        </div>
+                    </body>
+                    </html>
+                `);
+
+                printWindow.document.close();
+                setTimeout(() => {
+                    printWindow.print();
+                }, 300);
+            }
+
+            // ========================================
+            // SHARE VIA WHATSAPP FUNCTIONALITY
+            // ========================================
+            function shareViaWhatsApp() {
+                if (cart.length === 0) {
+                    alert("Cart is empty. Nothing to share.");
+                    return;
+                }
+
+                const customerPhone = $('#customerPhone').val().trim();
+                if (!customerPhone) {
+                    alert("Please enter customer phone number to share via WhatsApp");
+                    $('#customerPhone').focus();
+                    return;
+                }
+
+                // Remove any non-digit characters
+                const cleanPhone = customerPhone.replace(/\D/g, '');
+                
+                const billId = 'INV-' + Date.now();
+                const date = new Date();
+                
+                const subtotal = parseFloat($('#subtotal').text().replace('₹', ''));
+                const discountPercent = parseFloat($('#discountPercent').val()) || 0;
+                const discountAmount = parseFloat($('#discountAmount').text().replace('-₹', ''));
+                const taxPercent = parseFloat($('#taxPercent').val()) || 0;
+                const taxAmount = parseFloat($('#taxAmount').text().replace('+₹', ''));
+                const total = parseFloat($('#total').text().replace('₹', ''));
+
+                // Build items list
+                let itemsList = '';
+                cart.forEach((item, index) => {
+                    const itemSubtotal = item.quantity * item.unit_price;
+                    const itemDiscountPercent = parseFloat(item.item_discount) || 0;
+                    const itemDiscountAmount = itemSubtotal * (itemDiscountPercent / 100);
+                    const itemTotal = itemSubtotal - itemDiscountAmount;
+                    
+                    itemsList += `${index + 1}. ${item.product_name}\n`;
+                    itemsList += `   Qty: ${item.quantity} × ₹${item.unit_price.toFixed(2)} = ₹${itemTotal.toFixed(2)}\n`;
+                });
+
+                // Create WhatsApp message
+                const message = `🧾 *INVOICE*
+
+📋 Invoice No: ${billId}
+📅 Date: ${date.toLocaleDateString()}
+🕐 Time: ${date.toLocaleTimeString()}
+
+👤 Customer: ${$('#customerName').val() || 'Walk-in Customer'}
+
+📦 *ITEMS*
+${itemsList}
+
+💰 *BILLING SUMMARY*
+Subtotal: ₹${subtotal.toFixed(2)}
+Discount (${discountPercent}%): -₹${discountAmount.toFixed(2)}
+Tax (${taxPercent}%): +₹${taxAmount.toFixed(2)}
+━━━━━━━━━━━━━━
+*TOTAL: ₹${total.toFixed(2)}*
+
+💳 Payment: ${$('#paymentMethod').val().toUpperCase()}
+
+Thank you for your business! 🙏`;
+
+                // Encode message for URL
+                const encodedMessage = encodeURIComponent(message);
+                
+                // Create WhatsApp URL
+                const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+                
+                // Open WhatsApp
+                window.open(whatsappUrl, '_blank');
+                
+                alert(`WhatsApp link opened!\n\nSending invoice to: ${customerPhone}`);
+            }
         </script>
     </body>
 </html>
