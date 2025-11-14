@@ -209,6 +209,23 @@
                 display: flex;
             }
 
+            .category-sidebar.expanded .category-search-container {
+                display: block !important;
+            }
+
+            .category-search-container input {
+                width: 100%;
+                border: 1px solid var(--gray-300);
+                border-radius: 6px;
+                font-size: 13px;
+            }
+
+            .category-search-container input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(30, 111, 255, 0.1);
+            }
+
             .category-btn {
                 width: 100%;
                 padding: 18px 20px;
@@ -958,6 +975,9 @@
                     <i class="bi bi-grid-3x3-gap-fill"></i>
                     <span>Category</span>
                 </button>
+                <div class="category-search-container" style="padding: 12px; display: none;">
+                    <input type="text" class="form-control form-control-sm" id="categorySearchInput" placeholder="Search categories...">
+                </div>
                 <div class="category-list" id="categoryList"></div>
             </div>
 
@@ -1221,6 +1241,24 @@
             // Toggle sidebar expansion
             $('#categoryMainBtn').on('click', function() {
                 $('#categorySidebar').toggleClass('expanded');
+                if ($('#categorySidebar').hasClass('expanded')) {
+                    setTimeout(() => {
+                        $('#categorySearchInput').focus();
+                    }, 100);
+                }
+            });
+
+            // Category search functionality
+            $('#categorySearchInput').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase().trim();
+                $('.category-btn').each(function() {
+                    const categoryName = $(this).text().toLowerCase();
+                    if (categoryName.includes(searchTerm)) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
             });
 
             // Select category from sidebar
