@@ -1,162 +1,191 @@
 
-import bcrypt
-import jwt
-import json
-from datetime import datetime, timedelta
 from functools import wraps
-from flask import request, jsonify, session
+from flask import session, redirect, url_for, request, jsonify
 import sqlite3
+import bcrypt
+from datetime import datetime
 
-SECRET_KEY = "your-secret-key-change-in-production"  # Should be in environment variable
-TOKEN_EXPIRATION_HOURS = 24
-
-def get_db_connection():
+def get_db():
     conn = sqlite3.connect('mobile_shop.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-def hash_password(password):
-    """Hash a password using bcrypt"""
-    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-
-def verify_password(password, password_hash):
-    """Verify a password against its hash"""
-    return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
-
-def generate_token(user_id, username, role_id):
-    """Generate JWT token for authenticated user"""
-    payload = {
-        'user_id': user_id,
-        'username': username,
-        'role_id': role_id,
-        'exp': datetime.utcnow() + timedelta(hours=TOKEN_EXPIRATION_HOURS)
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm='HS256')
-
-def decode_token(token):
-    """Decode and verify JWT token"""
-    try:
-        return jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-
-def log_audit(user_id, action_type, description, ip_address=None, device_info=None, metadata=None):
+def log_audit(user_id, action_type, description, ip_address=None, device_info=None):
     """Log user activity to audit trail"""
-    conn = get_db_connection()
+    conn = get_db()
     cursor = conn.cursor()
-    
-    metadata_json = json.dumps(metadata) if metadata else None
-    
-    cursor.execute('''
-        INSERT INTO audit_logs (user_id, action_type, description, ip_address, device_info, metadata)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (user_id, action_type, description, ip_address, device_info, metadata_json))
-    
-    conn.commit()
-    conn.close()
+    try:
+        cursor.execute('''
+            INSERT INTO audit_logs (user_id, action_type, description, ip_address, device_info)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, action_type, description, ip_address, device_info))
+        conn.commit()
+    except Exception as e:
+        print(f"Audit log error: {e}")
+    finally:
+        conn.close()
 
-def get_user_permissions(user_id):
-    """Get all permissions for a user based on their role"""
-    conn = get_db_connection()
+def check_permission(permission_key):
+    """Check if current user has specific permission"""
+    if 'user_id' not in session:
+        return False
+    
+    conn = get_db()
     cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT p.permission_name
-        FROM users u
-        JOIN role_permissions rp ON u.role_id = rp.role_id
-        JOIN permissions p ON rp.permission_id = p.id
-        WHERE u.id = ? AND u.status = 'active'
-    ''', (user_id,))
-    
-    permissions = [row['permission_name'] for row in cursor.fetchall()]
-    conn.close()
-    return permissions
+    try:
+        cursor.execute('''
+            SELECT COUNT(*) as count
+            FROM role_permissions rp
+            JOIN permissions p ON rp.permission_id = p.id
+            JOIN users u ON u.role_id = rp.role_id
+            WHERE u.id = ? AND p.permission_key = ?
+        ''', (session['user_id'], permission_key))
+        result = cursor.fetchone()
+        return result['count'] > 0
+    finally:
+        conn.close()
 
-def require_auth(f):
-    """Decorator to require authentication"""
+def get_user_permissions():
+    """Get all permissions for current user"""
+    if 'user_id' not in session:
+        return []
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT DISTINCT p.permission_key, p.permission_name, p.module
+            FROM role_permissions rp
+            JOIN permissions p ON rp.permission_id = p.id
+            JOIN users u ON u.role_id = rp.role_id
+            WHERE u.id = ?
+            ORDER BY p.module, p.permission_name
+        ''', (session['user_id'],))
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        
-        if not token:
-            token = session.get('token')
-        
-        if token and token.startswith('Bearer '):
-            token = token[7:]
-        
-        if not token:
-            return jsonify({'error': 'Authentication required'}), 401
-        
-        user_data = decode_token(token)
-        if not user_data:
-            return jsonify({'error': 'Invalid or expired token'}), 401
-        
-        # Check if user is still active
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT status FROM users WHERE id = ?', (user_data['user_id'],))
-        user = cursor.fetchone()
-        conn.close()
-        
-        if not user or user['status'] != 'active':
-            return jsonify({'error': 'User account is not active'}), 401
-        
-        request.current_user = user_data
+        if 'user_id' not in session:
+            if request.is_json:
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('index'))
         return f(*args, **kwargs)
-    
     return decorated_function
 
-def require_permission(permission_name):
-    """Decorator to require specific permission"""
+def permission_required(permission_key):
+    """Decorator to check if user has specific permission"""
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
-            if not hasattr(request, 'current_user'):
-                return jsonify({'error': 'Authentication required'}), 401
+            if 'user_id' not in session:
+                if request.is_json:
+                    return jsonify({'error': 'Authentication required'}), 401
+                return redirect(url_for('index'))
             
-            user_permissions = get_user_permissions(request.current_user['user_id'])
-            
-            if permission_name not in user_permissions:
-                log_audit(
-                    request.current_user['user_id'],
-                    'permission_denied',
-                    f"Access denied to {permission_name}",
-                    request.remote_addr,
-                    request.headers.get('User-Agent')
-                )
-                return jsonify({'error': 'Permission denied'}), 403
+            if not check_permission(permission_key):
+                if request.is_json:
+                    return jsonify({'error': 'Permission denied'}), 403
+                return jsonify({'error': 'You do not have permission to perform this action'}), 403
             
             return f(*args, **kwargs)
-        
         return decorated_function
     return decorator
 
-def require_role(role_name):
-    """Decorator to require specific role"""
-    def decorator(f):
-        @wraps(f)
-        def decorated_function(*args, **kwargs):
-            if not hasattr(request, 'current_user'):
+def admin_required(f):
+    """Decorator to restrict access to admin users only"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            if request.is_json:
                 return jsonify({'error': 'Authentication required'}), 401
-            
-            conn = get_db_connection()
-            cursor = conn.cursor()
+            return redirect(url_for('index'))
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        try:
             cursor.execute('''
                 SELECT r.role_name
                 FROM users u
                 JOIN roles r ON u.role_id = r.id
                 WHERE u.id = ?
-            ''', (request.current_user['user_id'],))
+            ''', (session['user_id'],))
+            result = cursor.fetchone()
             
-            user = cursor.fetchone()
+            if not result or result['role_name'] != 'Admin':
+                if request.is_json:
+                    return jsonify({'error': 'Admin access required'}), 403
+                return jsonify({'error': 'Admin access required'}), 403
+        finally:
             conn.close()
-            
-            if not user or user['role_name'] != role_name:
-                return jsonify({'error': 'Insufficient privileges'}), 403
-            
-            return f(*args, **kwargs)
         
-        return decorated_function
-    return decorator
+        return f(*args, **kwargs)
+    return decorated_function
+
+def authenticate_user(username, password):
+    """Authenticate user and handle login attempts"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Get user details
+        cursor.execute('''
+            SELECT u.*, r.role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE u.username = ?
+        ''', (username,))
+        user = cursor.fetchone()
+        
+        if not user:
+            return None, "Invalid username or password"
+        
+        # Check if account is locked
+        if user['status'] == 'locked':
+            return None, "Account is locked. Contact administrator."
+        
+        if user['status'] == 'inactive':
+            return None, "Account is inactive. Contact administrator."
+        
+        # Check if account has too many failed attempts
+        if user['failed_login_attempts'] >= 5:
+            cursor.execute('UPDATE users SET status = ? WHERE id = ?', ('locked', user['id']))
+            conn.commit()
+            log_audit(user['id'], 'account_locked', 'Account locked due to multiple failed login attempts', 
+                     request.remote_addr, request.headers.get('User-Agent'))
+            return None, "Account locked due to multiple failed login attempts"
+        
+        # Verify password
+        if bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+            # Reset failed attempts on successful login
+            cursor.execute('''
+                UPDATE users 
+                SET failed_login_attempts = 0, last_login_at = ?
+                WHERE id = ?
+            ''', (datetime.now(), user['id']))
+            conn.commit()
+            
+            # Log successful login
+            log_audit(user['id'], 'login_success', f'User {username} logged in successfully',
+                     request.remote_addr, request.headers.get('User-Agent'))
+            
+            return dict(user), None
+        else:
+            # Increment failed attempts
+            cursor.execute('''
+                UPDATE users 
+                SET failed_login_attempts = failed_login_attempts + 1
+                WHERE id = ?
+            ''', (user['id'],))
+            conn.commit()
+            
+            # Log failed login
+            log_audit(user['id'], 'login_failed', f'Failed login attempt for user {username}',
+                     request.remote_addr, request.headers.get('User-Agent'))
+            
+            return None, "Invalid username or password"
+    
+    finally:
+        conn.close()

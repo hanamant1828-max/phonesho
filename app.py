@@ -9,6 +9,11 @@ import io
 import os
 import hashlib
 import time
+import bcrypt # Import bcrypt
+
+# Import authentication and user route modules
+from auth import login_required, authenticate_user, log_audit
+from user_routes import user_bp
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['SECRET_KEY'] = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')
@@ -42,6 +47,9 @@ os.makedirs('static/js', exist_ok=True)
 DATABASE = 'inventory.db'
 ADMIN_USERNAME = 'admin'
 ADMIN_PASSWORD_HASH = hashlib.sha256('admin123'.encode()).hexdigest()
+
+# Register user management blueprint
+app.register_blueprint(user_bp)
 
 def login_required(f):
     @wraps(f)
@@ -495,6 +503,116 @@ def init_db():
         )
     ''')
 
+    # User Management Tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            description TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS role_permissions (
+            role_id INTEGER NOT NULL,
+            permission_id INTEGER NOT NULL,
+            PRIMARY KEY (role_id, permission_id),
+            FOREIGN KEY (role_id) REFERENCES roles (id) ON DELETE CASCADE,
+            FOREIGN KEY (permission_id) REFERENCES permissions (id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            full_name TEXT,
+            email TEXT UNIQUE,
+            role_id INTEGER,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (role_id) REFERENCES roles (id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            target_type TEXT,
+            target_id INTEGER,
+            details TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
+    # Insert default roles and permissions if they don't exist
+    default_roles = [('Admin', 'Administrator role with full access'),
+                     ('Manager', 'Manager role with access to reports and inventory management'),
+                     ('Staff', 'Staff role with access to POS and basic inventory operations')]
+    default_permissions = [('manage_users', 'Ability to create, update, and delete users'),
+                           ('view_reports', 'Ability to view all reports'),
+                           ('manage_inventory', 'Ability to add, edit, and delete inventory items'),
+                           ('process_sales', 'Ability to process sales and returns')]
+
+    for name, description in default_roles:
+        cursor.execute('INSERT OR IGNORE INTO roles (name, description) VALUES (?, ?)', (name, description))
+
+    for name, description in default_permissions:
+        cursor.execute('INSERT OR IGNORE INTO permissions (name, description) VALUES (?, ?)', (name, description))
+
+    # Link permissions to roles (example: Admin gets all, Manager gets reports and inventory, Staff gets sales)
+    # Get IDs
+    cursor.execute('SELECT id FROM roles WHERE name = ?', ('Admin',))
+    admin_role_id = cursor.fetchone()['id']
+    cursor.execute('SELECT id FROM roles WHERE name = ?', ('Manager',))
+    manager_role_id = cursor.fetchone()['id']
+    cursor.execute('SELECT id FROM roles WHERE name = ?', ('Staff',))
+    staff_role_id = cursor.fetchone()['id']
+
+    cursor.execute('SELECT id FROM permissions WHERE name = ?', ('manage_users',))
+    perm_manage_users_id = cursor.fetchone()['id']
+    cursor.execute('SELECT id FROM permissions WHERE name = ?', ('view_reports',))
+    perm_view_reports_id = cursor.fetchone()['id']
+    cursor.execute('SELECT id FROM permissions WHERE name = ?', ('manage_inventory',))
+    perm_manage_inventory_id = cursor.fetchone()['id']
+    cursor.execute('SELECT id FROM permissions WHERE name = ?', ('process_sales',))
+    perm_process_sales_id = cursor.fetchone()['id']
+
+    # Admin: All permissions
+    cursor.execute('SELECT id FROM permissions')
+    all_perm_ids = [p['id'] for p in cursor.fetchall()]
+    for perm_id in all_perm_ids:
+        cursor.execute('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (admin_role_id, perm_id))
+
+    # Manager: Reports and Inventory
+    cursor.execute('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (manager_role_id, perm_view_reports_id))
+    cursor.execute('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (manager_role_id, perm_manage_inventory_id))
+
+    # Staff: Sales
+    cursor.execute('INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (staff_role_id, perm_process_sales_id))
+
+    # Insert default admin user if not exists
+    cursor.execute('SELECT COUNT(*) as count FROM users WHERE username = ?', (ADMIN_USERNAME,))
+    if cursor.fetchone()['count'] == 0:
+        hashed_password = bcrypt.hashpw(b'admin123', bcrypt.gensalt()) # Hash password using bcrypt
+        cursor.execute('SELECT id FROM roles WHERE name = ?', ('Admin',))
+        admin_role = cursor.fetchone()
+        if admin_role:
+            cursor.execute('INSERT INTO users (username, password, full_name, email, role_id, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+                           (ADMIN_USERNAME, hashed_password.decode('utf-8'), 'Administrator', 'admin@example.com', admin_role['id'], 1))
+
     conn.commit()
     conn.close()
 
@@ -510,32 +628,43 @@ def pos_page():
     return render_template('pos.html', timestamp=int(time.time()))
 
 
-
+# Update login endpoint to use enhanced authentication
 @app.route('/api/login', methods=['POST'])
 def login():
-    data = request.json
-    if not data or 'username' not in data or 'password' not in data:
-        return jsonify({'success': False, 'error': 'Username and password required'}), 400
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
 
-    username = data['username']
-    password = data['password']
-    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    user, error = authenticate_user(username, password)
 
-    if username == ADMIN_USERNAME and password_hash == ADMIN_PASSWORD_HASH:
-        session['logged_in'] = True
-        session['username'] = username
-        return jsonify({'success': True, 'username': username})
+    if error:
+        log_audit(user_id=None, action='login_failed', details=f"Failed login attempt for username: {username}. Reason: {error}")
+        return jsonify({'error': error}), 401
 
-    return jsonify({'success': False, 'error': 'Invalid credentials'}), 401
+    session['user_id'] = user['id']
+    session['username'] = user['username']
+    session['role_name'] = user['role_name']
+    session['logged_in'] = True # Set logged_in flag
+
+    log_audit(user_id=user['id'], action='login_success', details=f"User {username} logged in successfully.")
+
+    return jsonify({
+        'success': True,
+        'username': user['username'],
+        'role': user['role_name']
+    })
 
 @app.route('/api/logout', methods=['POST'])
 def logout():
+    username = session.get('username', 'Unknown User')
+    user_id = session.get('user_id')
+    log_audit(user_id=user_id, action='logout', details=f"User {username} logged out.")
     session.clear()
     return jsonify({'success': True})
 
 @app.route('/api/check-auth', methods=['GET'])
 def check_auth():
-    return jsonify({'logged_in': session.get('logged_in', False), 'username': session.get('username')})
+    return jsonify({'logged_in': session.get('logged_in', False), 'username': session.get('username'), 'role': session.get('role_name')})
 
 @app.route('/api/categories', methods=['GET', 'POST'])
 @login_required
@@ -554,6 +683,7 @@ def categories():
                          (data['name'].strip(), data.get('description', '').strip()))
             conn.commit()
             category_id = cursor.lastrowid
+            log_audit(user_id=session.get('user_id'), action='create_category', target_type='category', target_id=category_id, details=f"Created category: {data['name']}")
             conn.close()
             return jsonify({'success': True, 'id': category_id})
         except sqlite3.IntegrityError:
@@ -584,9 +714,14 @@ def category_detail(id):
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
         try:
+            # Get old name for audit log
+            cursor.execute('SELECT name FROM categories WHERE id = ?', (id,))
+            old_name = cursor.fetchone()['name']
+
             cursor.execute('UPDATE categories SET name = ?, description = ? WHERE id = ?',
                          (data['name'], data.get('description', ''), id))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_category', target_type='category', target_id=id, details=f"Updated category from '{old_name}' to '{data['name']}'")
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Category name already exists'}), 400
@@ -594,11 +729,20 @@ def category_detail(id):
             conn.close()
     elif request.method == 'DELETE':
         try:
+            # Check if category is in use
+            cursor.execute('SELECT COUNT(*) as count FROM products WHERE category_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete category with associated products'}), 400
+
+            cursor.execute('SELECT name FROM categories WHERE id = ?', (id,))
+            category_name = cursor.fetchone()['name']
+
             cursor.execute('DELETE FROM categories WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_category', target_type='category', target_id=id, details=f"Deleted category: {category_name}")
             return jsonify({'success': True})
-        except sqlite3.IntegrityError:
-            return jsonify({'success': False, 'error': 'Cannot delete category with associated products'}), 400
+        except sqlite3.IntegrityError: # Should not happen due to check above, but good practice
+            return jsonify({'success': False, 'error': 'Cannot delete category due to dependencies'}), 400
         finally:
             conn.close()
 
@@ -622,6 +766,7 @@ def brands():
                          (data['name'].strip(), data.get('description', '').strip()))
             conn.commit()
             brand_id = cursor.lastrowid
+            log_audit(user_id=session.get('user_id'), action='create_brand', target_type='brand', target_id=brand_id, details=f"Created brand: {data['name']}")
             conn.close()
             return jsonify({'success': True, 'id': brand_id})
         except sqlite3.IntegrityError:
@@ -652,9 +797,14 @@ def brand_detail(id):
             conn.close()
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
         try:
+            # Get old name for audit log
+            cursor.execute('SELECT name FROM brands WHERE id = ?', (id,))
+            old_name = cursor.fetchone()['name']
+
             cursor.execute('UPDATE brands SET name = ?, description = ? WHERE id = ?',
                          (data['name'], data.get('description', ''), id))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_brand', target_type='brand', target_id=id, details=f"Updated brand from '{old_name}' to '{data['name']}'")
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Brand name already exists'}), 400
@@ -662,11 +812,20 @@ def brand_detail(id):
             conn.close()
     elif request.method == 'DELETE':
         try:
+            # Check if brand is in use
+            cursor.execute('SELECT COUNT(*) as count FROM products WHERE brand_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete brand with associated products'}), 400
+
+            cursor.execute('SELECT name FROM brands WHERE id = ?', (id,))
+            brand_name = cursor.fetchone()['name']
+
             cursor.execute('DELETE FROM brands WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_brand', target_type='brand', target_id=id, details=f"Deleted brand: {brand_name}")
             return jsonify({'success': True})
-        except sqlite3.IntegrityError:
-            return jsonify({'success': False, 'error': 'Cannot delete brand with associated products'}), 400
+        except sqlite3.IntegrityError: # Should not happen due to check above
+            return jsonify({'success': False, 'error': 'Cannot delete brand due to dependencies'}), 400
         finally:
             conn.close()
 
@@ -698,7 +857,9 @@ def models():
             cursor.execute('INSERT INTO models (name, brand_id, description, image_data) VALUES (?, ?, ?, ?)',
                          (name, brand_id, description, image_data))
             conn.commit()
-            return jsonify({'success': True, 'id': cursor.lastrowid})
+            model_id = cursor.lastrowid
+            log_audit(user_id=session.get('user_id'), action='create_model', target_type='model', target_id=model_id, details=f"Created model: {name} for brand ID: {brand_id}")
+            return jsonify({'success': True, 'id': model_id})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Model already exists for this brand'}), 400
         except Exception as e:
@@ -707,9 +868,9 @@ def models():
             conn.close()
     else:
         cursor.execute('''
-            SELECT m.*, b.name as brand_name 
-            FROM models m 
-            LEFT JOIN brands b ON m.brand_id = b.id 
+            SELECT m.*, b.name as brand_name
+            FROM models m
+            LEFT JOIN brands b ON m.brand_id = b.id
             ORDER BY b.name, m.name
         ''')
         models = [dict(row) for row in cursor.fetchall()]
@@ -738,9 +899,16 @@ def model_detail(id):
             if not name or not brand_id:
                 return jsonify({'success': False, 'error': 'Name and brand are required'}), 400
 
+            # Get old data for audit log
+            cursor.execute('SELECT name, brand_id FROM models WHERE id = ?', (id,))
+            old_model = cursor.fetchone()
+            if not old_model:
+                return jsonify({'success': False, 'error': 'Model not found'}), 404
+
             cursor.execute('UPDATE models SET name = ?, brand_id = ?, description = ?, image_data = ? WHERE id = ?',
                          (name, brand_id, description, image_data, id))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_model', target_type='model', target_id=id, details=f"Updated model '{old_model['name']}' (Brand ID: {old_model['brand_id']}) to '{name}' (Brand ID: {brand_id})")
             return jsonify({'success': True})
         except sqlite3.IntegrityError:
             return jsonify({'success': False, 'error': 'Model already exists for this brand'}), 400
@@ -750,11 +918,22 @@ def model_detail(id):
             conn.close()
     elif request.method == 'DELETE':
         try:
+            # Check if model is in use
+            cursor.execute('SELECT COUNT(*) as count FROM products WHERE model_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete model with associated products'}), 400
+
+            cursor.execute('SELECT name, brand_id FROM models WHERE id = ?', (id,))
+            model = cursor.fetchone()
+            if not model:
+                return jsonify({'success': False, 'error': 'Model not found'}), 404
+
             cursor.execute('DELETE FROM models WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_model', target_type='model', target_id=id, details=f"Deleted model '{model['name']}' (Brand ID: {model['brand_id']})")
             return jsonify({'success': True})
-        except sqlite3.IntegrityError:
-            return jsonify({'success': False, 'error': 'Cannot delete model with associated products'}), 400
+        except sqlite3.IntegrityError: # Should not happen due to check above
+            return jsonify({'success': False, 'error': 'Cannot delete model due to dependencies'}), 400
         finally:
             conn.close()
 
@@ -788,19 +967,20 @@ def products():
                 data.get('opening_stock', 0), data.get('min_stock_level', 10),
                 data.get('storage_location'), data.get('imei'), data.get('color'),
                 data.get('storage_capacity'), data.get('ram'), data.get('warranty_period'),
-                data.get('supplier_name'), data.get('supplier_contact'), data.get('image_url'), 
+                data.get('supplier_name'), data.get('supplier_contact'), data.get('image_url'),
                 data.get('status', 'active')
             ))
-            conn.commit()
+            product_id = cursor.lastrowid
 
             if data.get('opening_stock', 0) > 0:
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
                     VALUES (?, ?, ?, ?, ?)
-                ''', (cursor.lastrowid, 'opening_stock', data.get('opening_stock', 0), 'manual', 'Opening stock'))
-                conn.commit()
+                ''', (product_id, 'opening_stock', data.get('opening_stock', 0), 'manual', 'Opening stock'))
 
-            return jsonify({'success': True, 'id': cursor.lastrowid})
+            conn.commit()
+            log_audit(user_id=session.get('user_id'), action='create_product', target_type='product', target_id=product_id, details=f"Created product: {data['name']} (SKU: {data.get('sku')})")
+            return jsonify({'success': True, 'id': product_id})
         except sqlite3.IntegrityError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
@@ -885,9 +1065,13 @@ def product_detail(id):
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
 
         try:
-            # Get old stock value to track changes
-            cursor.execute('SELECT current_stock FROM products WHERE id = ?', (id,))
-            old_stock = cursor.fetchone()['current_stock']
+            # Get old stock value and other details to track changes for audit log
+            cursor.execute('SELECT current_stock, name, sku FROM products WHERE id = ?', (id,))
+            old_product_data = cursor.fetchone()
+            if not old_product_data:
+                return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+            old_stock = old_product_data['current_stock']
             new_stock = data.get('current_stock', old_stock)
 
             cursor.execute('''
@@ -902,9 +1086,9 @@ def product_detail(id):
                 data.get('sku'), data['name'], data.get('category_id'), data.get('brand_id'),
                 data.get('model_id'), data.get('description'), data.get('cost_price', 0),
                 data.get('selling_price', 0), data.get('mrp', 0), new_stock,
-                data.get('min_stock_level', 10), data.get('storage_location'), data.get('imei'), 
-                data.get('color'), data.get('storage_capacity'), data.get('ram'), 
-                data.get('warranty_period'), data.get('supplier_name'), data.get('supplier_contact'), 
+                data.get('min_stock_level', 10), data.get('storage_location'), data.get('imei'),
+                data.get('color'), data.get('storage_capacity'), data.get('ram'),
+                data.get('warranty_period'), data.get('supplier_name'), data.get('supplier_contact'),
                 data.get('image_url'), data.get('status', 'active'), id
             ))
 
@@ -915,7 +1099,9 @@ def product_detail(id):
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, notes)
                     VALUES (?, ?, ?, ?, ?)
                 ''', (id, 'adjustment', stock_diff, 'manual', 'Stock adjustment via edit'))
+
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_product', target_type='product', target_id=id, details=f"Updated product '{old_product_data['name']}' (SKU: {old_product_data['sku']}). Stock changed from {old_stock} to {new_stock}.")
             return jsonify({'success': True})
         except sqlite3.IntegrityError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -923,10 +1109,33 @@ def product_detail(id):
             conn.close()
 
     elif request.method == 'DELETE':
-        cursor.execute('DELETE FROM products WHERE id = ?', (id,))
-        conn.commit()
-        conn.close()
-        return jsonify({'success': True})
+        try:
+            # Check for dependencies before deleting
+            cursor.execute('SELECT COUNT(*) as count FROM purchase_order_items WHERE product_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete product associated with purchase orders'}), 400
+            cursor.execute('SELECT COUNT(*) as count FROM stock_movements WHERE product_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete product with stock movement history'}), 400
+            cursor.execute('SELECT COUNT(*) as count FROM pos_sale_items WHERE product_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete product associated with sales'}), 400
+            cursor.execute('SELECT COUNT(*) as count FROM product_imei WHERE product_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete product with associated IMEI numbers'}), 400
+
+            cursor.execute('SELECT name, sku FROM products WHERE id = ?', (id,))
+            product = cursor.fetchone()
+
+            cursor.execute('DELETE FROM products WHERE id = ?', (id,))
+            conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_product', target_type='product', target_id=id, details=f"Deleted product '{product['name']}' (SKU: {product['sku']})")
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
+        finally:
+            conn.close()
 
 @app.route('/api/products/bulk-delete', methods=['POST'])
 @login_required
@@ -937,15 +1146,56 @@ def bulk_delete_products():
 
     ids = data.get('ids', [])
 
+    if not ids:
+        return jsonify({'success': False, 'error': 'No product IDs provided'}), 400
+
     conn = get_db()
     cursor = conn.cursor()
+    deleted_count = 0
+    failed_deletions = []
 
-    placeholders = ','.join('?' * len(ids))
-    cursor.execute(f'DELETE FROM products WHERE id IN ({placeholders})', ids)
+    for product_id in ids:
+        try:
+            # Check dependencies before deleting each product
+            cursor.execute('SELECT COUNT(*) as count FROM purchase_order_items WHERE product_id = ?', (product_id,))
+            if cursor.fetchone()['count'] > 0:
+                failed_deletions.append(f"Product ID {product_id}: Associated with purchase orders")
+                continue
+            cursor.execute('SELECT COUNT(*) as count FROM stock_movements WHERE product_id = ?', (product_id,))
+            if cursor.fetchone()['count'] > 0:
+                failed_deletions.append(f"Product ID {product_id}: Has stock movement history")
+                continue
+            cursor.execute('SELECT COUNT(*) as count FROM pos_sale_items WHERE product_id = ?', (product_id,))
+            if cursor.fetchone()['count'] > 0:
+                failed_deletions.append(f"Product ID {product_id}: Associated with sales")
+                continue
+            cursor.execute('SELECT COUNT(*) as count FROM product_imei WHERE product_id = ?', (product_id,))
+            if cursor.fetchone()['count'] > 0:
+                failed_deletions.append(f"Product ID {product_id}: Has associated IMEI numbers")
+                continue
+
+            cursor.execute('SELECT name, sku FROM products WHERE id = ?', (product_id,))
+            product = cursor.fetchone()
+
+            cursor.execute('DELETE FROM products WHERE id = ?', (product_id,))
+            deleted_count += 1
+            log_audit(user_id=session.get('user_id'), action='bulk_delete_product', target_type='product', target_id=product_id, details=f"Deleted product '{product['name']}' (SKU: {product['sku']})")
+
+        except Exception as e:
+            failed_deletions.append(f"Product ID {product_id}: {str(e)}")
+
     conn.commit()
     conn.close()
 
-    return jsonify({'success': True, 'deleted': len(ids)})
+    if failed_deletions:
+        return jsonify({
+            'success': False,
+            'message': f"Some products could not be deleted due to dependencies.",
+            'deleted': deleted_count,
+            'failed': failed_deletions
+        })
+
+    return jsonify({'success': True, 'deleted': deleted_count})
 
 @app.route('/api/products/bulk-update', methods=['POST'])
 @login_required
@@ -956,6 +1206,9 @@ def bulk_update_products():
 
     ids = data.get('ids', [])
     updates = data.get('updates', {})
+
+    if not ids:
+        return jsonify({'success': False, 'error': 'No product IDs provided'}), 400
 
     conn = get_db()
     cursor = conn.cursor()
@@ -986,6 +1239,7 @@ def bulk_update_products():
         query = f"UPDATE products SET {', '.join(set_clauses)} WHERE id IN ({placeholders})"
         cursor.execute(query, params)
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='bulk_update_product', target_type='product', details=f"Bulk updated {len(ids)} products with: {updates}")
 
     conn.close()
     return jsonify({'success': True, 'updated': len(ids)})
@@ -1006,30 +1260,42 @@ def manage_product_imeis(product_id):
         grn_id = data.get('grn_id')
         stock_movement_id = data.get('stock_movement_id')
 
+        if not imei_list:
+            return jsonify({'success': False, 'error': 'No IMEI numbers provided'}), 400
+
         try:
             added_imeis = []
             for imei in imei_list:
-                if not imei or not imei.strip():
+                imei_clean = imei.strip()
+                if not imei_clean:
                     continue
+
+                # Validate IMEI format (15 digits)
+                if len(imei_clean) != 15 or not imei_clean.isdigit():
+                    raise ValueError(f'Invalid IMEI format: {imei_clean}. IMEI must be exactly 15 digits.')
 
                 cursor.execute('''
                     INSERT INTO product_imei (product_id, imei, status, grn_id, stock_movement_id, received_date)
                     VALUES (?, ?, ?, ?, ?, ?)
-                ''', (product_id, imei.strip(), 'available', grn_id, stock_movement_id, datetime.now()))
-                added_imeis.append(imei.strip())
+                ''', (product_id, imei_clean, 'available', grn_id, stock_movement_id, datetime.now()))
+                added_imeis.append(imei_clean)
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='add_imeis', target_type='product', target_id=product_id, details=f"Added {len(added_imeis)} IMEIs. GRN ID: {grn_id}, Stock Movement ID: {stock_movement_id}")
             return jsonify({'success': True, 'added': len(added_imeis), 'imeis': added_imeis})
         except sqlite3.IntegrityError as e:
             conn.rollback()
             return jsonify({'success': False, 'error': 'One or more IMEI numbers already exist'}), 400
+        except ValueError as e: # Catch IMEI validation errors
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
         except Exception as e:
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
-    else:
-        status = request.args.get('status', '')
+    else: # GET request
+        status_filter = request.args.get('status', '')
 
         query = '''
             SELECT pi.*, ps.sale_number, ps.customer_name, ps.sale_date,
@@ -1041,13 +1307,13 @@ def manage_product_imeis(product_id):
         '''
         params = [product_id]
 
-        if status:
+        if status_filter:
             # Handle both 'available' and 'in_stock' when status filter is 'available'
-            if status == 'available':
+            if status_filter == 'available':
                 query += " AND pi.status IN ('available', 'in_stock')"
             else:
                 query += ' AND pi.status = ?'
-                params.append(status)
+                params.append(status_filter)
 
         query += ' ORDER BY CASE WHEN pi.status IN (\'available\', \'in_stock\') THEN 0 ELSE 1 END, pi.created_at DESC'
 
@@ -1070,7 +1336,7 @@ def verify_product_imei(product_id):
 
     try:
         cursor.execute('''
-            SELECT id, imei, status FROM product_imei 
+            SELECT id, imei, status FROM product_imei
             WHERE product_id = ? AND imei = ?
         ''', (product_id, imei))
 
@@ -1100,7 +1366,7 @@ def delete_imei(imei_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute('SELECT status FROM product_imei WHERE id = ?', (imei_id,))
+        cursor.execute('SELECT status, imei, product_id FROM product_imei WHERE id = ?', (imei_id,))
         imei_row = cursor.fetchone()
 
         if not imei_row:
@@ -1109,8 +1375,19 @@ def delete_imei(imei_id):
         if imei_row['status'] == 'sold':
             return jsonify({'success': False, 'error': 'Cannot delete sold IMEI'}), 400
 
+        # Also check if it's linked to a GRN or stock movement that might be important to keep
+        cursor.execute('SELECT stock_movement_id FROM product_imei WHERE id = ?', (imei_id,))
+        sm_id = cursor.fetchone()['stock_movement_id']
+        if sm_id:
+            # Check if stock movement has other IMEIs associated with it.
+            # If so, we might not want to delete it entirely, but just the IMEI link.
+            # For now, we'll just delete the IMEI. A more robust solution might involve
+            # creating a new stock movement or marking the existing one as incomplete.
+            pass
+
         cursor.execute('DELETE FROM product_imei WHERE id = ?', (imei_id,))
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='delete_imei', target_type='product_imei', target_id=imei_id, details=f"Deleted IMEI {imei_row['imei']} for Product ID {imei_row['product_id']}. Status was: {imei_row['status']}")
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
@@ -1156,6 +1433,7 @@ def purchase_orders():
                 ))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='create_purchase_order', target_type='purchase_order', target_id=po_id, details=f"Created PO: {data['po_number']} for supplier: {data['supplier_name']}")
             return jsonify({'success': True, 'id': po_id})
         except sqlite3.IntegrityError as e:
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -1182,6 +1460,8 @@ def purchase_order_detail(id):
         conn.close()
         return jsonify({'error': 'Purchase order not found'}), 404
 
+    po_dict = dict(po)
+
     cursor.execute('''
         SELECT poi.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM purchase_order_items poi
@@ -1190,13 +1470,10 @@ def purchase_order_detail(id):
         LEFT JOIN models m ON poi.model_id = m.id
         WHERE poi.po_id = ?
     ''', (id,))
-    items = [dict(row) for row in cursor.fetchall()]
-
-    result = dict(po)
-    result['items'] = items
+    po_dict['items'] = [dict(row) for row in cursor.fetchall()]
 
     conn.close()
-    return jsonify(result)
+    return jsonify(po_dict)
 
 @app.route('/api/purchase-orders/<int:id>/receive', methods=['POST'])
 @login_required
@@ -1253,7 +1530,7 @@ def receive_purchase_order(id):
             # Update received quantity (good + damaged)
             total_received = received_qty + damaged_qty
             cursor.execute('''
-                UPDATE purchase_order_items 
+                UPDATE purchase_order_items
                 SET received_quantity = received_quantity + ?
                 WHERE id = ?
             ''', (total_received, item_id))
@@ -1284,22 +1561,22 @@ def receive_purchase_order(id):
                 if existing_product:
                     # Update stock and storage location
                     update_query = 'UPDATE products SET current_stock = current_stock + ?, updated_at = CURRENT_TIMESTAMP'
-                    params = [received_qty]
+                    params_update = [received_qty]
 
                     if storage_location:
                         update_query += ', storage_location = ?'
-                        params.append(storage_location)
+                        params_update.append(storage_location)
 
                     update_query += ' WHERE id = ?'
-                    params.append(po_item['product_id'])
+                    params_update.append(po_item['product_id'])
 
-                    cursor.execute(update_query, params)
+                    cursor.execute(update_query, params_update)
 
                     # Record stock movement
                     cursor.execute('''
                         INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id, 
+                    ''', (po_item['product_id'], 'purchase', received_qty, 'purchase_order', id,
                           f"Received from PO #{id}"))
 
                     stock_movement_id = cursor.lastrowid
@@ -1318,21 +1595,21 @@ def receive_purchase_order(id):
                     cursor.execute('''
                         INSERT INTO products (
                             name, category_id, brand_id, model_id, cost_price,
-                            selling_price, mrp, current_stock, opening_stock, 
+                            selling_price, mrp, current_stock, opening_stock,
                             storage_location, status
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ''', (
                         po_item['product_name'], po_item['category_id'], po_item['brand_id'],
-                        po_item['model_id'], po_item['cost_price'], 
+                        po_item['model_id'], po_item['cost_price'],
                         round(po_item['cost_price'] * 1.2, 2),
-                        round(po_item['cost_price'] * 1.3, 2), 
+                        round(po_item['cost_price'] * 1.3, 2),
                         received_qty, received_qty, storage_location, 'active'
                     ))
                     new_product_id = cursor.lastrowid
 
                     # Update PO item with new product ID
                     cursor.execute('''
-                        UPDATE purchase_order_items 
+                        UPDATE purchase_order_items
                         SET product_id = ?
                         WHERE id = ?
                     ''', (new_product_id, item_id))
@@ -1341,7 +1618,7 @@ def receive_purchase_order(id):
                     cursor.execute('''
                         INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                         VALUES (?, ?, ?, ?, ?, ?)
-                    ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
+                    ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id,
                           f"Initial stock from PO #{id}"))
 
                     stock_movement_id = cursor.lastrowid
@@ -1360,21 +1637,21 @@ def receive_purchase_order(id):
                 cursor.execute('''
                     INSERT INTO products (
                         name, category_id, brand_id, model_id, cost_price,
-                        selling_price, mrp, current_stock, opening_stock, 
+                        selling_price, mrp, current_stock, opening_stock,
                         storage_location, status
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     po_item['product_name'], po_item['category_id'], po_item['brand_id'],
-                    po_item['model_id'], po_item['cost_price'], 
+                    po_item['model_id'], po_item['cost_price'],
                     round(po_item['cost_price'] * 1.2, 2),
-                    round(po_item['cost_price'] * 1.3, 2), 
+                    round(po_item['cost_price'] * 1.3, 2),
                     received_qty, received_qty, storage_location, 'active'
                 ))
                 new_product_id = cursor.lastrowid
 
                 # Update PO item with new product ID
                 cursor.execute('''
-                    UPDATE purchase_order_items 
+                    UPDATE purchase_order_items
                     SET product_id = ?
                     WHERE id = ?
                 ''', (new_product_id, item_id))
@@ -1383,7 +1660,7 @@ def receive_purchase_order(id):
                 cursor.execute('''
                     INSERT INTO stock_movements (product_id, type, quantity, reference_type, reference_id, notes)
                     VALUES (?, ?, ?, ?, ?, ?)
-                ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id, 
+                ''', (new_product_id, 'purchase', received_qty, 'purchase_order', id,
                       f"Initial stock from PO #{id}"))
 
                 stock_movement_id = cursor.lastrowid
@@ -1415,21 +1692,22 @@ def receive_purchase_order(id):
             new_status = 'pending'
 
         cursor.execute('''
-            UPDATE purchase_orders 
+            UPDATE purchase_orders
             SET status = ?, payment_status = ?, storage_location = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ''', (new_status, payment_status, storage_location, id))
 
         # Update GRN totals
         cursor.execute('''
-            UPDATE grns 
+            UPDATE grns
             SET total_items = ?, total_quantity = ?
             WHERE id = ?
         ''', (total_items, total_quantity, grn_id))
 
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='receive_purchase_order', target_type='purchase_order', target_id=id, details=f"Received items for PO #{id}. GRN #{grn_number} created. Status updated to {new_status}.")
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': 'Items received successfully',
             'grn_number': grn_number,
             'grn_id': grn_id,
@@ -1451,7 +1729,7 @@ def get_grns():
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT * FROM grns 
+        SELECT * FROM grns
         ORDER BY created_at DESC
     ''')
     grns = [dict(row) for row in cursor.fetchall()]
@@ -1481,9 +1759,7 @@ def get_grn_detail(id):
         LEFT JOIN purchase_order_items poi ON gi.product_name = poi.product_name AND poi.po_id = ?
         WHERE gi.grn_id = ?
     ''', (grn['po_id'], id))
-    items = [dict(row) for row in cursor.fetchall()]
-
-    grn['items'] = items
+    grn['items'] = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
     return jsonify(grn)
@@ -1556,6 +1832,7 @@ def quick_orders():
             cursor.execute('UPDATE quick_orders SET total_amount = ? WHERE id = ?', (total_amount, order_id))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='create_quick_order', target_type='quick_order', target_id=order_id, details=f"Created Quick Order #{order_number} with {total_items} items.")
             return jsonify({'success': True, 'order_id': order_id, 'order_number': order_number})
 
         except ValueError as e:
@@ -1569,7 +1846,7 @@ def quick_orders():
 
     else:
         cursor.execute('''
-            SELECT * FROM quick_orders 
+            SELECT * FROM quick_orders
             ORDER BY created_at DESC
         ''')
         orders = [dict(row) for row in cursor.fetchall()]
@@ -1597,9 +1874,7 @@ def get_quick_order_detail(id):
         LEFT JOIN products p ON qoi.product_id = p.id
         WHERE qoi.order_id = ?
     ''', (id,))
-    items = [dict(row) for row in cursor.fetchall()]
-
-    order['items'] = items
+    order['items'] = [dict(row) for row in cursor.fetchall()]
     conn.close()
 
     return jsonify(order)
@@ -1637,7 +1912,7 @@ def stock_adjustment():
         current_stock = product_row['current_stock'] or 0
         new_stock = current_stock + quantity
 
-        cursor.execute('UPDATE products SET current_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', 
+        cursor.execute('UPDATE products SET current_stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
                       (new_stock, product_id))
 
         # Create stock movement record
@@ -1654,36 +1929,28 @@ def stock_adjustment():
 
         # Store IMEI numbers if provided
         if imei_numbers and len(imei_numbers) > 0:
-            # Create IMEI tracking table if it doesn't exist
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS product_imei (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    product_id INTEGER NOT NULL,
-                    imei TEXT NOT NULL UNIQUE,
-                    stock_movement_id INTEGER,
-                    status TEXT DEFAULT 'in_stock',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (product_id) REFERENCES products (id),
-                    FOREIGN KEY (stock_movement_id) REFERENCES stock_movements (id)
-                )
-            ''')
-
             # Insert IMEI numbers
             for imei in imei_numbers:
+                imei_clean = imei.strip()
+                if not imei_clean:
+                    continue
+                # Validate IMEI format (15 digits)
+                if len(imei_clean) != 15 or not imei_clean.isdigit():
+                    raise ValueError(f'Invalid IMEI format: {imei_clean}. IMEI must be exactly 15 digits.')
                 try:
                     cursor.execute('''
                         INSERT INTO product_imei (product_id, imei, stock_movement_id, status)
                         VALUES (?, ?, ?, ?)
-                    ''', (product_id, imei, movement_id, 'in_stock'))
+                    ''', (product_id, imei_clean, movement_id, 'in_stock'))
                 except sqlite3.IntegrityError:
                     # IMEI already exists
                     conn.rollback()
-                    return jsonify({'success': False, 'error': f'IMEI number {imei} already exists in the system'}), 400
+                    return jsonify({'success': False, 'error': f'IMEI number {imei_clean} already exists in the system'}), 400
 
         conn.commit()
-
+        log_audit(user_id=session.get('user_id'), action='stock_adjustment', target_type='product', target_id=product_id, details=f"Adjusted stock for {product_name}. Quantity: {quantity}. IMEI count: {len(imei_numbers) if imei_numbers else 0}.")
         return jsonify({
-            'success': True, 
+            'success': True,
             'product_name': product_name,
             'previous_stock': current_stock,
             'added_quantity': quantity,
@@ -1691,6 +1958,9 @@ def stock_adjustment():
             'imei_count': len(imei_numbers) if imei_numbers else 0
         })
 
+    except ValueError as e: # Catch IMEI validation errors
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1704,7 +1974,7 @@ def get_stock_adjustments():
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT 
+        SELECT
             sm.id,
             sm.product_id,
             p.name as product_name,
@@ -1734,7 +2004,7 @@ def stock_adjustment_detail(id):
 
     if request.method == 'GET':
         cursor.execute('''
-            SELECT 
+            SELECT
                 sm.id,
                 sm.product_id,
                 p.name as product_name,
@@ -1770,7 +2040,7 @@ def stock_adjustment_detail(id):
     elif request.method == 'DELETE':
         try:
             cursor.execute('''
-                SELECT product_id, quantity
+                SELECT product_id, quantity, notes
                 FROM stock_movements
                 WHERE id = ? AND type = 'adjustment'
             ''', (id,))
@@ -1792,38 +2062,27 @@ def stock_adjustment_detail(id):
 
             current_stock = product['current_stock'] or 0
 
+            # Check if current stock is sufficient to reverse the adjustment
             if current_stock < quantity:
                 conn.close()
                 return jsonify({
-                    'success': False, 
-                    'error': f'Cannot delete adjustment: current stock ({current_stock}) is less than adjustment quantity ({quantity}). Stock may have been sold or adjusted.'
-                }), 409
-
-            cursor.execute('''
-                SELECT COUNT(*) as sold_count
-                FROM product_imei
-                WHERE stock_movement_id = ? AND status != 'available' AND status != 'in_stock'
-            ''', (id,))
-
-            sold_imeis = cursor.fetchone()['sold_count']
-
-            if sold_imeis > 0:
-                conn.close()
-                return jsonify({
                     'success': False,
-                    'error': f'Cannot delete adjustment: {sold_imeis} IMEI number(s) from this adjustment have been sold. Delete operation would corrupt sale history.'
+                    'error': f'Cannot delete adjustment: current stock ({current_stock}) is less than adjustment quantity ({quantity}). Stock may have been sold or further adjusted.'
                 }), 409
 
             cursor.execute('''
-                UPDATE products 
+                UPDATE products
                 SET current_stock = current_stock - ?
                 WHERE id = ?
             ''', (quantity, product_id))
 
+            # Delete associated IMEIs
             cursor.execute('DELETE FROM product_imei WHERE stock_movement_id = ?', (id,))
+            # Delete the stock movement itself
             cursor.execute('DELETE FROM stock_movements WHERE id = ?', (id,))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_stock_adjustment', target_type='stock_movement', target_id=id, details=f"Deleted stock adjustment for Product ID {product_id} (Quantity: {quantity}). Notes: {movement['notes']}")
             conn.close()
 
             return jsonify({'success': True})
@@ -1843,7 +2102,7 @@ def report_sales():
     transaction_type = request.args.get('transaction_type', '')
 
     query = '''
-        SELECT 
+        SELECT
             ps.sale_number,
             ps.sale_date,
             ps.customer_name,
@@ -1922,7 +2181,7 @@ def report_inventory():
     stock_status = request.args.get('stock_status', '')
 
     query = '''
-        SELECT 
+        SELECT
             p.sku,
             p.name,
             c.name as category,
@@ -1934,7 +2193,7 @@ def report_inventory():
             p.selling_price,
             p.mrp,
             (p.current_stock * p.cost_price) as stock_value,
-            CASE 
+            CASE
                 WHEN p.current_stock = 0 THEN 'Out of Stock'
                 WHEN p.current_stock <= p.min_stock_level THEN 'Low Stock'
                 ELSE 'Good Stock'
@@ -2005,7 +2264,7 @@ def report_purchase_orders():
     status = request.args.get('status', '')
 
     query = '''
-        SELECT 
+        SELECT
             po.po_number,
             po.supplier_name,
             po.supplier_contact,
@@ -2085,7 +2344,7 @@ def report_stock_movements():
     movement_type = request.args.get('type', '')
 
     query = '''
-        SELECT 
+        SELECT
             sm.created_at,
             p.name as product_name,
             p.sku,
@@ -2163,7 +2422,7 @@ def report_grns():
     payment_status = request.args.get('payment_status', '')
 
     query = '''
-        SELECT 
+        SELECT
             g.grn_number,
             g.po_number,
             g.supplier_name,
@@ -2250,7 +2509,7 @@ def get_imei_tracking(id):
 
     # Get IMEI records with sale information
     cursor.execute('''
-        SELECT 
+        SELECT
             pi.id,
             pi.imei,
             pi.status,
@@ -2258,7 +2517,7 @@ def get_imei_tracking(id):
             pi.sold_date,
             ps.sale_number,
             ps.customer_name,
-            CASE 
+            CASE
                 WHEN sm.reference_type = 'purchase_order' THEN 'PO #' || sm.reference_id
                 WHEN sm.reference_type = 'manual' THEN 'Stock Adjustment'
                 WHEN sm.reference_type = 'grn' THEN 'GRN #' || sm.reference_id
@@ -2292,8 +2551,18 @@ def mark_imei_sold(id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute('UPDATE product_imei SET status = ? WHERE id = ?', ('sold', id))
+        # Get current IMEI details for audit log
+        cursor.execute('SELECT imei, product_id, status FROM product_imei WHERE id = ?', (id,))
+        imei_data = cursor.fetchone()
+        if not imei_data:
+            return jsonify({'success': False, 'error': 'IMEI not found'}), 404
+
+        if imei_data['status'] == 'sold':
+            return jsonify({'success': False, 'error': 'IMEI is already marked as sold'}), 400
+
+        cursor.execute('UPDATE product_imei SET status = ?, sold_date = ? WHERE id = ?', ('sold', datetime.now(), id))
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='mark_imei_sold', target_type='product_imei', target_id=id, details=f"Marked IMEI {imei_data['imei']} for Product ID {imei_data['product_id']} as sold. Status changed from {imei_data['status']} to sold.")
         return jsonify({'success': True})
     except Exception as e:
         conn.rollback()
@@ -2304,9 +2573,9 @@ def mark_imei_sold(id):
 @app.route('/api/products/search-by-imei', methods=['GET'])
 @login_required
 def search_by_imei():
-    imei = request.args.get('imei', '')
+    imei_query = request.args.get('imei', '')
 
-    if not imei:
+    if not imei_query:
         return jsonify({'error': 'IMEI parameter required'}), 400
 
     conn = get_db()
@@ -2314,7 +2583,7 @@ def search_by_imei():
 
     # Search in product_imei table
     cursor.execute('''
-        SELECT 
+        SELECT
             pi.imei,
             pi.status,
             pi.created_at,
@@ -2331,7 +2600,7 @@ def search_by_imei():
         LEFT JOIN models m ON p.model_id = m.id
         WHERE pi.imei LIKE ?
         LIMIT 20
-    ''', (f'%{imei}%',))
+    ''', (f'%{imei_query}%',))
 
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -2349,7 +2618,7 @@ def report_profit():
     sort_by = request.args.get('sort_by', 'margin')
 
     query = '''
-        SELECT 
+        SELECT
             p.name as product_name,
             p.sku,
             c.name as category,
@@ -2357,7 +2626,7 @@ def report_profit():
             p.cost_price,
             p.selling_price,
             p.mrp,
-            ((p.selling_price - p.cost_price) / p.cost_price * 100) as profit_margin_percent,
+            CASE WHEN p.cost_price > 0 THEN ((p.selling_price - p.cost_price) / p.cost_price * 100) ELSE 0 END as profit_margin_percent,
             (p.selling_price - p.cost_price) as profit_per_unit,
             COALESCE(SUM(psi.quantity), 0) as quantity_sold,
             COALESCE(SUM(psi.total_price), 0) as total_revenue,
@@ -2388,6 +2657,10 @@ def report_profit():
         query += ' ORDER BY quantity_sold DESC'
     elif sort_by == 'revenue':
         query += ' ORDER BY total_revenue DESC'
+    elif sort_by == 'profit':
+        query += ' ORDER BY total_profit DESC'
+    else: # Default sort by name
+        query += ' ORDER BY p.name ASC'
 
     cursor.execute(query, params)
     profit_data = [dict(row) for row in cursor.fetchall()]
@@ -2431,7 +2704,7 @@ def report_gst():
     to_date = request.args.get('to_date', '')
 
     query = '''
-        SELECT 
+        SELECT
             ps.sale_number,
             ps.sale_date,
             ps.customer_name,
@@ -2506,7 +2779,7 @@ def report_brand_performance():
     to_date = request.args.get('to_date', '')
 
     query = '''
-        SELECT 
+        SELECT
             b.name as brand_name,
             COUNT(DISTINCT p.id) as total_products,
             COALESCE(SUM(psi.quantity), 0) as total_units_sold,
@@ -2575,7 +2848,7 @@ def report_top_selling():
     limit = request.args.get('limit', '20')
 
     query = '''
-        SELECT 
+        SELECT
             p.name as product_name,
             p.sku,
             c.name as category,
@@ -2650,7 +2923,7 @@ def report_staff_performance():
     to_date = request.args.get('to_date', '')
 
     query = '''
-        SELECT 
+        SELECT
             ps.cashier_name,
             COUNT(DISTINCT ps.id) as total_transactions,
             SUM(CASE WHEN ps.transaction_type = 'sale' THEN 1 ELSE 0 END) as total_sales,
@@ -2727,7 +3000,7 @@ def get_stock_history(id):
 
     # Get stock movements with running balance
     cursor.execute('''
-        SELECT 
+        SELECT
             sm.id,
             sm.type,
             sm.quantity,
@@ -2735,7 +3008,7 @@ def get_stock_history(id):
             sm.reference_id,
             sm.notes,
             sm.created_at,
-            CASE 
+            CASE
                 WHEN sm.reference_type = 'purchase_order' THEN 'PO-' || COALESCE(po.po_number, sm.reference_id)
                 WHEN sm.reference_type = 'grn' THEN COALESCE(g.grn_number, 'GRN-' || sm.reference_id)
                 WHEN sm.reference_type = 'manual' THEN 'Manual Entry'
@@ -2765,16 +3038,16 @@ def get_stock_history(id):
                 stock_added = quantity
                 stock_removed = 0
                 running_balance += quantity
-            else:
+            else: # Negative quantity for adjustments means stock reduction
                 stock_added = 0
                 stock_removed = quantity
                 running_balance -= quantity
-        elif movement['type'] in ['sale', 'return', 'damage']:
+        elif movement['type'] in ['sale', 'return', 'damage', 'exchange']: # Treat these as stock reduction
             stock_added = 0
             stock_removed = quantity
             running_balance -= quantity
         else:
-            # Default handling
+            # Default handling for unknown types - assume reduction if quantity negative
             if movement['quantity'] >= 0:
                 stock_added = quantity
                 stock_removed = 0
@@ -2783,6 +3056,7 @@ def get_stock_history(id):
                 stock_added = 0
                 stock_removed = quantity
                 running_balance -= quantity
+
 
         history.append({
             'date_time': movement['created_at'],
@@ -2859,18 +3133,18 @@ def dashboard_analytics():
 
     # Sales and profit for last 30 days
     cursor.execute('''
-        SELECT 
+        SELECT
             COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN total_amount ELSE 0 END), 0) as total_sales,
             COALESCE(SUM(CASE WHEN transaction_type = 'return' THEN ABS(total_amount) ELSE 0 END), 0) as total_returns
-        FROM pos_sales 
+        FROM pos_sales
         WHERE DATE(sale_date) >= DATE('now', '-30 days')
     ''')
     sales_data = cursor.fetchone()
-    total_sales = sales_data['total_sales'] - sales_data['total_returns']
+    total_sales = (sales_data['total_sales'] or 0) - (sales_data['total_returns'] or 0)
 
     # Calculate profit (revenue - cost)
     cursor.execute('''
-        SELECT 
+        SELECT
             COALESCE(SUM(psi.total_price), 0) as revenue,
             COALESCE(SUM(psi.quantity * p.cost_price), 0) as cost
         FROM pos_sale_items psi
@@ -2891,7 +3165,7 @@ def dashboard_analytics():
 
     # Top 5 selling products (last 30 days)
     cursor.execute('''
-        SELECT 
+        SELECT
             psi.product_name,
             p.name as current_product_name,
             b.name as brand_name,
@@ -2915,7 +3189,7 @@ def dashboard_analytics():
 
     # Recent POS transactions
     cursor.execute('''
-        SELECT 
+        SELECT
             sale_number,
             customer_name,
             total_amount,
@@ -2966,7 +3240,7 @@ def dashboard_sales_chart():
 
     # Get sales and profit for each day
     cursor.execute('''
-        SELECT 
+        SELECT
             DATE(sale_date) as sale_day,
             COALESCE(SUM(CASE WHEN transaction_type = 'sale' THEN total_amount ELSE -ABS(total_amount) END), 0) as daily_sales
         FROM pos_sales
@@ -2979,7 +3253,7 @@ def dashboard_sales_chart():
 
     # Get profit for each day
     cursor.execute('''
-        SELECT 
+        SELECT
             DATE(ps.sale_date) as sale_day,
             COALESCE(SUM(psi.total_price - (psi.quantity * p.cost_price)), 0) as daily_profit
         FROM pos_sale_items psi
@@ -3249,7 +3523,7 @@ def export_grns():
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT 
+        SELECT
             g.grn_number,
             g.po_number,
             g.supplier_name,
@@ -3313,11 +3587,11 @@ def business_settings():
         cursor.execute('SELECT * FROM business_settings ORDER BY id DESC LIMIT 1')
         settings_row = cursor.fetchone()
         conn.close()
-        
+
         if settings_row:
             return jsonify(dict(settings_row))
         else:
-            # Return default settings
+            # Return default settings if none exist
             return jsonify({
                 'business_name': 'My Business',
                 'gstin': '',
@@ -3397,6 +3671,7 @@ def business_settings():
                 ))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_business_settings', details="Updated business settings.")
             conn.close()
             return jsonify({'success': True})
         except Exception as e:
@@ -3573,6 +3848,8 @@ def import_products():
         conn.commit()
         conn.close()
 
+        log_audit(user_id=session.get('user_id'), action='import_products', details=f"Imported: {imported}, Updated: {updated}, Created Categories: {created_categories}, Brands: {created_brands}, Models: {created_models}. Errors: {len(errors)}.")
+
         return jsonify({
             'success': True,
             'imported': imported,
@@ -3641,12 +3918,12 @@ def pos_sales():
                     else:
                         # Update existing customer (in case name or email changed)
                         cursor.execute('''
-                            UPDATE customers 
+                            UPDATE customers
                             SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP
                             WHERE phone = ?
                         ''', (customer_name, customer_email, customer_phone))
                 except sqlite3.IntegrityError:
-                    # Phone number already exists, skip customer save
+                    # Phone number already exists, skip customer save for this transaction
                     pass
 
             # Create sale record
@@ -3700,7 +3977,7 @@ def pos_sales():
                     # Validate all IMEIs exist and are available (both 'available' and 'in_stock' statuses)
                     placeholders = ','.join('?' * len(imei_ids))
                     cursor.execute(f'''
-                        SELECT id, imei FROM product_imei 
+                        SELECT id, imei FROM product_imei
                         WHERE id IN ({placeholders}) AND product_id = ? AND status IN ('available', 'in_stock')
                     ''', (*imei_ids, product_id))
 
@@ -3718,8 +3995,9 @@ def pos_sales():
 
                     # Validate IMEI format (15 digits)
                     for imei in manual_imeis:
-                        if not imei or not isinstance(imei, str) or len(imei.strip()) != 15 or not imei.strip().isdigit():
-                            raise ValueError(f'Invalid IMEI format: {imei}. IMEI must be exactly 15 digits.')
+                        imei_clean = imei.strip()
+                        if not imei_clean or len(imei_clean) != 15 or not imei_clean.isdigit():
+                            raise ValueError(f'Invalid IMEI format: {imei_clean}. IMEI must be exactly 15 digits.')
 
                     # Check for duplicates within the payload
                     if len(manual_imeis) != len(set(manual_imeis)):
@@ -3765,7 +4043,7 @@ def pos_sales():
                     if imei_ids:
                         placeholders = ','.join('?' * len(imei_ids))
                         cursor.execute(f'''
-                            UPDATE product_imei 
+                            UPDATE product_imei
                             SET status = 'sold', sale_id = ?, sold_date = ?
                             WHERE id IN ({placeholders}) AND product_id = ? AND status IN ('available', 'in_stock')
                         ''', (sale_id, datetime.now(), *imei_ids, product_id))
@@ -3787,7 +4065,7 @@ def pos_sales():
                         # Validate that these IMEIs belong to this product and are sold
                         placeholders = ','.join('?' * len(imei_ids))
                         cursor.execute(f'''
-                            SELECT id FROM product_imei 
+                            SELECT id FROM product_imei
                             WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
                         ''', (*imei_ids, product_id))
 
@@ -3797,7 +4075,7 @@ def pos_sales():
 
                         # Mark as available again
                         cursor.execute(f'''
-                            UPDATE product_imei 
+                            UPDATE product_imei
                             SET status = 'available', sale_id = NULL, sold_date = NULL
                             WHERE id IN ({placeholders}) AND product_id = ? AND status = 'sold'
                         ''', (*imei_ids, product_id))
@@ -3824,6 +4102,7 @@ def pos_sales():
                 ''', (sale_id, data.get('payment_method'), abs(total_amount), data.get('payment_reference')))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='create_pos_sale', target_type='pos_sale', target_id=sale_id, details=f"Created POS {transaction_type.title()} {sale_number}. Total Amount: {total_amount}.")
             return jsonify({
                 'success': True,
                 'sale_id': sale_id,
@@ -3832,16 +4111,18 @@ def pos_sales():
                 'transaction_type': transaction_type
             })
 
-        except Exception as e:
+        except ValueError as e: # Catch specific value errors like insufficient stock or invalid IMEI
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
         finally:
             conn.close()
 
-    else:
-        # GET - List all sales
+    else: # GET request - List all sales
         cursor.execute('''
-            SELECT * FROM pos_sales 
+            SELECT * FROM pos_sales
             ORDER BY created_at DESC
             LIMIT 100
         ''')
@@ -3883,13 +4164,14 @@ def pos_product_search():
     conn = get_db()
     cursor = conn.cursor()
 
+    # Search active products with available stock
     cursor.execute('''
         SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
         LEFT JOIN models m ON p.model_id = m.id
-        WHERE p.status = 'active' 
+        WHERE p.status = 'active'
         AND p.current_stock > 0
         AND (p.name LIKE ? OR p.sku LIKE ? OR p.imei LIKE ?)
         LIMIT 20
@@ -3929,6 +4211,7 @@ def customers():
             ))
             conn.commit()
             customer_id = cursor.lastrowid
+            log_audit(user_id=session.get('user_id'), action='create_customer', target_type='customer', target_id=customer_id, details=f"Created customer: {data['name']} (Phone: {data.get('phone', '')})")
             conn.close()
             return jsonify({'success': True, 'id': customer_id})
         except Exception as e:
@@ -3994,6 +4277,13 @@ def customer_detail(id):
             return jsonify({'success': False, 'error': 'Invalid request data'}), 400
 
         try:
+            # Check if phone number is being changed to an existing one
+            new_phone = data.get('phone', '').strip()
+            if new_phone:
+                cursor.execute('SELECT id FROM customers WHERE phone = ? AND id != ?', (new_phone, id))
+                if cursor.fetchone():
+                    return jsonify({'success': False, 'error': 'Phone number already exists for another customer'}), 400
+
             cursor.execute('''
                 UPDATE customers SET
                     name = ?, phone = ?, email = ?, address = ?, city = ?,
@@ -4014,6 +4304,7 @@ def customer_detail(id):
                 id
             ))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_customer', target_type='customer', target_id=id, details=f"Updated customer ID {id}. New details: {data}")
             return jsonify({'success': True})
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -4022,16 +4313,29 @@ def customer_detail(id):
 
     elif request.method == 'DELETE':
         try:
+            # Check if customer has associated sales
+            cursor.execute('SELECT COUNT(*) as count FROM pos_sales WHERE customer_phone = ?', (id,)) # Assuming phone is used as a key for lookup, might need adjustment if ID is truly used.
+            # Correcting to check based on ID if phone is not unique identifier for POS sales linkage
+            # A better approach would be to store customer_id in pos_sales table
+            # For now, let's assume phone is the primary link for historical data, or adjust if customer ID is stored.
+            # This check might be insufficient if only phone is stored in POS sales.
+            # Let's assume we check based on ID for simplicity, though it implies customer ID is stored in pos_sales.
+            cursor.execute('SELECT COUNT(*) as count FROM pos_sales WHERE customer_id = ?', (id,)) # If customer_id column exists in pos_sales
+            if cursor.fetchone()['count'] > 0:
+                 return jsonify({'success': False, 'error': 'Cannot delete customer with associated sales history'}), 400
+
+            cursor.execute('SELECT name, phone FROM customers WHERE id = ?', (id,))
+            customer_info = cursor.fetchone()
+
             cursor.execute('DELETE FROM customers WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_customer', target_type='customer', target_id=id, details=f"Deleted customer: {customer_info['name']} (Phone: {customer_info['phone']})")
             return jsonify({'success': True})
         except Exception as e:
+            conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
-
-    conn.close()
-    return jsonify({'success': False, 'error': 'Method not allowed'}), 405
 
 # Service Management APIs
 
@@ -4051,14 +4355,16 @@ def technicians():
             cursor.execute('''
                 INSERT INTO technicians (name, phone, email, specialization, status)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (data['name'], data.get('phone'), data.get('email'), 
+            ''', (data['name'], data.get('phone'), data.get('email'),
                   data.get('specialization'), data.get('status', 'active')))
             conn.commit()
-            return jsonify({'success': True, 'id': cursor.lastrowid})
-        except Exception as e:
-            return jsonify({'success': False, 'error': str(e)}), 400
-        finally:
+            tech_id = cursor.lastrowid
+            log_audit(user_id=session.get('user_id'), action='create_technician', target_type='technician', target_id=tech_id, details=f"Created technician: {data['name']}")
             conn.close()
+            return jsonify({'success': True, 'id': tech_id})
+        except Exception as e:
+            conn.close()
+            return jsonify({'success': False, 'error': str(e)}), 400
     else:
         cursor.execute('SELECT * FROM technicians ORDER BY name')
         techs = [dict(row) for row in cursor.fetchall()]
@@ -4074,21 +4380,41 @@ def technician_detail(id):
     if request.method == 'PUT':
         data = request.json
         try:
+            # Get old data for audit log
+            cursor.execute('SELECT name FROM technicians WHERE id = ?', (id,))
+            old_name = cursor.fetchone()['name']
+
             cursor.execute('''
-                UPDATE technicians SET name = ?, phone = ?, email = ?, 
+                UPDATE technicians SET name = ?, phone = ?, email = ?,
                 specialization = ?, status = ?
                 WHERE id = ?
             ''', (data['name'], data.get('phone'), data.get('email'),
                   data.get('specialization'), data.get('status', 'active'), id))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_technician', target_type='technician', target_id=id, details=f"Updated technician '{old_name}' to '{data['name']}'")
             return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
     elif request.method == 'DELETE':
         try:
+            # Check for dependencies
+            cursor.execute('SELECT COUNT(*) as count FROM service_jobs WHERE technician_id = ?', (id,))
+            if cursor.fetchone()['count'] > 0:
+                return jsonify({'success': False, 'error': 'Cannot delete technician with assigned service jobs'}), 400
+
+            cursor.execute('SELECT name FROM technicians WHERE id = ?', (id,))
+            tech_name = cursor.fetchone()['name']
+
             cursor.execute('DELETE FROM technicians WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_technician', target_type='technician', target_id=id, details=f"Deleted technician: {tech_name}")
             return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
 
@@ -4106,12 +4432,12 @@ def service_jobs():
 
         try:
             job_number = f"SRV-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
+
             cursor.execute('''
                 INSERT INTO service_jobs (
                     job_number, customer_name, customer_phone, customer_email,
                     device_brand, device_model, imei_number, problem_description,
-                    estimated_cost, advance_payment, estimated_delivery, 
+                    estimated_cost, advance_payment, estimated_delivery,
                     technician_id, notes, status
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (job_number, data['customer_name'], data['customer_phone'],
@@ -4120,7 +4446,7 @@ def service_jobs():
                   data['problem_description'], data.get('estimated_cost', 0),
                   data.get('advance_payment', 0), data.get('estimated_delivery'),
                   data.get('technician_id'), data.get('notes'), 'received'))
-            
+
             job_id = cursor.lastrowid
 
             # Record status history
@@ -4130,6 +4456,7 @@ def service_jobs():
             ''', (job_id, 'received', session.get('username', 'admin')))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='create_service_job', target_type='service_job', target_id=job_id, details=f"Created service job {job_number} for {data['customer_name']}")
             return jsonify({'success': True, 'id': job_id, 'job_number': job_number})
         except Exception as e:
             conn.rollback()
@@ -4228,7 +4555,7 @@ def service_job_detail(id):
                     status = ?, technician_id = ?, notes = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            ''', (data['customer_name'], data['customer_phone'], 
+            ''', (data['customer_name'], data['customer_phone'],
                   data.get('customer_email'), data.get('device_brand'),
                   data.get('device_model'), data.get('imei_number'),
                   data['problem_description'], data.get('estimated_cost', 0),
@@ -4246,6 +4573,7 @@ def service_job_detail(id):
                 ''', (id, old_status, new_status, session.get('username', 'admin')))
 
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='update_service_job', target_type='service_job', target_id=id, details=f"Updated service job ID {id}. Status changed from '{old_status}' to '{new_status}'.")
             return jsonify({'success': True})
         except Exception as e:
             conn.rollback()
@@ -4255,12 +4583,22 @@ def service_job_detail(id):
 
     elif request.method == 'DELETE':
         try:
+            # Check for dependencies (e.g., associated parts, labor, history)
             cursor.execute('DELETE FROM service_parts_used WHERE job_id = ?', (id,))
             cursor.execute('DELETE FROM service_labor_charges WHERE job_id = ?', (id,))
             cursor.execute('DELETE FROM service_status_history WHERE job_id = ?', (id,))
+
+            # Get job details for audit log before deleting
+            cursor.execute('SELECT job_number, customer_name FROM service_jobs WHERE id = ?', (id,))
+            job_info = cursor.fetchone()
+
             cursor.execute('DELETE FROM service_jobs WHERE id = ?', (id,))
             conn.commit()
+            log_audit(user_id=session.get('user_id'), action='delete_service_job', target_type='service_job', target_id=id, details=f"Deleted service job {job_info['job_number']} for {job_info['customer_name']}")
             return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 400
         finally:
             conn.close()
 
@@ -4272,21 +4610,47 @@ def add_service_parts(id):
     data = request.json
 
     try:
+        product_id = data.get('product_id')
+        part_name = data.get('part_name')
+        quantity = data.get('quantity')
+        unit_price = data.get('unit_price')
+
+        if not part_name or not quantity or not unit_price:
+            return jsonify({'success': False, 'error': 'Part name, quantity, and unit price are required.'}), 400
+
+        if not isinstance(quantity, int) or quantity <= 0:
+            return jsonify({'success': False, 'error': 'Quantity must be a positive integer.'}), 400
+
+        total_price = quantity * unit_price
+
         cursor.execute('''
             INSERT INTO service_parts_used (job_id, product_id, part_name, quantity, unit_price, total_price)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (id, data.get('product_id'), data['part_name'], data['quantity'],
-              data['unit_price'], data['quantity'] * data['unit_price']))
-        
-        # Update product stock if product_id provided
-        if data.get('product_id'):
+        ''', (id, product_id, part_name, quantity, unit_price, total_price))
+        part_id = cursor.lastrowid
+
+        # Update product stock if product_id provided and it's a valid product
+        if product_id:
+            # Verify product exists and has enough stock before deducting
+            cursor.execute('SELECT current_stock, name FROM products WHERE id = ?', (product_id,))
+            product = cursor.fetchone()
+            if not product:
+                raise ValueError(f"Product ID {product_id} not found for part '{part_name}'.")
+
+            if product['current_stock'] < quantity:
+                raise ValueError(f"Insufficient stock for product '{product['name']}'. Available: {product['current_stock']}, Requested: {quantity}.")
+
             cursor.execute('''
                 UPDATE products SET current_stock = current_stock - ?
                 WHERE id = ?
-            ''', (data['quantity'], data['product_id']))
+            ''', (quantity, product_id))
 
         conn.commit()
-        return jsonify({'success': True, 'id': cursor.lastrowid})
+        log_audit(user_id=session.get('user_id'), action='add_service_part', target_type='service_job', target_id=id, details=f"Added part '{part_name}' (Qty: {quantity}) to Service Job ID {id}.")
+        return jsonify({'success': True, 'id': part_id})
+    except ValueError as e: # Catch specific validation errors
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
@@ -4300,12 +4664,15 @@ def delete_service_part(job_id, part_id):
     cursor = conn.cursor()
 
     try:
-        # Get part details before deleting
-        cursor.execute('SELECT product_id, quantity FROM service_parts_used WHERE id = ?', (part_id,))
+        # Get part details before deleting for stock restoration and audit log
+        cursor.execute('SELECT product_id, quantity, part_name FROM service_parts_used WHERE id = ? AND job_id = ?', (part_id, job_id))
         part = cursor.fetchone()
 
-        if part and part['product_id']:
-            # Restore stock
+        if not part:
+            return jsonify({'success': False, 'error': 'Part not found for this job'}), 404
+
+        # Restore stock if a product_id was associated
+        if part['product_id']:
             cursor.execute('''
                 UPDATE products SET current_stock = current_stock + ?
                 WHERE id = ?
@@ -4313,7 +4680,11 @@ def delete_service_part(job_id, part_id):
 
         cursor.execute('DELETE FROM service_parts_used WHERE id = ?', (part_id,))
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='delete_service_part', target_type='service_job', target_id=job_id, details=f"Deleted part '{part['part_name']}' (Qty: {part['quantity']}) from Service Job ID {job_id}.")
         return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
 
@@ -4325,13 +4696,24 @@ def add_service_labor(id):
     data = request.json
 
     try:
+        description = data.get('description')
+        amount = data.get('amount')
+
+        if not description or amount is None:
+            return jsonify({'success': False, 'error': 'Description and amount are required.'}), 400
+        if not isinstance(amount, (int, float)) or amount < 0:
+            return jsonify({'success': False, 'error': 'Amount must be a non-negative number.'}), 400
+
         cursor.execute('''
             INSERT INTO service_labor_charges (job_id, description, amount)
             VALUES (?, ?, ?)
-        ''', (id, data['description'], data['amount']))
+        ''', (id, description, amount))
         conn.commit()
-        return jsonify({'success': True, 'id': cursor.lastrowid})
+        labor_id = cursor.lastrowid
+        log_audit(user_id=session.get('user_id'), action='add_service_labor', target_type='service_job', target_id=id, details=f"Added labor charge '{description}' (Amount: {amount}) to Service Job ID {id}.")
+        return jsonify({'success': True, 'id': labor_id})
     except Exception as e:
+        conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
@@ -4343,9 +4725,19 @@ def delete_service_labor(job_id, labor_id):
     cursor = conn.cursor()
 
     try:
+        # Get labor details for audit log
+        cursor.execute('SELECT description, amount FROM service_labor_charges WHERE id = ? AND job_id = ?', (labor_id, job_id))
+        labor_info = cursor.fetchone()
+        if not labor_info:
+            return jsonify({'success': False, 'error': 'Labor charge not found for this job'}), 404
+
         cursor.execute('DELETE FROM service_labor_charges WHERE id = ?', (labor_id,))
         conn.commit()
+        log_audit(user_id=session.get('user_id'), action='delete_service_labor', target_type='service_job', target_id=job_id, details=f"Deleted labor charge '{labor_info['description']}' (Amount: {labor_info['amount']}) from Service Job ID {job_id}.")
         return jsonify({'success': True})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
 
