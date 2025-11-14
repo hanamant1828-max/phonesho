@@ -1288,7 +1288,9 @@ def manage_product_imeis(product_id):
             return jsonify({'success': True, 'added': len(added_imeis), 'imeis': added_imeis})
         except sqlite3.IntegrityError as e:
             conn.rollback()
-            return jsonify({'success': False, 'error': 'One or more IMEI numbers already exist'}), 400
+            # Extracting the specific IMEI that caused the integrity error is difficult here without more complex SQL.
+            # We'll return a general message.
+            return jsonify({'success': False, 'error': f'One or more IMEI numbers already exist: {str(e)}'}), 400
         except ValueError as e: # Catch IMEI validation errors
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 400
@@ -4670,9 +4672,9 @@ def service_job_detail(id):
         finally:
             conn.close()
 
-@app.route('/api/service-jobs/<int:id>/parts', methods=['POST'])
+@app.route('/api/service-jobs/<int:job_id>/parts', methods=['POST'])
 @login_required
-def add_service_parts(id):
+def add_service_parts(job_id):
     conn = get_db()
     cursor = conn.cursor()
     data = request.json
@@ -4694,7 +4696,7 @@ def add_service_parts(id):
         cursor.execute('''
             INSERT INTO service_parts_used (job_id, product_id, part_name, quantity, unit_price, total_price)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (id, product_id, part_name, quantity, unit_price, total_price))
+        ''', (job_id, product_id, part_name, quantity, unit_price, total_price))
         part_id = cursor.lastrowid
 
                 # Update product stock if product_id provided and it's a valid product
@@ -4714,7 +4716,7 @@ def add_service_parts(id):
             ''', (quantity, product_id))
 
         conn.commit()
-        log_audit(user_id=session.get('user_id'), action='add_service_part', target_type='service_job', target_id=id, details=f"Added part '{part_name}' (Qty: {quantity}) to Service Job ID {id}.")
+        log_audit(user_id=session.get('user_id'), action='add_service_part', target_type='service_job', target_id=job_id, details=f"Added part '{part_name}' (Qty: {quantity}) to Service Job ID {job_id}.")
         return jsonify({'success': True, 'id': part_id})
     except ValueError as e: # Catch specific validation errors
         conn.rollback()
@@ -4808,6 +4810,53 @@ def delete_service_labor(job_id, labor_id):
         return jsonify({'success': False, 'error': str(e)}), 400
     finally:
         conn.close()
+
+# Billing Summary API
+@app.route('/api/billing/calculate', methods=['POST'])
+def calculate_billing():
+    """Calculate billing summary for products"""
+    data = request.json
+
+    if not data or 'products' not in data:
+        return jsonify({'error': 'Products array required'}), 400
+
+    products = data['products']
+
+    if not isinstance(products, list) or len(products) == 0:
+        return jsonify({'error': 'Products must be a non-empty array'}), 400
+
+    items = []
+    grand_total = 0
+
+    for product in products:
+        # Validate required fields
+        if 'name' not in product or 'price' not in product or 'qty' not in product:
+            return jsonify({'error': 'Each product must have name, price, and qty'}), 400
+
+        name = product['name']
+        unit_price = float(product['price'])
+        qty = int(product['qty'])
+        discount = float(product.get('discount', 0))
+
+        # Calculate total for this product
+        subtotal = unit_price * qty
+        total = subtotal - discount
+
+        items.append({
+            'name': name,
+            'unit_price': round(unit_price, 2),
+            'qty': qty,
+            'discount': round(discount, 2),
+            'total': round(total, 2)
+        })
+
+        grand_total += total
+
+    return jsonify({
+        'items': items,
+        'grand_total': round(grand_total, 2)
+    })
+
 
 if __name__ == '__main__':
     init_db()

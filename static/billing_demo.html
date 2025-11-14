@@ -1,0 +1,181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing Summary Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <h2 class="mb-4"><i class="bi bi-calculator"></i> Billing Summary Calculator Demo</h2>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Add Products</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Product Name</label>
+                                <input type="text" class="form-control" id="productName" placeholder="e.g., Charger">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Price</label>
+                                <input type="number" class="form-control" id="productPrice" placeholder="500" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Quantity</label>
+                                <input type="number" class="form-control" id="productQty" placeholder="1" min="1" value="1">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Discount</label>
+                                <input type="number" class="form-control" id="productDiscount" placeholder="0" step="0.01" value="0">
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button class="btn btn-primary w-100" onclick="addProduct()">
+                                    <i class="bi bi-plus"></i> Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-success" onclick="loadSampleData()">
+                                <i class="bi bi-file-earmark-fill"></i> Load Sample
+                            </button>
+                            <button class="btn btn-warning" onclick="clearProducts()">
+                                <i class="bi bi-trash"></i> Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Products List</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="productsList"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Billing Summary</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="billingSummary"></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="mb-0">JSON Output</h5>
+                            </div>
+                            <div class="card-body">
+                                <pre id="jsonOutput" class="bg-light p-3" style="font-size: 12px; max-height: 300px; overflow-y: auto;"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/billing.js"></script>
+    <script>
+        let products = [];
+
+        function addProduct() {
+            const name = document.getElementById('productName').value.trim();
+            const price = parseFloat(document.getElementById('productPrice').value) || 0;
+            const qty = parseInt(document.getElementById('productQty').value) || 1;
+            const discount = parseFloat(document.getElementById('productDiscount').value) || 0;
+
+            if (!name || price <= 0) {
+                alert('Please enter valid product name and price');
+                return;
+            }
+
+            products.push({ name, price, qty, discount });
+            
+            // Clear inputs
+            document.getElementById('productName').value = '';
+            document.getElementById('productPrice').value = '';
+            document.getElementById('productQty').value = '1';
+            document.getElementById('productDiscount').value = '0';
+            
+            updateDisplay();
+        }
+
+        function removeProduct(index) {
+            products.splice(index, 1);
+            updateDisplay();
+        }
+
+        function loadSampleData() {
+            products = [
+                { name: "Charger", price: 500, qty: 2, discount: 50 },
+                { name: "Earphones", price: 800, qty: 1, discount: 0 },
+                { name: "Phone Case", price: 300, qty: 3, discount: 100 }
+            ];
+            updateDisplay();
+        }
+
+        function clearProducts() {
+            products = [];
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            // Update products list
+            const listDiv = document.getElementById('productsList');
+            if (products.length === 0) {
+                listDiv.innerHTML = '<p class="text-muted">No products added yet</p>';
+            } else {
+                let html = '<div class="list-group">';
+                products.forEach((product, index) => {
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${product.name}</strong>
+                                <small class="d-block text-muted">
+                                    ₹${product.price} × ${product.qty} 
+                                    ${product.discount > 0 ? `(Disc: ₹${product.discount})` : ''}
+                                </small>
+                            </div>
+                            <button class="btn btn-sm btn-danger" onclick="removeProduct(${index})">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                listDiv.innerHTML = html;
+            }
+
+            // Calculate billing summary
+            const summary = BillingCalculator.calculateBillingSummary(products);
+            
+            // Update billing summary display
+            document.getElementById('billingSummary').innerHTML = 
+                BillingCalculator.formatBillingSummaryHTML(summary);
+            
+            // Update JSON output
+            document.getElementById('jsonOutput').textContent = 
+                JSON.stringify(summary, null, 2);
+        }
+
+        // Initialize display
+        updateDisplay();
+    </script>
+</body>
+</html>
