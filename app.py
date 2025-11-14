@@ -4057,6 +4057,7 @@ def pos_sales():
                         # Verify all IMEIs were updated (atomic check for race conditions)
                         if cursor.rowcount != len(imei_ids):
                             raise ValueError(f'Failed to mark all IMEIs as sold for {product["name"]}. Some IMEIs may have been sold by another transaction.')
+
                 elif transaction_type == 'return':
                     # Add stock back for returns
                     cursor.execute(
@@ -4175,50 +4176,29 @@ def pos_product_search():
     conn = get_db()
     cursor = conn.cursor()
 
-    # Search by name, SKU, or IMEI with optional category filter
-    search_pattern = f'%{query}%'
+    sql = '''
+        SELECT DISTINCT p.id, p.sku, p.name, p.selling_price, p.current_stock,
+               p.image_url, b.name as brand_name, m.name as model_name,
+               c.name as category_name
+        FROM products p
+        LEFT JOIN brands b ON p.brand_id = b.id
+        LEFT JOIN models m ON p.model_id = m.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        LEFT JOIN product_imei pi ON p.id = pi.product_id
+        WHERE p.status = 'active'
+          AND (p.name LIKE ? OR p.sku LIKE ? OR pi.imei LIKE ?)
+    '''
+    params = [f'%{query}%', f'%{query}%', f'%{query}%']
 
     if category_id and category_id != 'all':
-        cursor.execute('''
-            SELECT DISTINCT p.id, p.name, p.sku, p.selling_price, p.current_stock,
-                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
-            FROM products p
-            LEFT JOIN brands b ON p.brand_id = b.id
-            LEFT JOIN models m ON p.model_id = m.id
-            LEFT JOIN imei_tracking i ON p.id = i.product_id
-            WHERE p.status = 'active' 
-            AND p.category_id = ?
-            AND (p.name LIKE ? OR p.sku LIKE ? OR i.imei LIKE ?)
-            ORDER BY p.name
-            LIMIT 20
-        ''', (category_id, search_pattern, search_pattern, search_pattern))
-    else:
-        cursor.execute('''
-            SELECT DISTINCT p.id, p.name, p.sku, p.selling_price, p.current_stock,
-                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
-            FROM products p
-            LEFT JOIN brands b ON p.brand_id = b.id
-            LEFT JOIN models m ON p.model_id = m.id
-            LEFT JOIN imei_tracking i ON p.id = i.product_id
-            WHERE p.status = 'active' 
-            AND (p.name LIKE ? OR p.sku LIKE ? OR i.imei LIKE ?)
-            ORDER BY p.name
-            LIMIT 20
-        ''', (search_pattern, search_pattern, search_pattern))
+        sql += ' AND p.category_id = ?'
+        params.append(category_id)
 
-    products = []
-    for row in cursor.fetchall():
-        products.append({
-            'id': row[0],
-            'name': row[1],
-            'sku': row[2],
-            'selling_price': row[3],
-            'current_stock': row[4],
-            'brand_id': row[5],
-            'model_id': row[6],
-            'brand_name': row[7],
-            'model_name': row[8]
-        })
+    sql += ' ORDER BY p.name LIMIT 20'
+
+    cursor.execute(sql, params)
+    products = [dict(row) for row in cursor.fetchall()]
+    conn.close()
 
     return jsonify(products)
 
@@ -4227,48 +4207,41 @@ def pos_product_search():
 def pos_products_by_category():
     category_id = request.args.get('category_id', '').strip()
 
-    if not category_id:
-        return jsonify([])
-
     conn = get_db()
     cursor = conn.cursor()
 
     if category_id == 'all':
-        cursor.execute('''
-            SELECT p.id, p.name, p.sku, p.selling_price, p.current_stock,
-                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+        sql = '''
+            SELECT p.id, p.sku, p.name, p.selling_price, p.current_stock,
+                   p.image_url, b.name as brand_name, m.name as model_name,
+                   c.name as category_name
             FROM products p
             LEFT JOIN brands b ON p.brand_id = b.id
             LEFT JOIN models m ON p.model_id = m.id
+            LEFT JOIN categories c ON p.category_id = c.id
             WHERE p.status = 'active' AND p.current_stock > 0
-            ORDER BY p.name
-            LIMIT 50
-        ''')
-    else:
-        cursor.execute('''
-            SELECT p.id, p.name, p.sku, p.selling_price, p.current_stock,
-                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+            ORDER BY p.name LIMIT 50
+        '''
+        cursor.execute(sql)
+    elif category_id:
+        sql = '''
+            SELECT p.id, p.sku, p.name, p.selling_price, p.current_stock,
+                   p.image_url, b.name as brand_name, m.name as model_name,
+                   c.name as category_name
             FROM products p
             LEFT JOIN brands b ON p.brand_id = b.id
             LEFT JOIN models m ON p.model_id = m.id
-            WHERE p.status = 'active' AND p.current_stock > 0 AND p.category_id = ?
-            ORDER BY p.name
-            LIMIT 50
-        ''', (category_id,))
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.status = 'active' AND p.category_id = ? AND p.current_stock > 0
+            ORDER BY p.name LIMIT 50
+        '''
+        cursor.execute(sql, (category_id,))
+    else:
+        conn.close()
+        return jsonify([])
 
-    products = []
-    for row in cursor.fetchall():
-        products.append({
-            'id': row[0],
-            'name': row[1],
-            'sku': row[2],
-            'selling_price': row[3],
-            'current_stock': row[4],
-            'brand_id': row[5],
-            'model_id': row[6],
-            'brand_name': row[7],
-            'model_name': row[8]
-        })
+    products = [dict(row) for row in cursor.fetchall()]
+    conn.close()
 
     return jsonify(products)
 
@@ -4724,7 +4697,7 @@ def add_service_parts(id):
         ''', (id, product_id, part_name, quantity, unit_price, total_price))
         part_id = cursor.lastrowid
 
-        # Update product stock if product_id provided and it's a valid product
+                # Update product stock if product_id provided and it's a valid product
         if product_id:
             # Verify product exists and has enough stock before deducting
             cursor.execute('SELECT current_stock, name FROM products WHERE id = ?', (product_id,))

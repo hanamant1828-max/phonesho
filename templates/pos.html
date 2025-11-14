@@ -1350,6 +1350,7 @@
                         unit_price: parseFloat(product.selling_price),
                         quantity: 1,
                         max_stock: product.current_stock,
+                        category_name: product.category_name || "",
                         imei_numbers: [],
                         imei_ids: [],
                         manual_imeis: [],
@@ -1379,6 +1380,10 @@
                 }
 
                 cart.forEach((item, index) => {
+                    // Check if this is a smartphone category
+                    const isSmartphone = item.category_name && 
+                        item.category_name.toLowerCase().includes('smartphone');
+                    
                     const imeiComplete =
                         item.imei_numbers.length === item.quantity;
                     const imeiStatusClass = imeiComplete
@@ -1387,6 +1392,30 @@
                     const imeiStatusText = imeiComplete
                         ? `${item.imei_numbers.length}/${item.quantity} Complete`
                         : `${item.imei_numbers.length}/${item.quantity} Incomplete`;
+
+                    // Build IMEI section HTML only for smartphones
+                    const imeiSectionHtml = isSmartphone ? `
+                        <div class="imei-section">
+                            <div class="imei-header">
+                                <span class="imei-label">
+                                    <i class="bi bi-upc-scan"></i> IMEI Numbers (${item.quantity} required)
+                                </span>
+                                <span class="imei-status ${imeiStatusClass}">${imeiStatusText}</span>
+                            </div>
+                            <div class="imei-input-group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="showIMEISelection(${index})" style="margin-right: 8px;">
+                                    <i class="bi bi-list-check"></i> Select from Inventory
+                                </button>
+                                <input type="text" class="imei-input" id="imeiInput${index}"
+                                       placeholder="Or enter IMEI manually"
+                                       onkeypress="handleIMEIKeypress(event, ${index})" style="flex: 1;">
+                                <button class="imei-add-btn" onclick="addIMEI(${index})">
+                                    <i class="bi bi-plus-lg"></i> Add
+                                </button>
+                            </div>
+                            <div class="imei-list" id="imeiList${index}"></div>
+                        </div>
+                    ` : '';
 
                     const cartItem = $(`
                     <div class="cart-item">
@@ -1416,26 +1445,7 @@
                             </div>
                         </div>
 
-                        <div class="imei-section">
-                            <div class="imei-header">
-                                <span class="imei-label">
-                                    <i class="bi bi-upc-scan"></i> IMEI Numbers (${item.quantity} required)
-                                </span>
-                                <span class="imei-status ${imeiStatusClass}">${imeiStatusText}</span>
-                            </div>
-                            <div class="imei-input-group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="showIMEISelection(${index})" style="margin-right: 8px;">
-                                    <i class="bi bi-list-check"></i> Select from Inventory
-                                </button>
-                                <input type="text" class="imei-input" id="imeiInput${index}"
-                                       placeholder="Or enter IMEI manually"
-                                       onkeypress="handleIMEIKeypress(event, ${index})" style="flex: 1;">
-                                <button class="imei-add-btn" onclick="addIMEI(${index})">
-                                    <i class="bi bi-plus-lg"></i> Add
-                                </button>
-                            </div>
-                            <div class="imei-list" id="imeiList${index}"></div>
-                        </div>
+                        ${imeiSectionHtml}
                     </div>
                 `);
 
@@ -1672,8 +1682,12 @@
                     return;
                 }
 
+                // Only validate IMEI for smartphones
                 for (let item of cart) {
-                    if (item.imei_numbers.length < item.quantity) {
+                    const isSmartphone = item.category_name && 
+                        item.category_name.toLowerCase().includes('smartphone');
+                    
+                    if (isSmartphone && item.imei_numbers.length < item.quantity) {
                         alert(
                             `Please add ${item.quantity} IMEI number(s) for "${item.product_name}". Currently only ${item.imei_numbers.length} added.`,
                         );
