@@ -33,6 +33,19 @@ def check_permission(permission_key):
     conn = get_db()
     cursor = conn.cursor()
     try:
+        # Check if user is admin - admins have all permissions
+        cursor.execute('''
+            SELECT COALESCE(r.role_name, r.name) as role_name
+            FROM users u
+            JOIN roles r ON u.role_id = r.id
+            WHERE u.id = ?
+        ''', (session['user_id'],))
+        role_result = cursor.fetchone()
+        
+        if role_result and role_result['role_name'] == 'Admin':
+            return True
+        
+        # Otherwise check specific permission
         cursor.execute('''
             SELECT COUNT(*) as count
             FROM role_permissions rp

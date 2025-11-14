@@ -16,7 +16,6 @@ def get_db():
 
 @user_bp.route('/api/users', methods=['GET'])
 @login_required
-@permission_required('settings.manage_users')
 def get_users():
     """Get list of all users"""
     conn = get_db()
