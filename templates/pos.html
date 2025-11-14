@@ -1168,8 +1168,15 @@
                                 </button>
                             </div>
                             <div class="col-6">
+                                <button class="btn btn-outline-info w-100" onclick="showSavedBillsModal()">
+                                    <i class="bi bi-folder-open"></i> Saved Bills
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
                                 <button class="btn btn-outline-success w-100" onclick="shareViaWhatsApp()">
-                                    <i class="bi bi-whatsapp"></i> WhatsApp
+                                    <i class="bi bi-whatsapp"></i> Share via WhatsApp
                                 </button>
                             </div>
                         </div>
@@ -1224,6 +1231,26 @@
                     <div class="modal-body">
                         <div id="heldBillsList">
                             <!-- Held bills will be loaded here -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Saved Bills Modal -->
+        <div class="modal fade" id="savedBillsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="bi bi-folder-open"></i> Saved Bills</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="savedBillsList">
+                            <!-- Saved bills will be loaded here -->
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -2991,6 +3018,143 @@
                 setTimeout(() => {
                     printWindow.print();
                 }, 300);
+            }
+
+            // ========================================
+            // SAVED BILLS FUNCTIONALITY
+            // ========================================
+            function showSavedBillsModal() {
+                const savedBills = JSON.parse(localStorage.getItem('savedBills') || '[]');
+                const container = $('#savedBillsList');
+                container.empty();
+
+                if (savedBills.length === 0) {
+                    container.html(`
+                        <div class="text-center text-muted py-5">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-3">No saved bills found</p>
+                        </div>
+                    `);
+                } else {
+                    savedBills.forEach((bill, index) => {
+                        const date = new Date(bill.timestamp);
+                        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        
+                        container.append(`
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1"><i class="bi bi-receipt"></i> ${bill.id}</h6>
+                                            <small class="text-muted">
+                                                <i class="bi bi-clock"></i> ${dateStr}
+                                            </small>
+                                            <div class="mt-2">
+                                                <strong>Customer:</strong> ${bill.customer.name || 'Walk-in'}<br>
+                                                <strong>Items:</strong> ${bill.cart.length}<br>
+                                                <strong>Total:</strong> ₹${bill.billing.total.toFixed(2)}
+                                            </div>
+                                        </div>
+                                        <div class="btn-group-vertical">
+                                            <button class="btn btn-success btn-sm mb-1" onclick="loadSavedBill(${index})">
+                                                <i class="bi bi-arrow-down-circle"></i> Load
+                                            </button>
+                                            <button class="btn btn-primary btn-sm mb-1" onclick="printSavedBill(${index})">
+                                                <i class="bi bi-printer"></i> Print
+                                            </button>
+                                            <button class="btn btn-danger btn-sm" onclick="deleteSavedBill(${index})">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `);
+                    });
+                }
+
+                const modal = new bootstrap.Modal($('#savedBillsModal'));
+                modal.show();
+            }
+
+            function loadSavedBill(index) {
+                const savedBills = JSON.parse(localStorage.getItem('savedBills') || '[]');
+                const bill = savedBills[index];
+
+                if (!bill) {
+                    alert('Bill not found');
+                    return;
+                }
+
+                // Restore cart
+                cart = JSON.parse(JSON.stringify(bill.cart));
+
+                // Restore customer info
+                $('#customerName').val(bill.customer.name || '');
+                $('#customerPhone').val(bill.customer.phone || '');
+                $('#customerEmail').val(bill.customer.email || '');
+
+                // Restore billing
+                $('#discountPercent').val(bill.billing.discountPercent || 0);
+                $('#taxPercent').val(bill.billing.taxPercent || 0);
+                $('#paymentMethod').val(bill.paymentMethod || 'cash');
+
+                // Restore transaction type
+                currentTransactionType = bill.transactionType || 'sale';
+                $('.transaction-tab').removeClass('active');
+                $(`.transaction-tab[data-type="${currentTransactionType}"]`).addClass('active');
+
+                // Update UI
+                updateCart();
+                bootstrap.Modal.getInstance($('#savedBillsModal')).hide();
+
+                alert(`Bill ${bill.id} loaded successfully!`);
+            }
+
+            function printSavedBill(index) {
+                const savedBills = JSON.parse(localStorage.getItem('savedBills') || '[]');
+                const bill = savedBills[index];
+
+                if (!bill) {
+                    alert('Bill not found');
+                    return;
+                }
+
+                // Create a mock sale response for printing
+                const mockSaleResponse = {
+                    sale_number: bill.id,
+                    total_amount: bill.billing.total
+                };
+
+                const mockSaleData = {
+                    items: bill.cart,
+                    customer_name: bill.customer.name || 'Walk-in Customer',
+                    customer_phone: bill.customer.phone || '',
+                    customer_email: bill.customer.email || '',
+                    discount_percentage: bill.billing.discountPercent || 0,
+                    tax_percentage: bill.billing.taxPercent || 0,
+                    payment_method: bill.paymentMethod || 'cash',
+                    transaction_type: bill.transactionType || 'sale'
+                };
+
+                // Load business settings and generate invoice
+                $.get(`${API_BASE}/business-settings`, function(businessSettings) {
+                    generateGSTInvoice(mockSaleResponse, mockSaleData, businessSettings);
+                }).fail(function() {
+                    alert('Could not load business settings. Please configure Business Settings first.');
+                });
+            }
+
+            function deleteSavedBill(index) {
+                if (!confirm('Are you sure you want to delete this saved bill?')) {
+                    return;
+                }
+
+                const savedBills = JSON.parse(localStorage.getItem('savedBills') || '[]');
+                savedBills.splice(index, 1);
+                localStorage.setItem('savedBills', JSON.stringify(savedBills));
+
+                showSavedBillsModal();
             }
 
             // ========================================
