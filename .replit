@@ -4,7 +4,7 @@ expertMode = true
 
 [nix]
 channel = "stable-25_05"
-packages = ["glibcLocales", "openssl", "postgresql"]
+packages = ["cargo", "glibcLocales", "libiconv", "openssl", "postgresql", "rustc"]
 
 [workflows]
 runButton = "Project"
@@ -35,7 +35,7 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 33485
+localPort = 37533
 externalPort = 3000
 
 [deployment]
