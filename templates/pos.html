@@ -1161,7 +1161,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <button class="btn btn-outline-primary w-100" onclick="saveBillDraft()">
                                     <i class="bi bi-save"></i> Save Bill
@@ -1169,11 +1169,11 @@
                             </div>
                             <div class="col-6">
                                 <button class="btn btn-outline-info w-100" onclick="showSavedBillsModal()">
-                                    <i class="bi bi-folder-open"></i> Saved Bills
+                                    <i class="bi bi-folder-open"></i> View Saved
                                 </button>
                             </div>
                         </div>
-                        <div class="row g-2 mt-1">
+                        <div class="row g-2">
                             <div class="col-12">
                                 <button class="btn btn-outline-success w-100" onclick="shareViaWhatsApp()">
                                     <i class="bi bi-whatsapp"></i> Share via WhatsApp
@@ -1242,20 +1242,20 @@
 
         <!-- Saved Bills Modal -->
         <div class="modal fade" id="savedBillsModal" tabindex="-1" aria-labelledby="savedBillsModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
+                    <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
                         <h5 class="modal-title" id="savedBillsModalLabel">
                             <i class="bi bi-folder-open"></i> Saved Bills
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
+                    <div class="modal-body" style="background: #f8f9fa;">
                         <div id="savedBillsList">
                             <!-- Saved bills will be loaded here -->
                         </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer" style="background: white;">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle"></i> Close
                         </button>
