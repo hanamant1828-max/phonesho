@@ -1239,6 +1239,195 @@ function loadModelsForBrand() {
     });
 }
 
+function viewProductDetails(productId) {
+    $.get(`${API_BASE}/products/${productId}`, function(product) {
+        let content = `
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Basic Information</h6>
+                    <p><strong>SKU:</strong> ${product.sku || 'N/A'}</p>
+                    <p><strong>Name:</strong> ${product.name}</p>
+                    <p><strong>Category:</strong> ${product.category_name || 'N/A'}</p>
+                    <p><strong>Brand:</strong> ${product.brand_name || 'N/A'}</p>
+                    <p><strong>Model:</strong> ${product.model_name || 'N/A'}</p>
+                    <p><strong>Description:</strong> ${product.description || 'N/A'}</p>
+                    <p><strong>Status:</strong> <span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></p>
+                </div>
+                <div class="col-md-6">
+                    <h6>Pricing</h6>
+                    <p><strong>Cost Price:</strong> $${parseFloat(product.cost_price || 0).toFixed(2)}</p>
+                    <p><strong>Selling Price:</strong> $${parseFloat(product.selling_price || 0).toFixed(2)}</p>
+                    <p><strong>MRP:</strong> $${parseFloat(product.mrp || 0).toFixed(2)}</p>
+                    <p><strong>Profit Margin:</strong> ${product.cost_price > 0 ? (((product.selling_price - product.cost_price) / product.cost_price * 100).toFixed(2)) : 0}%</p>
+                    
+                    <h6 class="mt-3">Stock Information</h6>
+                    <p><strong>Current Stock:</strong> ${product.current_stock}</p>
+                    <p><strong>Min Stock Level:</strong> ${product.min_stock_level}</p>
+                    <p><strong>Storage Location:</strong> ${product.storage_location || 'N/A'}</p>
+                </div>
+            </div>
+        `;
+
+        if (product.color || product.storage_capacity || product.ram || product.warranty_period) {
+            content += `
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Specifications</h6>
+                        ${product.color ? `<p><strong>Color:</strong> ${product.color}</p>` : ''}
+                        ${product.storage_capacity ? `<p><strong>Storage:</strong> ${product.storage_capacity}</p>` : ''}
+                        ${product.ram ? `<p><strong>RAM:</strong> ${product.ram}</p>` : ''}
+                        ${product.warranty_period ? `<p><strong>Warranty:</strong> ${product.warranty_period}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        if (product.supplier_name || product.supplier_contact) {
+            content += `
+                <hr>
+                <div class="row">
+                    <div class="col-12">
+                        <h6>Supplier Information</h6>
+                        ${product.supplier_name ? `<p><strong>Supplier:</strong> ${product.supplier_name}</p>` : ''}
+                        ${product.supplier_contact ? `<p><strong>Contact:</strong> ${product.supplier_contact}</p>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        $('#productDetailsContent').html(content);
+        const modal = new bootstrap.Modal($('#productDetailsModal'));
+        modal.show();
+    }).fail(function() {
+        alert('Error loading product details');
+    });
+}
+
+function viewIMEITracking(productId) {
+    $.get(`${API_BASE}/products/${productId}/imei-tracking`, function(data) {
+        let content = `
+            <div class="mb-3">
+                <h5>${data.product_name}</h5>
+                <p class="text-muted">Total IMEI Numbers: ${data.total_count}</p>
+            </div>
+        `;
+
+        if (data.imei_records.length === 0) {
+            content += '<div class="alert alert-info">No IMEI numbers tracked for this product yet.</div>';
+        } else {
+            content += `
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>IMEI Number</th>
+                                <th>Status</th>
+                                <th>Received Date</th>
+                                <th>Reference</th>
+                                <th>Sale Info</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.imei_records.forEach(record => {
+                const statusBadge = record.status === 'available' || record.status === 'in_stock' 
+                    ? '<span class="badge bg-success">Available</span>' 
+                    : '<span class="badge bg-secondary">Sold</span>';
+                
+                const receivedDate = record.created_at ? new Date(record.created_at).toLocaleDateString() : 'N/A';
+                const reference = record.reference || 'Manual Entry';
+                
+                let saleInfo = '-';
+                if (record.status === 'sold' && record.sale_number) {
+                    saleInfo = `
+                        <small>
+                            ${record.sale_number}<br>
+                            ${record.customer_name || 'Walk-in'}<br>
+                            ${record.sold_date ? new Date(record.sold_date).toLocaleDateString() : ''}
+                        </small>
+                    `;
+                }
+
+                content += `
+                    <tr>
+                        <td><code>${record.imei}</code></td>
+                        <td>${statusBadge}</td>
+                        <td>${receivedDate}</td>
+                        <td><small>${reference}</small></td>
+                        <td>${saleInfo}</td>
+                    </tr>
+                `;
+            });
+
+            content += '</tbody></table></div>';
+        }
+
+        $('#imeiTrackingContent').html(content);
+        const modal = new bootstrap.Modal($('#imeiTrackingModal'));
+        modal.show();
+    }).fail(function() {
+        alert('Error loading IMEI tracking information');
+    });
+}
+
+function viewStockHistory(productId) {
+    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
+        let content = `
+            <div class="mb-3">
+                <h5>${data.product_name}</h5>
+                <p class="text-muted">Complete stock movement history</p>
+            </div>
+        `;
+
+        if (data.history.length === 0) {
+            content += '<div class="alert alert-info">No stock history available for this product.</div>';
+        } else {
+            content += `
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Stock Added</th>
+                                <th>Stock Removed</th>
+                                <th>Reference</th>
+                                <th>Received By</th>
+                                <th>Running Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.history.forEach(record => {
+                const dateTime = new Date(record.date_time).toLocaleString();
+                const stockAdded = record.stock_added > 0 ? `<span class="text-success">+${record.stock_added}</span>` : '-';
+                const stockRemoved = record.stock_removed > 0 ? `<span class="text-danger">-${record.stock_removed}</span>` : '-';
+
+                content += `
+                    <tr>
+                        <td><small>${dateTime}</small></td>
+                        <td>${stockAdded}</td>
+                        <td>${stockRemoved}</td>
+                        <td><small>${record.reference}</small></td>
+                        <td><small>${record.received_by}</small></td>
+                        <td><strong>${record.running_balance}</strong></td>
+                    </tr>
+                `;
+            });
+
+            content += '</tbody></table></div>';
+        }
+
+        $('#stockHistoryContent').html(content);
+        const modal = new bootstrap.Modal($('#stockHistoryModal'));
+        modal.show();
+    }).fail(function() {
+        alert('Error loading stock history');
+    });
+}
+
 function exportProducts() {
     // Show export options modal
     const content = `
