@@ -151,6 +151,94 @@
                 margin: 0 auto;
             }
 
+            /* Category Sidebar */
+            .category-sidebar {
+                width: 80px;
+                background: #f5f5f5;
+                border-right: 1px solid var(--gray-200);
+                display: flex;
+                flex-direction: column;
+                transition: width 0.3s ease;
+                overflow: hidden;
+                z-index: 100;
+            }
+
+            .category-sidebar.expanded {
+                width: 280px;
+            }
+
+            .category-main-btn {
+                width: 100%;
+                padding: 20px 12px;
+                background: var(--primary-color);
+                color: white;
+                border: none;
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+            }
+
+            .category-main-btn:hover {
+                background: var(--primary-dark);
+            }
+
+            .category-main-btn i {
+                font-size: 24px;
+            }
+
+            .category-sidebar.expanded .category-main-btn {
+                flex-direction: row;
+                justify-content: center;
+                padding: 20px;
+            }
+
+            .category-list {
+                display: none;
+                flex-direction: column;
+                gap: 12px;
+                padding: 16px 12px;
+                overflow-y: auto;
+            }
+
+            .category-sidebar.expanded .category-list {
+                display: flex;
+            }
+
+            .category-btn {
+                width: 100%;
+                padding: 18px 20px;
+                background: #d1d5db;
+                color: white;
+                border: none;
+                border-radius: 16px;
+                cursor: pointer;
+                font-size: 15px;
+                font-weight: 600;
+                text-align: center;
+                transition: all 0.2s ease;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .category-btn:hover {
+                background: #9ca3af;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .category-btn.active {
+                background: var(--primary-color);
+                box-shadow: 0 4px 12px rgba(30, 111, 255, 0.3);
+            }
+
             /* Left Panel */
             .left-panel {
                 flex: 1;
@@ -761,6 +849,28 @@
                 .right-panel {
                     width: 100%;
                 }
+
+                .category-sidebar {
+                    width: 60px;
+                }
+
+                .category-sidebar.expanded {
+                    position: fixed;
+                    left: 0;
+                    top: 73px;
+                    height: calc(100vh - 73px);
+                    width: 250px;
+                    z-index: 1000;
+                    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+                }
+
+                .category-main-btn span {
+                    display: none;
+                }
+
+                .category-sidebar.expanded .category-main-btn span {
+                    display: block;
+                }
             }
         </style>
     </head>
@@ -812,10 +922,19 @@
 
         <!-- Main Content -->
         <div class="pos-main">
+            <!-- Category Sidebar -->
+            <div class="category-sidebar" id="categorySidebar">
+                <button class="category-main-btn" id="categoryMainBtn">
+                    <i class="bi bi-grid-3x3-gap-fill"></i>
+                    <span>Category</span>
+                </button>
+                <div class="category-list" id="categoryList"></div>
+            </div>
+
             <!-- Left Panel -->
             <div class="left-panel">
                 <!-- Category Selection -->
-                <div class="search-section" style="padding-bottom: 12px; border-bottom: none;">
+                <div class="search-section" style="padding-bottom: 12px; border-bottom: none; display: none;">
                     <div class="search-box" style="max-width: 720px; margin: 0 auto;">
                         <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--gray-700); font-size: 14px;">
                             <i class="bi bi-tag-fill"></i> Select Category
@@ -1034,15 +1153,68 @@
                     select.append('<option value="">-- Select a category first --</option>');
                     select.append('<option value="all">All Categories</option>');
                     
+                    const categoryList = $('#categoryList');
+                    categoryList.empty();
+
+                    // Add "All Categories" button
+                    categoryList.append(`
+                        <button class="category-btn" data-category-id="all">
+                            All Categories
+                        </button>
+                    `);
+                    
                     categories.forEach(cat => {
                         select.append(`<option value="${cat.id}">${cat.name}</option>`);
+                        
+                        // Add category button to sidebar
+                        categoryList.append(`
+                            <button class="category-btn" data-category-id="${cat.id}">
+                                ${cat.name}
+                            </button>
+                        `);
+                    });
+
+                    // Attach click handlers to category buttons
+                    $('.category-btn').on('click', function() {
+                        const categoryId = $(this).data('category-id');
+                        selectCategory(categoryId, $(this));
                     });
                 }).fail(function() {
                     alert('Error loading categories');
                 });
             }
 
-            // Category selection handler
+            // Toggle sidebar expansion
+            $('#categoryMainBtn').on('click', function() {
+                $('#categorySidebar').toggleClass('expanded');
+            });
+
+            // Select category from sidebar
+            function selectCategory(categoryId, buttonElement) {
+                selectedCategoryId = categoryId;
+                const $searchInput = $('#productSearch');
+                const $scanBtn = $('.scan-btn');
+
+                // Update active state
+                $('.category-btn').removeClass('active');
+                buttonElement.addClass('active');
+
+                // Enable search
+                $searchInput.prop('disabled', false);
+                $searchInput.attr('placeholder', 'Search product name, SKU or scan barcode...');
+                $searchInput.css('background', 'var(--gray-50)');
+                $scanBtn.prop('disabled', false);
+                
+                // Load products for selected category
+                loadProductsByCategory(selectedCategoryId);
+
+                // Collapse sidebar on mobile
+                if (window.innerWidth < 768) {
+                    $('#categorySidebar').removeClass('expanded');
+                }
+            }
+
+            // Category selection handler (keeping for backward compatibility)
             $('#categorySelect').on('change', function() {
                 selectedCategoryId = $(this).val();
                 const $searchInput = $('#productSearch');
