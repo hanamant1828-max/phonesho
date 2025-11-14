@@ -8,6 +8,11 @@ let salesChart = null;
 let currentPOSProductForIMEI = null;
 let currentPOSCartIndex = null;
 
+// Disable AJAX caching globally to prevent stale data
+$.ajaxSetup({
+    cache: false
+});
+
 $(document).ready(function() {
     checkAuth();
 
