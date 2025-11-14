@@ -5445,1422 +5445,251 @@ function deleteAdjustment(id, productName) {
     });
 }
 
-let posCart = [];
-let posCustomer = {};
 
-function loadPOS() {
-    posCart = [];
-    posCustomer = {};
-
-    // Set current date and time
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0, 16);
-
+function loadCustomers() {
     $('#content-area').html(`
         <div class="page-header">
-            <h2><i class="bi bi-calculator"></i> Point of Sale (POS)</h2>
+            <h2><i class="bi bi-people"></i> Customer Management</h2>
+            <p class="text-muted">Manage your shop customers and their information</p>
         </div>
 
-        <div class="row">
-            <!-- Left Side - Product Search and Cart -->
-            <div class="col-md-8">
-                <!-- Transaction Type Selector -->
-                <div class="card mb-3">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="bi bi-tag"></i> Transaction Type</h6>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people-fill"></i> Customers List</span>
+                <button class="btn btn-primary" onclick="showAddCustomerModal()">
+                    <i class="bi bi-plus-circle"></i> Add Customer
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <input type="text" class="form-control" id="customerSearch" placeholder="Search by name, phone, or email">
                     </div>
-                    <div class="card-body">
-                        <div class="btn-group w-100" role="group">
-                            <input type="radio" class="btn-check" name="transactionType" id="typeSale" value="sale" checked>
-                            <label class="btn btn-outline-success" for="typeSale">
-                                <i class="bi bi-cart-check"></i> Sale
-                            </label>
-
-                            <input type="radio" class="btn-check" name="transactionType" id="typeReturn" value="return">
-                            <label class="btn btn-outline-danger" for="typeReturn">
-                                <i class="bi bi-arrow-return-left"></i> Return
-                            </label>
-
-                            <input type="radio" class="btn-check" name="transactionType" id="typeExchange" value="exchange">
-                            <label class="btn btn-outline-warning" for="typeExchange">
-                                <i class="bi bi-arrow-left-right"></i> Exchange
-                            </label>
-                        </div>
-                        <div id="returnExchangeInfo" class="alert alert-info mt-3" style="display:none;">
-                            <small>
-                                <strong>Note:</strong> <span id="transactionTypeNote"></span>
-                            </small>
-                        </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="customerStatusFilter">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-primary" onclick="loadCustomersTable()">
+                            <i class="bi bi-search"></i> Search
+                        </button>
                     </div>
                 </div>
 
-                <!-- Product Search -->
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0"><i class="bi bi-search"></i> Product Search</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
-                            <input type="text" class="form-control" id="posProductSearch"
-                                   placeholder="Search by product name, SKU, or IMEI..." autofocus>
-                        </div>
-                        <div id="posSearchResults" class="mt-3"></div>
-                    </div>
-                </div>
-
-                <!-- Shopping Cart -->
-                <div class="card">
-                    <div class="card-header text-white" id="cartHeader" style="background-color: #198754;">
-                        <h5 class="mb-0">
-                            <i class="bi bi-cart"></i> <span id="cartTypeLabel">Shopping Cart</span>
-                            (<span id="cartItemCount">0</span> items)
-                        </h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0" id="posCartTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Price</th>
-                                        <th style="width: 120px;">Qty</th>
-                                        <th>IMEI</th>
-                                        <th>Total</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="posCartBody"></tbody>
-                            </table>
-                        </div>
-                        <div id="emptyCart" class="text-center text-muted py-5">
-                            <i class="bi bi-cart-x" style="font-size: 3rem;"></i>
-                            <p class="mt-2">Cart is empty. Search and add products above.</p>
-                        </div>
-                    </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="customersTable">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Email</th>
+                                <th>City</th>
+                                <th>GSTIN</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
             </div>
+        </div>
 
-            <!-- Right Side - Customer and Payment -->
-            <div class="col-md-4">
-                <!-- Customer Information -->
-                <div class="card mb-3">
-                    <div class="card-header bg-info text-white">
-                        <h6 class="mb-0"><i class="bi bi-person"></i> Customer Information (Optional)</h6>
+        <div class="modal fade" id="customerModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="customerModalLabel">Add Customer</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <div class="card-body">
-                        <div class="mb-2">
-                            <input type="text" class="form-control form-control-sm" id="customerName" placeholder="Customer Name">
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" class="form-control form-control-sm" id="customerPhone" placeholder="Phone Number">
-                        </div>
-                        <div class="mb-2">
-                            <input type="email" class="form-control form-control-sm" id="customerEmail" placeholder="Email">
-                        </div>
-                        <!-- Added fields for customer address, GSTIN from Business Settings -->
-                        <div class="mb-2">
-                            <input type="text" class="form-control form-control-sm" id="customerAddress" placeholder="Address">
-                        </div>
-                        <div class="mb-2">
-                            <input type="text" class="form-control form-control-sm" id="customerGSTIN" placeholder="GSTIN (Optional)">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bill Summary -->
-                <div class="card mb-3">
-                    <div class="card-header bg-dark text-white">
-                        <h6 class="mb-0"><i class="bi bi-receipt"></i> Bill Summary</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="mb-3 pb-2 border-bottom">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted small"><i class="bi bi-calendar3"></i> Transaction Date:</span>
-                                <strong class="small" id="posTransactionDate"></strong>
+                    <div class="modal-body">
+                        <form id="customerForm">
+                            <input type="hidden" id="customerId">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="customerName" class="form-label">Customer Name *</label>
+                                    <input type="text" class="form-control" id="customerName" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customerPhone" class="form-label">Phone *</label>
+                                    <input type="tel" class="form-control" id="customerPhone" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customerEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="customerEmail">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customerGSTIN" class="form-label">GSTIN</label>
+                                    <input type="text" class="form-control" id="customerGSTIN" maxlength="15">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label for="customerAddress" class="form-label">Address</label>
+                                    <textarea class="form-control" id="customerAddress" rows="2"></textarea>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="customerCity" class="form-label">City</label>
+                                    <input type="text" class="form-control" id="customerCity">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="customerState" class="form-label">State</label>
+                                    <input type="text" class="form-control" id="customerState">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="customerPincode" class="form-label">Pincode</label>
+                                    <input type="text" class="form-control" id="customerPincode">
+                                </div>
+                                <div class="col-12 mb-3">
+                                    <label for="customerNotes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="customerNotes" rows="2"></textarea>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customerStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="customerStatus">
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="text-muted small"><i class="bi bi-clock"></i> Transaction Time:</span>
-                                <strong class="small" id="posTransactionTime"></strong>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Subtotal:</span>
-                            <strong id="posSubtotal">$0.00</strong>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Discount (%):</span>
-                            <div class="input-group input-group-sm" style="width: 100px;">
-                                <input type="number" class="form-control" id="posDiscountPercent" value="0" min="0" max="100">
-                                <span class="input-group-text">%</span>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Discount Amount:</span>
-                            <strong id="posDiscountAmount" class="text-danger">-$0.00</strong>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>Tax (%):</span>
-                            <div class="input-group input-group-sm" style="width: 100px;">
-                                <input type="number" class="form-control" id="posTaxPercent" value="0" min="0" max="100">
-                                <span class="input-group-text">%</span>
-                            </div>
-                        </div>
-                        <hr>
-                        <div class="d-flex justify-content-between">
-                            <h5>Total:</h5>
-                            <h5 class="text-success" id="posTotal">$0.00</h5>
-                        </div>
+                        </form>
                     </div>
-                </div>
-
-                <!-- Payment Method -->
-                <div class="card mb-3">
-                    <div class="card-header bg-warning">
-                        <h6 class="mb-0"><i class="bi bi-credit-card"></i> Payment Method</h6>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="saveCustomerBtn" onclick="saveCustomer()">Save Customer</button>
                     </div>
-                    <div class="card-body">
-                        <select class="form-select mb-2" id="posPaymentMethod">
-                            <option value="cash">Cash</option>
-                            <option value="card">Credit/Debit Card</option>
-                            <option value="upi">UPI</option>
-                            <option value="wallet">Digital Wallet</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                        </select>
-                        <input type="text" class="form-control form-control-sm" id="posPaymentReference" placeholder="Reference Number (Optional)">
-                    </div>
-                </div>
-
-                <!-- Actions -->
-                <div class="d-grid gap-2">
-                    <button class="btn btn-lg" id="completeTransactionBtn" onclick="completePOSSale()" style="background-color: #198754; color: white;">
-                        <i class="bi bi-check-circle"></i> <span id="completeButtonLabel">Complete Sale</span>
-                    </button>
-                    <button class="btn btn-danger" onclick="clearPOSCart()">
-                        <i class="bi bi-x-circle"></i> Clear Cart
-                    </button>
-                    <button class="btn btn-secondary" onclick="loadPage('pos')">
-                        <i class="bi bi-arrow-clockwise"></i> New Transaction
-                    </button>
                 </div>
             </div>
         </div>
     `);
 
-    updatePOSCart();
-
-    // Transaction type change handler
-    $('input[name="transactionType"]').on('change', function() {
-        const transactionType = $(this).val();
-        let buttonColor, buttonLabel;
-
-        if (transactionType === 'return') {
-            $('#returnExchangeInfo').show();
-            $('#transactionTypeNote').text('Returns will add stock back and refund the customer. Amount will show as negative.');
-            buttonColor = '#dc3545';
-            buttonLabel = 'Complete Return';
-        } else if (transactionType === 'exchange') {
-            $('#returnExchangeInfo').show();
-            $('#transactionTypeNote').text('Exchange allows returning items and adding new items in the same transaction.');
-            buttonColor = '#ffc107';
-            buttonLabel = 'Complete Exchange';
-        } else {
-            $('#returnExchangeInfo').hide();
-            buttonColor = '#198754';
-            buttonLabel = 'Complete Sale';
-        }
-
-        $('#completeTransactionBtn').css('background-color', buttonColor);
-        $('#completeButtonLabel').text(buttonLabel);
-        updatePOSCart();
-    });
-
-    // Product search with debounce
-    let searchTimeout;
-    $('#posProductSearch').on('input', function() {
-        clearTimeout(searchTimeout);
-        const query = $(this).val();
-
-        if (query.length >= 2) {
-            searchTimeout = setTimeout(() => searchPOSProducts(query), 300);
-        } else {
-            $('#posSearchResults').empty();
-        }
-    });
-
-    // Calculate totals on discount/tax change
-    $('#posDiscountPercent, #posTaxPercent').on('input', updatePOSTotals);
+    loadCustomersTable();
 }
 
-function searchPOSProducts(query) {
-    $.get(`${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`, function(products) {
-        const resultsDiv = $('#posSearchResults');
-        resultsDiv.empty();
+function loadCustomersTable() {
+    const search = $('#customerSearch').val();
+    const status = $('#customerStatusFilter').val();
+    
+    $.get(`${API_BASE}/customers`, { search, status }, function(customers) {
+        const tbody = $('#customersTable tbody');
+        tbody.empty();
 
-        if (products.length === 0) {
-            resultsDiv.html('<div class="alert alert-info">No products found</div>');
+        if (customers.length === 0) {
+            tbody.append('<tr><td colspan="8" class="text-center text-muted">No customers found</td></tr>');
             return;
         }
 
-        const html = products.map(p => `
-            <div class="product-search-item" onclick='addToCart(${JSON.stringify(p)})' style="cursor: pointer; padding: 10px; border-bottom: 1px solid #eee;">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>${p.name}</strong>
-                        <div class="small text-muted">
-                            ${p.sku ? `SKU: ${p.sku} | ` : ''}
-                            ${p.brand_name || ''} ${p.model_name || ''}
-                            <span class="badge bg-${p.current_stock > 10 ? 'success' : p.current_stock > 0 ? 'warning' : 'danger'}">
-                                Stock: ${p.current_stock}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="text-end">
-                        <strong class="text-success">$${parseFloat(p.selling_price).toFixed(2)}</strong>
-                    </div>
-                </div>
-            </div>
-        `).join('');
+        customers.forEach(customer => {
+            const statusBadge = customer.status === 'active' ? 'success' : 'secondary';
+            const createdDate = new Date(customer.created_at).toLocaleDateString();
 
-        resultsDiv.html(html);
-    });
-}
-
-function addToCart(product) {
-    const existingItem = posCart.find(item => item.product_id === product.id);
-
-    if (existingItem) {
-        existingItem.quantity += 1;
-        // Check if product has IMEI tracking
-        checkAndPromptIMEI(product, posCart.indexOf(existingItem));
-    } else {
-        posCart.push({
-            product_id: product.id,
-            product_name: product.name,
-            sku: product.sku,
-            unit_price: product.selling_price,
-            quantity: 1,
-            imei_ids: [],
-            imei_available: [], // Initialize for IMEI selection
-            imei_numbers: []    // To store selected IMEI strings for display
-        });
-        // Check if product has IMEI tracking
-        checkAndPromptIMEI(product, posCart.length - 1);
-    }
-
-    updatePOSCart();
-    $('#posProductSearch').val('').focus();
-    $('#posSearchResults').empty(); // Clear search results after adding to cart
-}
-
-function checkAndPromptIMEI(product, cartIndex) {
-    // Check if product has available IMEIs
-    $.get(`${API_BASE}/products/${product.id}/imeis?status=available`, function(imeis) {
-        // Only prompt if there are available IMEIs and the item is not yet fully selected
-        if (imeis.length > 0 && (posCart[cartIndex].imei_ids.length < posCart[cartIndex].quantity)) {
-            // Store available IMEIs for this product in the cart item
-            posCart[cartIndex].imei_available = imeis;
-            // Show selection modal
-            currentPOSProductForIMEI = product;
-            currentPOSCartIndex = cartIndex;
-            showIMEISelectionModal(product, posCart[cartIndex].quantity, posCart[cartIndex].imei_ids);
-        } else if (imeis.length === 0 && posCart[cartIndex].imei_ids.length > 0) {
-            // If no IMEIs are available but some were previously selected, clear them
-            posCart[cartIndex].imei_ids = [];
-            posCart[cartIndex].imei_available = [];
-            posCart[cartIndex].imei_numbers = [];
-            updatePOSCart(); // Update cart to reflect cleared IMEIs
-        }
-    });
-}
-
-function showIMEISelectionModal(product, requiredQty, selectedIds = []) {
-    $.get(`${API_BASE}/products/${product.id}/imeis?status=available`, function(imeis) {
-        $('#imeiProductName').text(product.name);
-        $('#imeiQuantityRequired').text(requiredQty);
-
-        const listBody = $('#imeiSelectionList');
-        listBody.empty();
-
-        if (imeis.length === 0) {
-            listBody.append(`
+            tbody.append(`
                 <tr>
-                    <td colspan="3" class="text-center text-muted">
-                        <i class="bi bi-inbox"></i> No IMEI numbers available for this product
+                    <td>${customer.name}</td>
+                    <td>${customer.phone || '-'}</td>
+                    <td>${customer.email || '-'}</td>
+                    <td>${customer.city || '-'}</td>
+                    <td>${customer.gstin || '-'}</td>
+                    <td><span class="badge bg-${statusBadge}">${customer.status}</span></td>
+                    <td>${createdDate}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editCustomer(${customer.id})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCustomer(${customer.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </td>
                 </tr>
             `);
-        } else {
-            imeis.forEach(imei => {
-                const isChecked = selectedIds.includes(imei.id) ? 'checked' : '';
-                listBody.append(`
-                    <tr>
-                        <td>
-                            <div class="form-check">
-                                <input class="form-check-input imei-checkbox" type="checkbox" value="${imei.id}"
-                                       id="imei_${imei.id}" ${isChecked} data-imei="${imei.imei}">
-                            </div>
-                        </td>
-                        <td><label for="imei_${imei.id}"><code>${imei.imei}</code></label></td>
-                        <td><span class="badge bg-success">Available</span></td>
-                    </tr>
-                `);
-            });
-        }
-
-        $('#imeiSelectionError').hide();
-        $('#confirmImeiSelectionBtn').data('cart-index', currentPOSCartIndex); // Ensure correct index is stored
-        const modal = new bootstrap.Modal($('#imeiSelectionModal'));
-        modal.show();
-    });
-}
-
-function confirmIMEISelection() {
-    const cartIndex = $('#confirmImeiSelectionBtn').data('cart-index');
-    if (cartIndex === null || cartIndex === undefined) return; // Should not happen, but good practice
-
-    const item = posCart[cartIndex];
-    const requiredQty = item.quantity;
-
-    const selectedIMEIs = [];
-    $('.imei-checkbox:checked').each(function() {
-        selectedIMEIs.push({
-            id: parseInt($(this).val()),
-            imei: $(this).data('imei') // Store imei string for display
         });
     });
-
-    if (selectedIMEIs.length !== requiredQty) {
-        $('#imeiSelectionError').text(`Please select exactly ${requiredQty} IMEI number(s). Currently selected: ${selectedIMEIs.length}`).show();
-        return;
-    }
-
-    // Update cart item with selected IMEI IDs and their strings
-    posCart[cartIndex].imei_ids = selectedIMEIs.map(i => i.id);
-    posCart[cartIndex].imei_numbers = selectedIMEIs.map(i => i.imei); // Store strings for display
-
-    // Close modal and update display
-    bootstrap.Modal.getInstance($('#imeiSelectionModal')).hide();
-    $('#imeiSelectionError').hide();
-    updatePOSCart();
 }
 
-function updatePOSCart() {
-    const tbody = $('#posCartTable tbody');
-    tbody.empty();
-
-    // Get transaction type
-    const transactionType = $('input[name="transactionType"]:checked').val();
-
-    // Update cart header based on transaction type
-    let headerColor, headerIcon, headerLabel;
-    if (transactionType === 'return') {
-        headerColor = '#dc3545';
-        headerIcon = 'arrow-return-left';
-        headerLabel = 'Return Cart';
-    } else if (transactionType === 'exchange') {
-        headerColor = '#ffc107';
-        headerIcon = 'arrow-left-right';
-        headerLabel = 'Exchange Cart';
-    } else {
-        headerColor = '#198754';
-        headerIcon = 'cart';
-        headerLabel = 'Shopping Cart';
-    }
-    $('#cartHeader').css('background-color', headerColor);
-    $('#cartTypeLabel').html(`<i class="bi bi-${headerIcon}"></i> ${headerLabel}`);
-
-    if (posCart.length === 0) {
-        $('#emptyCart').show();
-        $('#posCartTable').hide();
-        // Reset totals if cart is empty
-        updatePOSTotals(0);
-        return;
-    }
-
-    $('#emptyCart').hide();
-    $('#posCartTable').show();
-
-    let subtotal = 0;
-
-    posCart.forEach((item, index) => {
-        const itemTotal = item.quantity * item.unit_price;
-        subtotal += itemTotal;
-
-        // Display IMEI information
-        let imeiDisplay = '-';
-        let imeiClass = '';
-        if (item.imei_ids && item.imei_ids.length > 0) {
-            imeiDisplay = `<span class="badge bg-success">${item.imei_ids.length} IMEI</span>`;
-            if (item.imei_ids.length < item.quantity) {
-                imeiDisplay = `<span class="badge bg-warning">${item.imei_ids.length}/${item.quantity} IMEI</span>`;
-                imeiClass = 'text-warning'; // Highlight row if IMEI count is incomplete
-            }
-        }
-
-        tbody.append(`
-            <tr class="${imeiClass}">
-                <td>
-                    <strong>${item.product_name}</strong>
-                    <div class="small text-muted">${item.sku || ''}</div>
-                </td>
-                <td>$${item.unit_price.toFixed(2)}</td>
-                <td>
-                    <div class="input-group input-group-sm" style="width: 120px;">
-                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, -1)">-</button>
-                        <input type="number" class="form-control text-center" value="${item.quantity}"
-                               onchange="updateCartQty(${index}, parseInt(this.value))" min="1" max="${item.available_stock || 999}">
-                        <button class="btn btn-outline-secondary" onclick="updateCartQty(${index}, 1)">+</button>
-                    </div>
-                    <small class="text-muted">Stock: ${item.available_stock}</small>
-                </td>
-                <td>
-                    ${imeiDisplay}
-                    <button class="btn btn-sm btn-outline-primary mt-1" onclick="selectIMEIForCart(${index})" title="Select IMEI">
-                        <i class="bi bi-upc-scan"></i>
-                    </button>
-                    ${item.imei_numbers && item.imei_numbers.length > 0 ? `<div class="small text-muted mt-1">${item.imei_numbers.join(', ')}</div>` : ''}
-                </td>
-                <td><strong>$${itemTotal.toFixed(2)}</strong></td>
-                <td>
-                    <button class="btn btn-sm btn-danger" onclick="removeFromPOSCart(${index})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `);
-    });
-
-    // Update transaction date and time
-    const now = new Date();
-    const dateOptions = { year: 'numeric', month: 'short', day: 'numeric' };
-    const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' };
-    $('#posTransactionDate').text(now.toLocaleDateString('en-US', dateOptions));
-    $('#posTransactionTime').text(now.toLocaleTimeString('en-US', timeOptions));
-
-    updatePOSTotals(subtotal);
+function showAddCustomerModal() {
+    $('#customerModalLabel').text('Add Customer');
+    $('#customerForm')[0].reset();
+    $('#customerId').val('');
+    $('#customerStatus').val('active');
+    
+    const modal = new bootstrap.Modal($('#customerModal'));
+    modal.show();
 }
 
-function updatePOSTotals(subtotal) {
-    const discountPercent = parseFloat($('#posDiscountPercent').val()) || 0;
-    const taxPercent = parseFloat($('#posTaxPercent').val()) || 0;
-    const transactionType = $('input[name="transactionType"]:checked').val();
-
-    let effectiveSubtotal = subtotal;
-    if (transactionType === 'return') {
-        effectiveSubtotal = -Math.abs(subtotal); // Make subtotal negative for returns
-    }
-
-    const discountAmount = Math.abs(effectiveSubtotal) * (discountPercent / 100);
-    const taxableAmount = effectiveSubtotal - (transactionType === 'return' ? -discountAmount : discountAmount);
-    const taxAmount = Math.abs(taxableAmount) * (taxPercent / 100);
-    const total = taxableAmount + (transactionType === 'return' ? -taxAmount : taxAmount);
-
-    $('#cartItemCount').text(posCart.length);
-    $('#posSubtotal').text((transactionType === 'return' ? '-' : '') + '$' + Math.abs(subtotal).toFixed(2));
-    $('#posDiscountAmount').text('-$' + discountAmount.toFixed(2));
-    //$('#posTaxAmount').text('+$' + taxAmount.toFixed(2)); // This is not displayed but used in calculation
-    $('#posTotal').text((total < 0 ? '-' : '') + '$' + Math.abs(total).toFixed(2));
-}
-
-function updateCartQty(index, change) {
-    const item = posCart[index];
-    let newQuantity = item.quantity + change;
-
-    // Ensure quantity is at least 1 and does not exceed stock (if available)
-    if (newQuantity < 1) newQuantity = 1;
-    if (item.available_stock && newQuantity > item.available_stock) {
-        alert(`Maximum available stock is ${item.available_stock}`);
-        newQuantity = item.available_stock;
-    }
-
-    item.quantity = newQuantity;
-
-    // If IMEI selection is required and quantity changes, reset IMEI selection
-    if (item.imei_available && item.imei_available.length > 0) {
-        item.imei_ids = []; // Clear selected IMEIs
-        item.imei_numbers = [];
-    }
-
-    updatePOSCart();
-}
-
-function removeFromPOSCart(index) {
-    posCart.splice(index, 1);
-    updatePOSCart();
-}
-
-function clearPOSCart() {
-    if (posCart.length > 0 && !confirm('Clear all items from cart?')) {
-        return;
-    }
-    posCart = [];
-    updatePOSCart();
-}
-
-function selectIMEIForCart(index) {
-    const item = posCart[index];
-    // Fetch product details again to ensure we have the latest IMEI list
-    $.get(`${API_BASE}/products/${item.product_id}`, function(product) {
-        currentPOSProductForIMEI = product;
-        currentPOSCartIndex = index;
-        showIMEISelectionModal(product, item.quantity, item.imei_ids);
+function editCustomer(id) {
+    $.get(`${API_BASE}/customers/${id}`, function(customer) {
+        $('#customerModalLabel').text('Edit Customer');
+        $('#customerId').val(customer.id);
+        $('#customerName').val(customer.name);
+        $('#customerPhone').val(customer.phone);
+        $('#customerEmail').val(customer.email);
+        $('#customerGSTIN').val(customer.gstin);
+        $('#customerAddress').val(customer.address);
+        $('#customerCity').val(customer.city);
+        $('#customerState').val(customer.state);
+        $('#customerPincode').val(customer.pincode);
+        $('#customerNotes').val(customer.notes);
+        $('#customerStatus').val(customer.status);
+        
+        const modal = new bootstrap.Modal($('#customerModal'));
+        modal.show();
     });
 }
 
-function completePOSSale() {
-    if (posCart.length === 0) {
-        alert('Please add items to cart');
-        return;
-    }
-
-    // Check if all items with IMEI tracking have the required number of IMEIs selected
-    let imeiSelectionIncomplete = false;
-    let incompleteItemName = '';
-    posCart.forEach(item => {
-        // Check only if the item requires IMEIs (indicated by available IMEIs or already selected IMEIs)
-        // And if the number of selected IMEIs is less than the required quantity
-        if ((item.imei_available && item.imei_available.length > 0 || (item.imei_ids && item.imei_ids.length > 0)) &&
-            item.imei_ids.length < item.quantity) {
-            imeiSelectionIncomplete = true;
-            incompleteItemName = item.product_name; // Store name for alert message
-        }
-    });
-
-    if (imeiSelectionIncomplete) {
-        alert(`IMEI selection is incomplete for "${incompleteItemName}". Please ensure all required IMEI numbers are selected for this item.`);
-        return; // Prevent proceeding if IMEI selection is incomplete
-    }
-
-    const transactionType = $('input[name="transactionType"]:checked').val();
-    const transactionLabel = transactionType === 'return' ? 'Return' :
-                            transactionType === 'exchange' ? 'Exchange' : 'Sale';
-
-    // Confirm transaction
-    if (!confirm(`Complete this ${transactionLabel}?`)) {
-        return;
-    }
-
-    const now = new Date();
-    const saleDate = now.toISOString().slice(0, 19).replace('T', ' ');
-
-    const saleData = {
-        items: posCart.map(item => ({ ...item })), // Clone the cart items to prevent mutation
-        customer_name: $('#customerName').val(),
-        customer_phone: $('#customerPhone').val(),
-        customer_email: $('#customerEmail').val(),
-        customer_address: $('#customerAddress').val(), // Added for GST invoice
-        customer_gstin: $('#customerGSTIN').val(),     // Added for GST invoice
-        sale_date: saleDate,
-        transaction_type: transactionType,
-        discount_percentage: parseFloat($('#posDiscountPercent').val()) || 0,
-        tax_percentage: parseFloat($('#posTaxPercent').val()) || 0,
-        payment_method: $('#posPaymentMethod').val(),
-        payment_reference: $('#posPaymentReference').val()
+function saveCustomer() {
+    const id = $('#customerId').val();
+    const data = {
+        name: $('#customerName').val(),
+        phone: $('#customerPhone').val(),
+        email: $('#customerEmail').val(),
+        gstin: $('#customerGSTIN').val(),
+        address: $('#customerAddress').val(),
+        city: $('#customerCity').val(),
+        state: $('#customerState').val(),
+        pincode: $('#customerPincode').val(),
+        notes: $('#customerNotes').val(),
+        status: $('#customerStatus').val()
     };
 
-    $.ajax({
-        url: `${API_BASE}/pos/sales`,
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify(saleData),
-        success: function(response) {
-            if (response.success) {
-                const amountLabel = transactionType === 'return' ? 'Refund Amount' : 'Total Amount';
-                alert(`✓ ${transactionLabel} completed successfully!\n\nTransaction Number: ${response.sale_number}\n${amountLabel}: $${Math.abs(response.total_amount).toFixed(2)}\n\nThank you!`);
-
-                // Save and Print functionality
-                if (transactionType === 'sale' && confirm('Do you want to print the GST Invoice?')) {
-                    // Use response and saleData directly - no need to fetch again
-                    printSaleReceipt(response, saleData); // Pass both response and saleData
-                }
-
-                loadPOS(); // Reset for new transaction
-            } else {
-                alert('Error: ' + (response.error || 'Failed to complete transaction'));
-            }
-        },
-        error: function(xhr) {
-            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to complete transaction'));
-        }
-    });
-}
-
-function printSaleReceipt(saleResponse, saleData) {
-    // Fetch business settings first
-    $.get(`${API_BASE}/business-settings`, function(businessSettings) {
-        // Generate GST Invoice HTML
-        const gstInvoiceHtml = generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, new Date());
-        const printWindow = window.open('', '', 'width=900,height=700');
-        printWindow.document.write(gstInvoiceHtml);
-        printWindow.document.close();
-
-        // Attempt to print after a short delay to ensure content is loaded
-        setTimeout(() => {
-            printWindow.print();
-            // Optionally close the window after printing
-            // printWindow.close();
-        }, 500);
-
-    }).fail(function() {
-        // Fallback to simple receipt if business settings not available
-        alert('Could not load business settings. Please configure Business Settings first.');
-    });
-}
-
-function generateGSTInvoiceHtml(saleResponse, saleData, businessSettings, date) {
-    // Use items from saleData instead of global cart
-    const items = saleData.items || [];
-    const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
-    const discountAmount = subtotal * (saleData.discount_percentage / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * (saleData.tax_percentage / 100);
-    const total = Math.abs(saleResponse.total_amount);
-
-    // Determine if IGST or CGST+SGST based on state matching
-    const customerState = saleData.customer_address ? extractStateFromAddress(saleData.customer_address) : '';
-    const businessState = businessSettings.state || '';
-    const isIGST = customerState && businessState && customerState !== businessState;
-
-    const cgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
-    const sgstRate = isIGST ? 0 : saleData.tax_percentage / 2;
-    const igstRate = isIGST ? saleData.tax_percentage : 0;
-
-    const cgstAmount = taxableAmount * (cgstRate / 100);
-    const sgstAmount = taxableAmount * (sgstRate / 100);
-    const igstAmount = taxableAmount * (igstRate / 100);
-
-    // Convert total amount to words
-    const totalInWords = convertNumberToWords(total);
-
-    // Build items table HTML
-    let itemsHtml = '';
-    let srNo = 1;
-    items.forEach(item => {
-        const itemSubtotal = item.quantity * item.unit_price;
-        const itemCgst = itemSubtotal * (cgstRate / 100);
-        const itemSgst = itemSubtotal * (sgstRate / 100);
-        const itemIgst = itemSubtotal * (igstRate / 100);
-        const itemTotal = itemSubtotal + itemCgst + itemSgst + itemIgst;
-
-        itemsHtml += `
-            <tr>
-                <td style="text-align: center; vertical-align: top; padding: 5px;">${srNo++}</td>
-                <td style="vertical-align: top; padding: 5px;">
-                    <strong>${item.product_name}</strong>
-                    ${(item.imei_numbers && item.imei_numbers.length > 0) ? `<br><span style="font-size: 9px; color: #555; font-style: italic;">IMEI: ${item.imei_numbers.join(', ')}</span>` : ''}
-                </td>
-                <td style="text-align: center; vertical-align: top; padding: 5px;">8517</td>
-                <td style="text-align: center; vertical-align: top; padding: 5px;">${item.quantity} NOS</td>
-                <td style="text-align: right; vertical-align: top; padding: 5px;">${item.unit_price.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSubtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                ${isIGST ? `
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">${igstRate.toFixed(2)}</td>
-                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemIgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                ` : `
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">-</td>
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">${cgstRate.toFixed(2)}</td>
-                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemCgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                    <td style="text-align: center; vertical-align: top; padding: 5px;">${sgstRate.toFixed(2)}</td>
-                    <td style="text-align: right; vertical-align: top; padding: 5px;">${itemSgst.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                `}
-                <td style="text-align: right; vertical-align: top; padding: 5px;"><strong>${itemTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong></td>
-            </tr>
-        `;
-    });
-
-    return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Tax Invoice - ${saleResponse.sale_number}</title>
-            <style>
-                @media print {
-                    body { margin: 0; }
-                    .no-print { display: none; }
-                    @page { margin: 8mm; }
-                }
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body {
-                    font-family: Arial, sans-serif;
-                    font-size: 10px;
-                    line-height: 1.3;
-                    color: #000;
-                    max-width: 210mm;
-                    margin: 0 auto;
-                    padding: 8px;
-                }
-                .invoice-header {
-                    border: 2px solid #000;
-                    padding: 12px;
-                    margin-bottom: 0;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .header-left {
-                    flex: 1;
-                }
-                .company-logo {
-                    width: 80px;
-                    height: 80px;
-                    object-fit: contain;
-                }
-                .company-name {
-                    font-size: 22px;
-                    font-weight: bold;
-                    color: #1a5490;
-                    margin-bottom                    : 3px;
-                }
-                .company-tagline {
-                    font-size: 9px;
-                    color: #666;
-                    font-style: italic;
-                    margin-bottom: 5px;
-                }
-                .company-details {
-                    font-size: 9px;
-                    line-height: 1.4;
-                }
-                .brand-logos {
-                    display: flex;
-                    flex-wrap: wrap;
-                    gap: 5px;
-                    margin-top: 5px;
-                }
-                .brand-logo {
-                    width: 35px;
-                    height: 20px;
-                    object-fit: contain;
-                    border: 1px solid #ddd;
-                    padding: 2px;
-                }
-                .gstin-row {
-                    border-left: 2px solid #000;
-                    border-right: 2px solid #000;
-                    border-bottom: 1px solid #000;
-                    padding: 5px 12px;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .invoice-title {
-                    text-align: center;
-                    font-size: 16px;
-                    font-weight: bold;
-                    background: #e8f4f8;
-                    padding: 6px;
-                    flex: 1;
-                    margin: 0 10px;
-                }
-                .original-label {
-                    font-size: 9px;
-                    font-weight: normal;
-                }
-                .customer-section {
-                    border-left: 2px solid #000;
-                    border-right: 2px solid #000;
-                    border-bottom: 2px solid #000;
-                }
-                .customer-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                .customer-table td {
-                    padding: 4px 8px;
-                    border: 1px solid #000;
-                    font-size: 9px;
-                }
-                .customer-label {
-                    font-weight: bold;
-                    background: #f5f5f5;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    border: 2px solid #000;
-                }
-                th, td {
-                    border: 1px solid #000;
-                    padding: 4px;
-                    font-size: 9px;
-                }
-                th {
-                    background: #f0f0f0;
-                    font-weight: bold;
-                    text-align: center;
-                    padding: 5px 4px;
-                }
-                thead tr:first-child th {
-                    background: #d0e8f2;
-                }
-                .totals-section {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 10px;
-                }
-                .bank-details {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    flex: 1;
-                    margin-right: 10px;
-                }
-                .amount-summary {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    min-width: 300px;
-                }
-                .amount-row {
-                    display: flex;
-                    justify-content: space-between;
-                    padding: 3px 0;
-                }
-                .amount-row.total {
-                    font-weight: bold;
-                    border-top: 2px solid #000;
-                    margin-top: 5px;
-                    padding-top: 5px;
-                }
-                .amount-words {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    margin-bottom: 10px;
-                    font-weight: bold;
-                }
-                .terms {
-                    border: 1px solid #000;
-                    padding: 8px;
-                    margin-bottom: 10px;
-                    font-size: 9px;
-                }
-                .signature-section {
-                    text-align: right;
-                    margin-top: 30px;
-                    padding-right: 20px;
-                }
-                .signature-line {
-                    margin-top: 50px;
-                    border-top: 1px solid #000;
-                    display: inline-block;
-                    padding-top: 5px;
-                    min-width: 200px;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="invoice-container">
-                <div class="invoice-header">
-                    <div class="header-left">
-                        ${businessSettings.logo_url ? `<img src="${businessSettings.logo_url}" alt="Logo" class="company-logo">` : ''}
-                        <div class="company-name">${businessSettings.business_name || 'Mobile Shop'}</div>
-                        <div class="company-tagline">${businessSettings.address || ''}</div>
-                        <div class="company-details">
-                            ${businessSettings.city || ''}${businessSettings.city && businessSettings.state ? ', ' : ''}${businessSettings.state || ''} - ${businessSettings.pincode || ''}<br>
-                            Ph: ${businessSettings.phone || 'N/A'}
-                        </div>
-                    </div>
-                    <div class="brand-logos">
-                        <!-- Placeholder for brand logos - can be enhanced later -->
-                    </div>
-                </div>
-
-                <div class="gstin-row">
-                    <div><strong>GSTIN:</strong> ${businessSettings.gstin || 'N/A'}</div>
-                    <div class="invoice-title">
-                        TAX INVOICE
-                        <div class="original-label">ORIGINAL FOR RECIPIENT</div>
-                    </div>
-                    <div><strong>Invoice Date:</strong> ${date.toLocaleDateString('en-IN')}</div>
-                </div>
-
-                <div class="customer-section">
-                    <table class="customer-table">
-                        <tr>
-                            <td class="customer-label" style="width: 15%;">Invoice No.</td>
-                            <td style="width: 35%;">${saleResponse.sale_number}</td>
-                            <td class="customer-label" style="width: 15%;">Invoice Date</td>
-                            <td style="width: 35%;">${date.toLocaleDateString('en-IN')}</td>
-                        </tr>
-                        <tr>
-                            <td class="customer-label">Name</td>
-                            <td>${saleData.customer_name || ''}</td>
-                            <td class="customer-label">PHONE</td>
-                            <td>${saleData.customer_phone || '-'}</td>
-                        </tr>
-                        <tr>
-                            <td class="customer-label">Address</td>
-                            <td>${saleData.customer_address || '-'}</td>
-                            <td class="customer-label">GSTIN</td>
-                            <td>${saleData.customer_gstin || '-'}</td>
-                        </tr>
-                        <tr>
-                            <td class="customer-label">Place of Supply</td>
-                            <td colspan="3">${businessSettings.state || 'N/A'}</td>
-                        </tr>
-                    </table>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th rowspan="2" style="width: 30px; vertical-align: middle;">Sr.<br>No.</th>
-                            <th rowspan="2" style="vertical-align: middle;">Name of Product / Service</th>
-                            <th rowspan="2" style="width: 50px; vertical-align: middle;">HSN/<br>SAC</th>
-                            <th rowspan="2" style="width: 50px; vertical-align: middle;">Qty</th>
-                            <th rowspan="2" style="width: 80px; vertical-align: middle;">Rate</th>
-                            <th rowspan="2" style="width: 90px; vertical-align: middle;">Taxable<br>Value</th>
-                            ${isIGST ? `
-                                <th colspan="2" style="background: #e8f4f8;">IGST</th>
-                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
-                            ` : `
-                                <th rowspan="2" style="width: 40px; vertical-align: middle;">IGST</th>
-                                <th colspan="2" style="background: #e8f4f8;">CGST</th>
-                                <th colspan="2" style="background: #ffe8e8;">SGST</th>
-                                <th rowspan="2" style="width: 90px; vertical-align: middle;">Total</th>
-                            `}
-                        </tr>
-                        <tr>
-                            ${isIGST ? `
-                                <th style="width: 40px; background: #e8f4f8;">%</th>
-                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
-                            ` : `
-                                <th style="width: 40px; background: #e8f4f8;">%</th>
-                                <th style="width: 70px; background: #e8f4f8;">Amount</th>
-                                <th style="width: 40px; background: #ffe8e8;">%</th>
-                                <th style="width: 70px; background: #ffe8e8;">Amount</th>
-                            `}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                        <tr>
-                            <td colspan="3" style="text-align: right; padding: 5px; font-weight: bold;">Total</td>
-                            <td style="text-align: center; padding: 5px; font-weight: bold;">${items.reduce((sum, item) => sum + item.quantity, 0)}</td>
-                            <td colspan="2" style="text-align: right; padding: 5px; font-weight: bold;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td colspan="${isIGST ? '2' : '4'}" style="text-align: right; padding: 5px; font-weight: bold;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                            <td style="text-align: right; padding: 5px; font-weight: bold; font-size: 11px;">${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div style="display: flex; border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000;">
-                    <div style="flex: 1; border-right: 1px solid #000; padding: 8px;">
-                        <div style="font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Total in words</div>
-                        <div style="padding: 5px 0; font-weight: bold; text-transform: uppercase;">${totalInWords}</div>
-
-                        <div style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 3px;">Bank Details</div>
-                        <table style="width: 100%; font-size: 9px;">
-                            <tr><td style="padding: 2px 0;"><strong>Name</strong></td><td>${businessSettings.bank_name || 'N/A'}</td></tr>
-                            <tr><td style="padding: 2px 0;"><strong>Branch</strong></td><td>${businessSettings.bank_branch || 'N/A'}</td></tr>
-                            <tr><td style="padding: 2px 0;"><strong>Acc. Number</strong></td><td>${businessSettings.bank_account_number || 'N/A'}</td></tr>
-                            <tr><td style="padding: 2px 0;"><strong>IFSC</strong></td><td>${businessSettings.bank_ifsc || 'N/A'}</td></tr>
-                            <tr><td style="padding: 2px 0;"><strong>UPI ID</strong></td><td>${businessSettings.email ? businessSettings.email.split('@')[0] + '@icici' : 'N/A'}</td></tr>
-                        </table>
-
-                        <div style="text-align: center; margin-top: 10px; padding: 10px; border: 1px solid #000; background: #f9f9f9; font-size: 9px;">
-                            <div style="width: 120px; height: 120px; margin: 0 auto; background: #eee; display: flex; align-items: center; justify-content: center; font-size: 9px;">
-                                QR Code<br>Placeholder
-                            </div>
-                            <div style="margin-top: 5px; font-weight: bold;">Pay using UPI</div>
-                        </div>
-                    </div>
-
-                    <div style="width: 40%; padding: 8px;">
-                        <table style="width: 100%; font-size: 10px;">
-                            <tr><td style="padding: 3px 0;"><strong>Taxable Amount</strong></td><td style="text-align: right;">${taxableAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                            ${isIGST ? `
-                                <tr><td style="padding: 3px 0;"><strong>Add: IGST</strong></td><td style="text-align: right;">${igstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                            ` : `
-                                <tr><td style="padding: 3px 0;"><strong>Add: CGST</strong></td><td style="text-align: right;">${cgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                                <tr><td style="padding: 3px 0;"><strong>Add: SGST</strong></td><td style="text-align: right;">${sgstAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                            `}
-                            <tr><td style="padding: 3px 0;"><strong>Total Tax</strong></td><td style="text-align: right;">${taxAmount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                            <tr style="border-top: 2px solid #000;"><td style="padding: 8px 0; font-size: 12px;"><strong>Total Amount After Tax</strong></td><td style="text-align: right; font-size: 14px; font-weight: bold;">₹${total.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td></tr>
-                        </table>
-
-                        <div style="margin-top: 15px; padding: 5px; border: 1px solid #000; text-align: center; font-size: 8px;">
-                            Certified that the particulars given above are true and correct.<br>
-                            <strong>E & O.E</strong>
-                        </div>
-
-                        <div style="margin-top: 30px; text-align: right;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 150px; font-size: 9px;">
-                                <strong>Authorised Signatory</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="border-left: 2px solid #000; border-right: 2px solid #000; border-bottom: 2px solid #000; padding: 8px;">
-                    <div style="font-weight: bold; margin-bottom: 3px; font-size: 10px;">Terms and Conditions</div>
-                    <div style="font-size: 8px; line-height: 1.5;">
-                        ${businessSettings.terms_conditions || 'Subject to Maharashtra Jurisdiction.<br>Our Responsibility Ceases as soon as goods leaves our Premises.<br>Goods once sold will not taken back.<br>Delivery Ex-Premises.'}
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-}
-
-// Helper function to extract state from address string (basic implementation)
-function extractStateFromAddress(address) {
-    if (!address) return '';
-    const parts = address.split(',');
-    if (parts.length > 1) {
-        // Try to find a state-like pattern, e.g., "Maharashtra", "MH", "Delhi", "DL"
-        // This is a very basic approach and might need refinement based on address variations.
-        const potentialState = parts[parts.length - 2].trim();
-        // Simple check for common state abbreviations or names.
-        // A more robust solution would involve a lookup list or more complex regex.
-        if (potentialState.length <= 2 || potentialState.length > 2 && potentialState.length < 20) {
-            return potentialState;
-        }
-    }
-    return ''; // Return empty if state cannot be determined
-}
-
-// Dummy function for number to words conversion (implement as needed)
-function convertNumberToWords(num) {
-    // This is a placeholder. Implement a proper number-to-words conversion function.
-    // Example: 1234.56 -> "One Thousand Two Hundred Thirty Four Rupees and Fifty Six Paise Only"
-
-    // Basic implementation for demonstration:
-    const units = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-    const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-    const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-    const thousands = ["", "Thousand", "Million", "Billion"]; // Extend if needed
-
-    if (num === 0) return "Zero Rupees";
-
-    let numStr = num.toString();
-    let decimalPart = '';
-    if (numStr.includes('.')) {
-        const parts = numStr.split('.');
-        numStr = parts[0];
-        const paise = parseInt(parts[1] || '00');
-        if (paise > 0) {
-            decimalPart = " and " + units[Math.floor(paise / 10)] + (paise % 10 ? "-" + units[paise % 10] : "");
-        }
-    }
-
-    let word = '';
-    let i = 0; // Index for thousands array
-
-    while (numStr.length > 0) {
-        let chunk = parseInt(numStr.substring(numStr.length - 3));
-        numStr = numStr.substring(0, numStr.length - 3);
-
-        if (chunk > 0) {
-            let chunkWord = '';
-            // Handle hundreds
-            if (Math.floor(chunk / 100) > 0) {
-                chunkWord += units[Math.floor(chunk / 100)] + " Hundred";
-                chunk %= 100;
-            }
-            // Handle tens and units
-            if (chunk > 0) {
-                if (chunkWord.length > 0) chunkWord += " ";
-                if (chunk < 10) {
-                    chunkWord += units[chunk];
-                } else if (chunk < 20) {
-                    chunkWord += teens[chunk - 10];
-                } else {
-                    chunkWord += tens[Math.floor(chunk / 10)];
-                    if (chunk % 10 > 0) {
-                        chunkWord += "-" + units[chunk % 10];
-                    }
-                }
-            }
-            word = chunkWord + (thousands[i] ? " " + thousands[i] : "") + " " + word;
-        }
-        i++;
-    }
-
-    word = word.trim();
-    if (!word) word = "Zero"; // Fallback if something went wrong
-
-    return word + " Rupees" + decimalPart + " Only"; // Added "Only" for standard invoicing
-}
-
-function viewStockHistory(productId) {
-    try {
-        // Show loading state
-        $('#stockHistoryContent').html('<div class="text-center py-4"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading stock history...</p></div>');
-
-        const modal = new bootstrap.Modal($('#stockHistoryModal'));
-        modal.show();
-    } catch (error) {
-        console.error('Error showing stock history modal:', error);
-        alert('Error opening stock history. Please refresh the page and try again.');
+    if (!data.name || !data.phone) {
+        alert('Customer name and phone are required');
         return;
     }
 
-    // Load the stock history data
-    $.get(`${API_BASE}/products/${productId}/stock-history`, function(data) {
-        const productName = escapeHtml(data.product_name || 'Unknown Product');
+    const url = id ? `${API_BASE}/customers/${id}` : `${API_BASE}/customers`;
+    const method = id ? 'PUT' : 'POST';
 
-        let content = `
-            <div class="mb-3">
-                <h6><i class="bi bi-box-seam"></i> Complete Audit Trail for: <strong>${productName}</strong></h6>
-                <p class="text-muted mb-0"><small>Complete history of all stock movements with running balance</small></p>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-striped table-hover table-bordered">
-                    <thead class="table-dark">
-                        <tr>
-                            <th style="min-width: 150px;"><i class="bi bi-calendar-event"></i> Date & Time</th>
-                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-plus-circle text-success"></i> Stock Added</th>
-                            <th style="min-width: 100px;" class="text-center"><i class="bi bi-dash-circle text-danger"></i> Stock Removed</th>
-                            <th style="min-width: 150px;"><i class="bi bi-receipt"></i> Reference Number</th>
-                            <th style="min-width: 120px;"><i class="bi bi-person"></i> Performed By</th>
-                            <th style="min-width: 120px;" class="text-center"><i class="bi bi-bar-chart"></i> Running Balance</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        if (!data.history || data.history.length === 0) {
-            content += '<tr><td colspan="6" class="text-center text-muted"><i class="bi bi-inbox"></i><br>No stock movements found for this product</td></tr>';
-        } else {
-            let totalAdded = 0;
-            let totalRemoved = 0;
-
-            data.history.forEach((item, index) => {
-                try {
-                    const dateStr = item.date_time || '';
-                    const date =new Date(dateStr);
-                    const formattedDate = !isNaN(date.getTime()) ? date.toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                    }) : 'Invalid Date';
-                    const formattedTime = !isNaN(date.getTime()) ? date.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    }) : '';
-
-                    const stockAddedVal = parseInt(item.stock_added) || 0;
-                    const stockRemovedVal = parseInt(item.stock_removed) || 0;
-
-                    const stockAdded = stockAddedVal > 0
-                        ? `<span class="badge bg-success">+${stockAddedVal}</span>`
-                        : '<span class="text-muted">-</span>';
-
-                    const stockRemoved = stockRemovedVal > 0
-                        ? `<span class="badge bg-danger">-${stockRemovedVal}</span>`
-                        : '<span class="text-muted">-</span>';
-
-                    const reference = escapeHtml(item.reference || 'Manual Entry');
-                    const performedBy = escapeHtml(item.received_by || 'System');
-
-                    const runningBalance = parseInt(item.running_balance) || 0;
-
-                    // Determine balance color based on stock level
-                    let balanceClass = 'text-primary';
-                    if (runningBalance === 0) {
-                        balanceClass = 'text-danger';
-                    } else if (runningBalance < 10) {
-                        balanceClass = 'text-warning';
-                    }
-
-                    totalAdded += stockAddedVal;
-                    totalRemoved += stockRemovedVal;
-
-                    content += `
-                        <tr>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-bold">${formattedDate}</span>
-                                    <small class="text-muted">${formattedTime}</small>
-                                </div>
-                            </td>
-                            <td class="text-center">${stockAdded}</td>
-                            <td class="text-center">${stockRemoved}</td>
-                            <td>
-                                <span class="badge bg-info bg-opacity-10 text-dark">
-                                    <i class="bi bi-link-45deg"></i> ${reference}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary bg-opacity-10 text-dark">
-                                    <i class="bi bi-person-circle"></i> ${performedBy}
-                                </span>
-                            </td>
-                            <td class="text-center">
-                                <strong class="${balanceClass}" style="font-size: 1.1em;">${runningBalance}</strong>
-                            </td>
-                        </tr>
-                    `;
-                } catch (err) {
-                    console.error('Error rendering row:', err, item);
-                }
-            });
-
-            // Add summary row
-            const currentBalance = data.history.length > 0 ? (parseInt(data.history[data.history.length - 1].running_balance) || 0) : 0;
-
-            content += `
-                    <tr class="table-light fw-bold">
-                        <td class="text-end">SUMMARY:</td>
-                        <td class="text-center text-success">+${totalAdded}</td>
-                        <td class="text-center text-danger">-${totalRemoved}</td>
-                        <td colspan="2" class="text-center">Total Transactions: ${data.history.length}</td>
-                        <td class="text-center text-primary" style="font-size: 1.1em;">${currentBalance}</td>
-                    </tr>
-            `;
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            bootstrap.Modal.getInstance($('#customerModal')).hide();
+            loadCustomersTable();
+            alert('Customer saved successfully');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save customer'));
         }
-
-        content += `
-                    </tbody>
-                </table>
-            </div>
-            <div class="mt-3">
-                <div class="alert alert-info mb-0">
-                    <i class="bi bi-info-circle"></i> <strong>Legend:</strong>
-                    <ul class="mb-0 mt-2">
-                        <li><strong>Stock Added:</strong> Incoming stock from purchases, returns, or manual adjustments</li>
-                        <li><strong>Stock Removed:</strong> Outgoing stock from sales or manual adjustments</li>
-                        <li><strong>Reference Number:</strong> Associated PO number, GRN number, or transaction identifier</li>
-                        <li><strong>Performed By:</strong> User who performed the transaction</li>
-                        <li><strong>Running Balance:</strong> Current stock level after each transaction</li>
-                    </ul>
-                </div>
-            </div>
-        `;
-
-        $('#stockHistoryContent').html(content);
-    }).fail(function(xhr) {
-        console.error('Stock history API error:', xhr);
-        const errorMsg = escapeHtml((xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : 'Failed to load stock history. Please try again.');
-        $('#stockHistoryContent').html(`
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle"></i> <strong>Error:</strong> ${errorMsg}
-                <p class="mb-0 mt-2">Please try again or contact support if the issue persists.</p>
-            </div>
-        `);
     });
 }
 
-// The following functions `viewIMEITracking` and `viewProductDetails` were added as per the thought process.
+function deleteCustomer(id) {
+    if (!confirm('Are you sure you want to delete this customer?')) return;
 
-function viewIMEITracking(productId) {
-    $.get(`${API_BASE}/products/${productId}/imei-tracking`, function(data) {
-        let content = `
-            <div class="mb-3">
-                <h6><strong>Product:</strong> ${data.product_name}</h6>
-                <p class="text-muted">Total IMEI Records: ${data.total_count}</p>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead>
-                        <tr>
-                            <th>IMEI Number</th>
-                            <th>Status</th>
-                            <th>Received Date</th>
-                            <th>Sold Date</th>
-                            <th>Sale Number</th>
-                            <th>Customer</th>
-                            <th>Reference</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        if (data.imei_records.length === 0) {
-            content += '<tr><td colspan="7" class="text-center text-muted">No IMEI records found</td></tr>';
-        } else {
-            data.imei_records.forEach(record => {
-                const statusBadge = record.status === 'available' || record.status === 'in_stock'
-                    ? '<span class="badge bg-success">Available</span>'
-                    : '<span class="badge bg-secondary">Sold</span>';
-
-                const receivedDate = record.created_at ? new Date(record.created_at).toLocaleDateString() : '-';
-                const soldDate = record.sold_date ? new Date(record.sold_date).toLocaleDateString() : '-';
-                const saleNumber = record.sale_number || '-';
-                const customer = record.customer_name || '-';
-                const reference = record.reference || '-';
-
-                content += `
-                    <tr>
-                        <td><code>${record.imei}</code></td>
-                        <td>${statusBadge}</td>
-                        <td>${receivedDate}</td>
-                        <td>${soldDate}</td>
-                        <td>${saleNumber}</td>
-                        <td>${customer}</td>
-                        <td>${reference}</td>
-                    </tr>
-                `;
-            });
+    $.ajax({
+        url: `${API_BASE}/customers/${id}`,
+        method: 'DELETE',
+        success: function() {
+            loadCustomersTable();
+            alert('Customer deleted successfully');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to delete customer'));
         }
-
-        content += `
-                    </tbody>
-                </table>
-            </div>
-        `;
-
-        $('#imeiTrackingContent').html(content);
-        const modal = new bootstrap.Modal($('#imeiTrackingModal'));
-        modal.show();
-    }).fail(function(xhr) {
-        alert('Error loading IMEI tracking: ' + (xhr.responseJSON?.error || 'Unknown error'));
-    });
-}
-
-function viewProductDetails(productId) {
-    $.get(`${API_BASE}/products/${productId}`, function(product) {
-        let content = `
-            <div class="row">
-                <div class="col-md-6">
-                    <h6 class="text-primary">Basic Information</h6>
-                    <table class="table table-sm">
-                        <tr><th>SKU:</th><td>${product.sku || '-'}</td></tr>
-                        <tr><th>Name:</th><td><strong>${product.name}</strong></td></tr>
-                        <tr><th>Category:</th><td>${product.category_name || '-'}</td></tr>
-                        <tr><th>Brand:</th><td>${product.brand_name || '-'}</td></tr>
-                        <tr><th>Model:</th><td>${product.model_name || '-'}</td></tr>
-                        <tr><th>Description:</th><td>${product.description || '-'}</td></tr>
-                        <tr><th>Status:</th><td><span class="badge bg-${product.status === 'active' ? 'success' : 'secondary'}">${product.status}</span></td></tr>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <h6 class="text-primary">Pricing & Stock</h6>
-                    <table class="table table-sm">
-                        <tr><th>Cost Price:</th><td>$${parseFloat(product.cost_price || 0).toFixed(2)}</td></tr>
-                        <tr><th>Selling Price:</th><td>$${parseFloat(product.selling_price || 0).toFixed(2)}</td></tr>
-                        <tr><th>MRP:</th><td>$${parseFloat(product.mrp || 0).toFixed(2)}</td></tr>
-                        <tr><th>Current Stock:</th><td><strong>${product.current_stock}</strong></td></tr>
-                        <tr><th>Min Stock Level:</th><td>${product.min_stock_level}</td></tr>
-                        <tr><th>Opening Stock:</th><td>${product.opening_stock || 0}</td></tr>
-                        <tr><th>Storage Location:</th><td>${product.storage_location || '-'}</td></tr>
-                    </table>
-                </div>
-            </div>
-            <div class="row mt-3">
-                <div class="col-md-12">
-                    <h6 class="text-primary">Additional Details</h6>
-                    <table class="table table-sm">
-                        <tr><th>Color:</th><td>${product.color || '-'}</td></tr>
-                        <tr><th>Storage Capacity:</th><td>${product.storage_capacity || '-'}</td></tr>
-                        <tr><th>RAM:</th><td>${product.ram || '-'}</td></tr>
-                        <tr><th>Warranty Period:</th><td>${product.warranty_period || '-'}</td></tr>
-                        <tr><th>Supplier Name:</th><td>${product.supplier_name || '-'}</td></tr>
-                        <tr><th>Supplier Contact:</th><td>${product.supplier_contact || '-'}</td></tr>
-                        <tr><th>Created At:</th><td>${new Date(product.created_at).toLocaleString()}</td></tr>
-                        <tr><th>Updated At:</th><td>${new Date(product.updated_at).toLocaleString()}</td></tr>
-                    </table>
-                </div>
-            </div>
-        `;
-
-        $('#productDetailsContent').html(content);
-        const modal = new bootstrap.Modal($('#productDetailsModal'));
-        modal.show();
-    }).fail(function(xhr) {
-        alert('Error loading product details: ' + (xhr.responseJSON?.error || 'Unknown error'));
     });
 }
 
