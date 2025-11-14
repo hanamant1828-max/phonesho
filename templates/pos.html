@@ -814,17 +814,29 @@
         <div class="pos-main">
             <!-- Left Panel -->
             <div class="left-panel">
+                <!-- Category Selection -->
+                <div class="search-section" style="padding-bottom: 12px; border-bottom: none;">
+                    <div class="search-box" style="max-width: 720px; margin: 0 auto;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--gray-700); font-size: 14px;">
+                            <i class="bi bi-tag-fill"></i> Select Category
+                        </label>
+                        <select id="categorySelect" class="form-select" style="width: 100%; padding: 12px 16px; font-size: 15px; border: 2px solid var(--gray-200); border-radius: var(--border-radius-lg); transition: all 0.16s ease; background: var(--gray-50);">
+                            <option value="">-- Select a category first --</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Search -->
-                <div class="search-section">
+                <div class="search-section" style="padding-top: 12px;">
                     <div class="search-box">
                         <i class="bi bi-search search-icon"></i>
                         <input
                             type="text"
                             id="productSearch"
-                            placeholder="Search product name, SKU or scan barcode..."
-                            autofocus
+                            placeholder="Select a category first to search products..."
+                            disabled
                         />
-                        <button class="scan-btn">
+                        <button class="scan-btn" disabled>
                             <i class="bi bi-upc-scan"></i> Scan
                         </button>
                     </div>
@@ -1012,14 +1024,76 @@
             let currentTransactionType = "sale";
             let searchTimeout = null;
             let currentCartIndexForIMEI = null;
+            let selectedCategoryId = "";
+
+            // Load categories on page load
+            function loadCategories() {
+                $.get(`${API_BASE}/categories`, function(categories) {
+                    const select = $('#categorySelect');
+                    select.empty();
+                    select.append('<option value="">-- Select a category first --</option>');
+                    select.append('<option value="all">All Categories</option>');
+                    
+                    categories.forEach(cat => {
+                        select.append(`<option value="${cat.id}">${cat.name}</option>`);
+                    });
+                }).fail(function() {
+                    alert('Error loading categories');
+                });
+            }
+
+            // Category selection handler
+            $('#categorySelect').on('change', function() {
+                selectedCategoryId = $(this).val();
+                const $searchInput = $('#productSearch');
+                const $scanBtn = $('.scan-btn');
+                
+                if (selectedCategoryId) {
+                    // Enable search
+                    $searchInput.prop('disabled', false);
+                    $searchInput.attr('placeholder', 'Search product name, SKU or scan barcode...');
+                    $searchInput.css('background', 'var(--gray-50)');
+                    $scanBtn.prop('disabled', false);
+                    
+                    // Load products for selected category
+                    loadProductsByCategory(selectedCategoryId);
+                } else {
+                    // Disable search
+                    $searchInput.prop('disabled', true);
+                    $searchInput.attr('placeholder', 'Select a category first to search products...');
+                    $searchInput.css('background', '#f3f4f6');
+                    $searchInput.val('');
+                    $scanBtn.prop('disabled', true);
+                    $('#searchResults').empty();
+                }
+            });
+
+            // Load products by category
+            function loadProductsByCategory(categoryId) {
+                $.get(
+                    `${API_BASE}/pos/products/by-category?category_id=${encodeURIComponent(categoryId)}`,
+                    function (products) {
+                        displaySearchResults(products);
+                    }
+                ).fail(function () {
+                    $("#searchResults").html(
+                        '<div class="text-center text-muted py-3">Error loading products</div>',
+                    );
+                });
+            }
 
             // Product Search
             $("#productSearch").on("input", function () {
                 clearTimeout(searchTimeout);
                 const query = $(this).val().trim();
 
+                if (!selectedCategoryId) {
+                    return;
+                }
+
                 if (query.length < 2) {
-                    $("#searchResults").empty();
+                    // If search is cleared, show category products again
+                    loadProductsByCategory(selectedCategoryId);
                     return;
                 }
 
@@ -1029,8 +1103,9 @@
             });
 
             function searchProducts(query) {
+                const categoryParam = selectedCategoryId ? `&category_id=${encodeURIComponent(selectedCategoryId)}` : '';
                 $.get(
-                    `${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}`,
+                    `${API_BASE}/pos/products/search?q=${encodeURIComponent(query)}${categoryParam}`,
                     function (products) {
                         displaySearchResults(products);
                     },
@@ -2138,7 +2213,7 @@
             });
 
             $(document).ready(function () {
-                $("#productSearch").focus();
+                loadCategories();
                 calculateTotals();
             });
 

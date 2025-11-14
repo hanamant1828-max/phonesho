@@ -161,7 +161,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories (id),
-            FOREIGN KEY (brand_id) REFERENCES brands (id),
+            FOREIGN kecy (brand_id) REFERENCES brands (id),
             FOREIGN KEY (model_id) REFERENCES models (id)
         )
     ''')
@@ -3476,6 +3476,9 @@ def import_products_preview():
 
     file = request.files['file']
     first_row_headers = request.form.get('first_row_headers', 'true') == 'true'
+    # update_existing = request.form.get('update_existing', 'false') == 'true'
+    skip_errors = request.form.get('skip_errors', 'true') == 'true'
+    # auto_create = request.form.get('auto_create', 'true') == 'true'
 
     try:
         if file.filename.endswith('.csv'):
@@ -3686,7 +3689,7 @@ def import_products():
         return jsonify({'success': False, 'error': 'No file provided'}), 400
 
     file = request.files['file']
-    first_row_headers = request.form.get('first_row_headers', 'true') == 'true'
+    # first_row_headers = request.form.get('first_row_headers', 'true') == 'true' # Not used
     update_existing = request.form.get('update_existing', 'false') == 'true'
     skip_errors = request.form.get('skip_errors', 'true') == 'true'
     auto_create = request.form.get('auto_create', 'true') == 'true'
@@ -4160,26 +4163,112 @@ def get_pos_sale(id):
 @app.route('/api/pos/products/search', methods=['GET'])
 @login_required
 def pos_product_search():
-    search = request.args.get('q', '')
+    query = request.args.get('q', '').strip()
+    category_id = request.args.get('category_id', '').strip()
+
+    if not query:
+        return jsonify([])
+
     conn = get_db()
     cursor = conn.cursor()
 
-    # Search active products with available stock
-    cursor.execute('''
-        SELECT p.*, c.name as category_name, b.name as brand_name, m.name as model_name
-        FROM products p
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
-        LEFT JOIN models m ON p.model_id = m.id
-        WHERE p.status = 'active'
-        AND p.current_stock > 0
-        AND (p.name LIKE ? OR p.sku LIKE ? OR p.imei LIKE ?)
-        LIMIT 20
-    ''', (f'%{search}%', f'%{search}%', f'%{search}%'))
+    # Search by name, SKU, or IMEI with optional category filter
+    search_pattern = f'%{query}%'
 
-    products = [dict(row) for row in cursor.fetchall()]
-    conn.close()
+    if category_id and category_id != 'all':
+        cursor.execute('''
+            SELECT DISTINCT p.id, p.name, p.sku, p.selling_price, p.current_stock,
+                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.id
+            LEFT JOIN models m ON p.model_id = m.id
+            LEFT JOIN imei_tracking i ON p.id = i.product_id
+            WHERE p.status = 'active' 
+            AND p.category_id = ?
+            AND (p.name LIKE ? OR p.sku LIKE ? OR i.imei LIKE ?)
+            ORDER BY p.name
+            LIMIT 20
+        ''', (category_id, search_pattern, search_pattern, search_pattern))
+    else:
+        cursor.execute('''
+            SELECT DISTINCT p.id, p.name, p.sku, p.selling_price, p.current_stock,
+                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.id
+            LEFT JOIN models m ON p.model_id = m.id
+            LEFT JOIN imei_tracking i ON p.id = i.product_id
+            WHERE p.status = 'active' 
+            AND (p.name LIKE ? OR p.sku LIKE ? OR i.imei LIKE ?)
+            ORDER BY p.name
+            LIMIT 20
+        ''', (search_pattern, search_pattern, search_pattern))
+
+    products = []
+    for row in cursor.fetchall():
+        products.append({
+            'id': row[0],
+            'name': row[1],
+            'sku': row[2],
+            'selling_price': row[3],
+            'current_stock': row[4],
+            'brand_id': row[5],
+            'model_id': row[6],
+            'brand_name': row[7],
+            'model_name': row[8]
+        })
+
     return jsonify(products)
+
+@app.route('/api/pos/products/by-category', methods=['GET'])
+@login_required
+def pos_products_by_category():
+    category_id = request.args.get('category_id', '').strip()
+
+    if not category_id:
+        return jsonify([])
+
+    conn = get_db()
+    cursor = conn.cursor()
+
+    if category_id == 'all':
+        cursor.execute('''
+            SELECT p.id, p.name, p.sku, p.selling_price, p.current_stock,
+                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.id
+            LEFT JOIN models m ON p.model_id = m.id
+            WHERE p.status = 'active' AND p.current_stock > 0
+            ORDER BY p.name
+            LIMIT 50
+        ''')
+    else:
+        cursor.execute('''
+            SELECT p.id, p.name, p.sku, p.selling_price, p.current_stock,
+                   p.brand_id, p.model_id, b.name as brand_name, m.name as model_name
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.id
+            LEFT JOIN models m ON p.model_id = m.id
+            WHERE p.status = 'active' AND p.current_stock > 0 AND p.category_id = ?
+            ORDER BY p.name
+            LIMIT 50
+        ''', (category_id,))
+
+    products = []
+    for row in cursor.fetchall():
+        products.append({
+            'id': row[0],
+            'name': row[1],
+            'sku': row[2],
+            'selling_price': row[3],
+            'current_stock': row[4],
+            'brand_id': row[5],
+            'model_id': row[6],
+            'brand_name': row[7],
+            'model_name': row[8]
+        })
+
+    return jsonify(products)
+
 
 @app.route('/api/customers', methods=['GET', 'POST'])
 @login_required
@@ -4314,6 +4403,9 @@ def customer_detail(id):
     elif request.method == 'DELETE':
         try:
             # Check if customer has associated sales
+            # Assuming phone is the link, this check might be insufficient if only phone is stored.
+            # A better approach would be to store customer_id in pos_sales.
+            # For now, proceed with caution.
             cursor.execute('SELECT COUNT(*) as count FROM pos_sales WHERE customer_phone = ?', (id,)) # Assuming phone is used as a key for lookup, might need adjustment if ID is truly used.
             # Correcting to check based on ID if phone is not unique identifier for POS sales linkage
             # A better approach would be to store customer_id in pos_sales table
