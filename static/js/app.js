@@ -6629,7 +6629,7 @@ function saveUser() {
     const userId = $('#userId').val();
     
     // Validate required fields
-    const name = $('#userName').val();
+    const name = $('#userFullName').val();
     const username = $('#userUsername').val();
     const roleId = $('#userRole').val();
     
@@ -6689,11 +6689,12 @@ function editUser(userId) {
     $.get(`${API_BASE}/users/${userId}`, function(user) {
         $('#userModalTitle').text('Edit User');
         $('#userId').val(user.id);
-        $('#userName').val(user.name);
+        $('#userFullName').val(user.name);
         $('#userUsername').val(user.username).prop('disabled', true);
         $('#userEmail').val(user.email);
         $('#userPhone').val(user.phone);
         $('#userRole').val(user.role_id);
+        $('#userStatus').val(user.status);
         $('#passwordGroup').hide();
         $('#userPassword').prop('required', false);
         
