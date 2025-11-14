@@ -107,7 +107,7 @@ def admin_required(f):
         cursor = conn.cursor()
         try:
             cursor.execute('''
-                SELECT r.role_name
+                SELECT COALESCE(r.role_name, r.name) as role_name
                 FROM users u
                 JOIN roles r ON u.role_id = r.id
                 WHERE u.id = ?
@@ -130,9 +130,9 @@ def authenticate_user(username, password):
     cursor = conn.cursor()
     
     try:
-        # Get user details
+        # Get user details - use COALESCE to handle both 'name' and 'role_name' columns
         cursor.execute('''
-            SELECT u.*, r.role_name
+            SELECT u.*, COALESCE(r.role_name, r.name) as role_name
             FROM users u
             JOIN roles r ON u.role_id = r.id
             WHERE u.username = ?
