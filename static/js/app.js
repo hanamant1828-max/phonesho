@@ -6624,3 +6624,104 @@ function loadRolesDropdown(selectedRoleId) {
         alert('Failed to load roles. Please try again.');
     });
 }
+
+function saveUser() {
+    const userId = $('#userId').val();
+    const data = {
+        name: $('#userName').val(),
+        username: $('#userUsername').val(),
+        email: $('#userEmail').val(),
+        phone: $('#userPhone').val(),
+        role_id: parseInt($('#userRole').val())
+    };
+
+    if (!userId) {
+        data.password = $('#userPassword').val();
+        
+        if (!data.password || data.password.length < 6) {
+            alert('Password must be at least 6 characters');
+            return;
+        }
+    }
+
+    const url = userId ? `${API_BASE}/users/${userId}` : `${API_BASE}/users`;
+    const method = userId ? 'PUT' : 'POST';
+
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function() {
+            bootstrap.Modal.getInstance($('#userModal')).hide();
+            loadUsersData();
+            alert('User saved successfully');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to save user'));
+        }
+    });
+}
+
+function editUser(userId) {
+    $.get(`${API_BASE}/users/${userId}`, function(user) {
+        $('#userModalTitle').text('Edit User');
+        $('#userId').val(user.id);
+        $('#userName').val(user.name);
+        $('#userUsername').val(user.username).prop('disabled', true);
+        $('#userEmail').val(user.email);
+        $('#userPhone').val(user.phone);
+        $('#userRole').val(user.role_id);
+        $('#passwordGroup').hide();
+        $('#userPassword').prop('required', false);
+        
+        loadRolesDropdown(user.role_id);
+        
+        const modal = new bootstrap.Modal($('#userModal'));
+        modal.show();
+    });
+}
+
+function toggleUserStatus(userId, newStatus) {
+    if (!confirm(`Are you sure you want to ${newStatus === 'active' ? 'activate' : 'deactivate'} this user?`)) {
+        return;
+    }
+
+    $.ajax({
+        url: `${API_BASE}/users/${userId}/status`,
+        method: 'PATCH',
+        contentType: 'application/json',
+        data: JSON.stringify({ status: newStatus }),
+        success: function() {
+            loadUsersData();
+            alert('User status updated');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to update status'));
+        }
+    });
+}
+
+function resetPassword(userId) {
+    const newPassword = prompt('Enter new password (min 6 characters):');
+    
+    if (!newPassword) return;
+    
+    if (newPassword.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+
+    $.ajax({
+        url: `${API_BASE}/users/${userId}/reset-password`,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ password: newPassword }),
+        success: function() {
+            alert('Password reset successfully. User will be required to change it on next login.');
+        },
+        error: function(xhr) {
+            alert('Error: ' + (xhr.responseJSON?.error || 'Failed to reset password'));
+        }
+    });
+}
