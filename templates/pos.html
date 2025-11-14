@@ -1241,12 +1241,14 @@
         </div>
 
         <!-- Saved Bills Modal -->
-        <div class="modal fade" id="savedBillsModal" tabindex="-1">
-            <div class="modal-dialog modal-lg">
+        <div class="modal fade" id="savedBillsModal" tabindex="-1" aria-labelledby="savedBillsModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title"><i class="bi bi-folder-open"></i> Saved Bills</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        <h5 class="modal-title" id="savedBillsModalLabel">
+                            <i class="bi bi-folder-open"></i> Saved Bills
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div id="savedBillsList">
@@ -1254,7 +1256,9 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="bi bi-x-circle"></i> Close
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3031,40 +3035,78 @@
                 if (savedBills.length === 0) {
                     container.html(`
                         <div class="text-center text-muted py-5">
-                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                            <p class="mt-3">No saved bills found</p>
+                            <i class="bi bi-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+                            <h5 class="mt-3">No Saved Bills</h5>
+                            <p>Save bills for later access and printing</p>
                         </div>
                     `);
                 } else {
+                    // Sort bills by timestamp (newest first)
+                    savedBills.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    
                     savedBills.forEach((bill, index) => {
                         const date = new Date(bill.timestamp);
-                        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                        const dateStr = date.toLocaleDateString('en-IN', { 
+                            day: '2-digit', 
+                            month: 'short', 
+                            year: 'numeric' 
+                        }) + ' at ' + date.toLocaleTimeString('en-IN', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        });
+                        
+                        const statusBadge = bill.status === 'draft' 
+                            ? '<span class="badge bg-warning text-dark ms-2">Draft</span>' 
+                            : '';
                         
                         container.append(`
-                            <div class="card mb-3">
+                            <div class="card mb-3 shadow-sm">
                                 <div class="card-body">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1"><i class="bi bi-receipt"></i> ${bill.id}</h6>
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <h6 class="mb-1">
+                                                <i class="bi bi-receipt text-primary"></i> 
+                                                <strong>${bill.id}</strong>
+                                                ${statusBadge}
+                                            </h6>
                                             <small class="text-muted">
                                                 <i class="bi bi-clock"></i> ${dateStr}
                                             </small>
-                                            <div class="mt-2">
-                                                <strong>Customer:</strong> ${bill.customer.name || 'Walk-in'}<br>
-                                                <strong>Items:</strong> ${bill.cart.length}<br>
-                                                <strong>Total:</strong> ₹${bill.billing.total.toFixed(2)}
+                                            <hr class="my-2">
+                                            <div class="row mt-2">
+                                                <div class="col-6">
+                                                    <small class="text-muted">Customer:</small><br>
+                                                    <strong>${bill.customer.name || 'Walk-in Customer'}</strong>
+                                                </div>
+                                                <div class="col-3">
+                                                    <small class="text-muted">Items:</small><br>
+                                                    <strong>${bill.cart.length}</strong>
+                                                </div>
+                                                <div class="col-3">
+                                                    <small class="text-muted">Total:</small><br>
+                                                    <strong class="text-success">₹${bill.billing.total.toFixed(2)}</strong>
+                                                </div>
                                             </div>
+                                            ${bill.customer.phone ? `
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-phone"></i> ${bill.customer.phone}
+                                                    </small>
+                                                </div>
+                                            ` : ''}
                                         </div>
-                                        <div class="btn-group-vertical">
-                                            <button class="btn btn-success btn-sm mb-1" onclick="loadSavedBill(${index})">
-                                                <i class="bi bi-arrow-down-circle"></i> Load
-                                            </button>
-                                            <button class="btn btn-primary btn-sm mb-1" onclick="printSavedBill(${index})">
-                                                <i class="bi bi-printer"></i> Print
-                                            </button>
-                                            <button class="btn btn-danger btn-sm" onclick="deleteSavedBill(${index})">
-                                                <i class="bi bi-trash"></i> Delete
-                                            </button>
+                                        <div class="col-md-4 d-flex align-items-center justify-content-end">
+                                            <div class="btn-group-vertical w-100">
+                                                <button class="btn btn-success btn-sm" onclick="loadSavedBill(${index})">
+                                                    <i class="bi bi-arrow-down-circle"></i> Load to Cart
+                                                </button>
+                                                <button class="btn btn-primary btn-sm" onclick="printSavedBill(${index})">
+                                                    <i class="bi bi-printer-fill"></i> Print Invoice
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" onclick="deleteSavedBill(${index})">
+                                                    <i class="bi bi-trash3-fill"></i> Delete
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -3073,7 +3115,8 @@
                     });
                 }
 
-                const modal = new bootstrap.Modal($('#savedBillsModal'));
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('savedBillsModal'));
                 modal.show();
             }
 
