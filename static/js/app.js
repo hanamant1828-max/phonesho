@@ -6627,12 +6627,34 @@ function loadRolesDropdown(selectedRoleId) {
 
 function saveUser() {
     const userId = $('#userId').val();
+    
+    // Validate required fields
+    const name = $('#userName').val();
+    const username = $('#userUsername').val();
+    const roleId = $('#userRole').val();
+    
+    if (!name || !name.trim()) {
+        alert('Name is required');
+        return;
+    }
+    
+    if (!username || !username.trim()) {
+        alert('Username is required');
+        return;
+    }
+    
+    if (!roleId) {
+        alert('Please select a role');
+        return;
+    }
+    
     const data = {
-        name: $('#userName').val(),
-        username: $('#userUsername').val(),
-        email: $('#userEmail').val(),
-        phone: $('#userPhone').val(),
-        role_id: parseInt($('#userRole').val())
+        name: name.trim(),
+        username: username.trim(),
+        email: $('#userEmail').val() || '',
+        phone: $('#userPhone').val() || '',
+        role_id: parseInt(roleId),
+        status: $('#userStatus').val() || 'active'
     };
 
     if (!userId) {
