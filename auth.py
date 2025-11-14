@@ -166,7 +166,7 @@ def authenticate_user(username, password):
         if user['failed_login_attempts'] >= 5:
             cursor.execute('UPDATE users SET status = ? WHERE id = ?', ('locked', user['id']))
             conn.commit()
-            log_audit(user['id'], 'account_locked', details='Account locked due to multiple failed login attempts', ip_address=request.remote_addr, device_info=request.headers.get('User-Agent'))
+            log_audit(user['id'], 'account_locked', details='Account locked due to multiple failed login attempts')
             return None, "Account locked due to multiple failed login attempts"
 
         # Verify password
@@ -180,7 +180,7 @@ def authenticate_user(username, password):
             conn.commit()
 
             # Log successful login
-            log_audit(user['id'], 'login_success', details=f'User {username} logged in successfully', ip_address=request.remote_addr, device_info=request.headers.get('User-Agent'))
+            log_audit(user['id'], 'login_success', details=f'User {username} logged in successfully')
 
             return dict(user), None
         else:
@@ -193,7 +193,7 @@ def authenticate_user(username, password):
             conn.commit()
 
             # Log failed login
-            log_audit(user['id'], 'login_failed', details=f'Failed login attempt for user {username}', ip_address=request.remote_addr, device_info=request.headers.get('User-Agent'))
+            log_audit(user['id'], 'login_failed', details=f'Failed login attempt for user {username}')
 
             return None, "Invalid username or password"
 
