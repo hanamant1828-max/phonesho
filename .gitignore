@@ -1,4 +1,4 @@
-.pythonlibs/
+
 __pycache__/
 *.pyc
 *.pyo
@@ -9,18 +9,10 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.venv/
+.env
+.venv
 venv/
 ENV/
-env/
-
-*.db
-*.sqlite
-*.sqlite3
-
 .DS_Store
-.env
 .vscode/
 .idea/
-
-*.log
