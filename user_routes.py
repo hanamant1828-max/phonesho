@@ -8,7 +8,7 @@ from datetime import datetime
 user_bp = Blueprint('user_management', __name__)
 
 def get_db():
-    conn = sqlite3.connect('mobile_shop.db')
+    conn = sqlite3.connect('inventory.db')
     conn.row_factory = sqlite3.Row
     return conn
 

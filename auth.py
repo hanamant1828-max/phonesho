@@ -6,7 +6,7 @@ import bcrypt
 from datetime import datetime
 
 def get_db():
-    conn = sqlite3.connect('mobile_shop.db')
+    conn = sqlite3.connect('inventory.db')
     conn.row_factory = sqlite3.Row
     return conn
 
