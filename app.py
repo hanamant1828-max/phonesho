@@ -161,7 +161,7 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories (id),
-            FOREIGN kecy (brand_id) REFERENCES brands (id),
+            FOREIGN KEY (brand_id) REFERENCES brands (id),
             FOREIGN KEY (model_id) REFERENCES models (id)
         )
     ''')
